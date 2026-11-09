@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (2)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>2</WariantFormularza>
+    <DataWytworzeniaFa>2026-01-15T09:30:00Z</DataWytworzeniaFa>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>1234567890</NIP>
+      <Nazwa>Cloud Provider Polska Sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresPol>
+        <KodPocztowy>30-001</KodPocztowy>
+        <Miejscowosc>Kraków</Miejscowosc>
+        <Ulica>Floriańska</Ulica>
+        <NrDomu>5</NrDomu>
+      </AdresPol>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Solutions Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresPol>
+        <KodPocztowy>00-001</KodPocztowy>
+        <Miejscowosc>Warszawa</Miejscowosc>
+        <Ulica>Prosta</Ulica>
+        <NrDomu>10</NrDomu>
+      </AdresPol>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-01-15</P_1>
+    <P_2>FV/CLOUD/2026/01/99</P_2>
+    <P_6>2026-01-15</P_6>
+    <P_13_1>600.00</P_13_1>
+    <P_14_1>138.00</P_14_1>
+    <P_15>738.00</P_15>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Usługi serwerowe w chmurze i baza danych</P_7>
+      <P_8A>szt</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>600.00</P_9A>
+      <P_11>600.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+  </Fa>
+</Faktura>

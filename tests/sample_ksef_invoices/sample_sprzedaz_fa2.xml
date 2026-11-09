@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (2)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>2</WariantFormularza>
+    <DataWytworzeniaFa>2026-01-31T12:00:00Z</DataWytworzeniaFa>
+    <SystemInfo>TaxPilot AI</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Solutions Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresPol>
+        <KodPocztowy>00-001</KodPocztowy>
+        <Miejscowosc>Warszawa</Miejscowosc>
+        <Ulica>Prosta</Ulica>
+        <NrDomu>10</NrDomu>
+      </AdresPol>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>5250000000</NIP>
+      <Nazwa>KorpoTech Sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresPol>
+        <KodPocztowy>00-001</KodPocztowy>
+        <Miejscowosc>Warszawa</Miejscowosc>
+        <Ulica>Marszałkowska</Ulica>
+        <NrDomu>100</NrDomu>
+      </AdresPol>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-01-31</P_1>
+    <P_2>FV/2026/01/001</P_2>
+    <P_6>2026-01-31</P_6>
+    <P_13_1>15000.00</P_13_1>
+    <P_14_1>3450.00</P_14_1>
+    <P_15>18450.00</P_15>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Usługi programistyczne i doradztwo IT (styczeń 2026)</P_7>
+      <P_8A>m-c</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>15000.00</P_9A>
+      <P_11>15000.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+  </Fa>
+</Faktura>

@@ -1,0 +1,60 @@
+"""
+Testy jednostkowe silnika rozliczeń podatkowych (SettlementService, BookkeepingService, ZUS, PIT-28, VAT).
+"""
+
+import unittest
+from decimal import Decimal
+
+from src.core.company import CompanyProfile
+from src.level_3_tax_settlement.settlement_service import SettlementService
+from tests.fixtures import setup_test_company, cleanup_test_company
+
+
+class TestSettlementService(unittest.TestCase):
+
+    def setUp(self):
+        self.profile = setup_test_company()
+        self.assertIsNotNone(self.profile)
+
+    def tearDown(self):
+        cleanup_test_company(self.profile)
+
+    def test_settle_april_2026(self):
+        # Rozliczenie kwietnia z uwzględnieniem nadwyżki VAT z poprzednich miesięcy
+        result = SettlementService.settle_month(
+            self.profile, "2026", "04", nadwyzka_vat_poprzedni=Decimal("217.10"), zapisz_raporty=False
+        )
+
+        self.assertEqual(result.rok, "2026")
+        self.assertEqual(result.miesiac, "04")
+
+        # 2 faktury sprzedaży
+        self.assertEqual(len(result.ledger.ewidencja_przychodow.wpisy), 2)
+        self.assertEqual(result.ledger.ewidencja_przychodow.laczny_przychod_netto, Decimal("38969.00"))
+
+        # ZUS
+        self.assertEqual(result.zus.podstawa_spoleczne, Decimal("5304.00"))
+        self.assertEqual(result.zus.suma_spoleczne, Decimal("1808.14"))
+        self.assertEqual(result.zus.zdrowotna, Decimal("496.80"))
+        self.assertEqual(result.zus.lacznie_do_zaplaty, Decimal("2304.94"))
+
+        # PIT-28
+        self.assertIsNotNone(result.pit28)
+        self.assertEqual(result.pit28.przychod_laczny, Decimal("38969.00"))
+        self.assertEqual(result.pit28.odliczenie_spoleczne, Decimal("1808.14"))
+        self.assertEqual(result.pit28.odliczenie_zdrowotna_50, Decimal("248.40"))
+        self.assertEqual(result.pit28.podstawa_opodatkowania, Decimal("36912.46"))
+        self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 4430)
+
+        # VAT
+        self.assertIsNotNone(result.vat)
+        self.assertEqual(result.vat.vat_nalezy, Decimal("8962.87"))
+        self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 8567)
+
+        # Paczka przelewów
+        self.assertEqual(len(result.paczka_przelewow), 3)
+        self.assertEqual(result.suma_wszystkich_zobowiazan, Decimal("15301.94"))
+
+
+if __name__ == "__main__":
+    unittest.main()
