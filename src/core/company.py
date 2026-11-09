@@ -5,7 +5,7 @@ Modele danych profilu firmy podatnika i konfiguracji podatkowo-składkowej.
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import json
 import re
 
@@ -72,6 +72,9 @@ class CompanyProfile:
     zus: ZUSConfig = field(default_factory=ZUSConfig)
     ksef: KSeFConfig = field(default_factory=KSeFConfig)
     katalog_nazwa: Optional[str] = None
+    kody_pkd: List[str] = field(default_factory=list)
+    regon: Optional[str] = None
+    adres: Optional[str] = None
 
     def __post_init__(self):
         # Wyczyszczenie NIP z myślników i spacji
@@ -97,6 +100,9 @@ class CompanyProfile:
             platnik_vat=bool(data.get("platnik_vat", True)),
             zus=ZUSConfig.from_dict(zus_data),
             ksef=KSeFConfig.from_dict(ksef_data),
+            kody_pkd=list(data.get("kody_pkd", [])),
+            regon=data.get("regon"),
+            adres=data.get("adres"),
         )
 
     def to_dict(self) -> Dict[str, Any]:

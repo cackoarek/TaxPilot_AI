@@ -9,9 +9,11 @@ Pozwala na:
 
 import argparse
 import sys
+import re
 from decimal import Decimal
+from datetime import datetime
 
-from src.core.company import CompanyProfile
+from src.core.company import CompanyProfile, FormaOpodatkowania, ZUSConfig, KSeFConfig, TypZUS
 from src.level_1_ingestion.ksef_client import KSeFClient
 from src.level_3_tax_settlement.settlement_service import SettlementService
 from src.skills.tax_advisor_tools import simulate_tax_regimes, audit_expense_leaks
@@ -202,6 +204,116 @@ def cmd_extract_non_ksef(args):
         print(f" * Zapisano: {p.parent.parent.name}/{p.parent.name}/{p.name}")
 
 
+def cmd_init_company(args):
+    """Inicjalizuje profil nowej firmy, tworzy katalogi oraz reguły podatkowe."""
+    from src.level_1_ingestion.company_fetcher import CompanyFetcher
+    from src.skills.cost_classifier import RegulyKosztoweFirmy, RegulaPozycji, KwalifikacjaKosztu
+    from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
+
+    nip_clean = re.sub(r"[^0-9]", "", args.nip)
+    if len(nip_clean) != 10:
+        print(f"Błąd: Nieprawidłowy NIP ({args.nip}). Polski NIP musi składać się z 10 cyfr.")
+        sys.exit(1)
+
+    existing = CompanyProfile.load_by_nip(nip_clean)
+    if existing and not args.force:
+        print(f"Uwaga: Profil firmy z NIP {nip_clean} już istnieje ({existing.nazwa}).")
+        print(f"Ścieżka: {existing.katalog_firmy}")
+        print("Użyj flagi --force, jeśli chcesz nadpisać profil.")
+        return
+
+    nazwa = args.nazwa
+    adres = args.adres
+    regon = args.regon
+    platnik_vat = not args.zwolniony_z_vat
+    kody_pkd = [p.strip().upper() for p in args.pkd.split(",") if p.strip()] if args.pkd else []
+
+    # 1. Automatyczne pobranie danych z rejestrów publicznych
+    if not args.no_fetch:
+        print(f"🔍 Wyszukiwanie danych firmy w rejestrach publicznych (Biała Lista MF / CEIDG) dla NIP: {nip_clean}...")
+        public_data = CompanyFetcher.fetch_company_info(nip_clean, ceidg_token=args.ceidg_token)
+        if public_data.get("nazwa") and not nazwa:
+            nazwa = public_data["nazwa"]
+            print(f" * Pobrano oficjalną nazwę: {nazwa}")
+        if public_data.get("adres") and not adres:
+            adres = public_data["adres"]
+            print(f" * Pobrano adres rejestrowy: {adres}")
+        if public_data.get("regon") and not regon:
+            regon = public_data["regon"]
+            print(f" * Pobrano REGON: {regon}")
+        if "platnik_vat" in public_data and not args.zwolniony_z_vat:
+            platnik_vat = public_data["platnik_vat"]
+            status_txt = "Czynny podatnik VAT" if platnik_vat else "Zwolniony z VAT"
+            print(f" * Status VAT w MF: {status_txt}")
+        if public_data.get("kody_pkd") and not kody_pkd:
+            kody_pkd = public_data["kody_pkd"]
+            print(f" * Pobrano kody PKD z CEIDG: {', '.join(kody_pkd)}")
+
+    if not nazwa:
+        nazwa = f"Firma {nip_clean}"
+
+    forma = FormaOpodatkowania(args.forma.upper())
+    zus_typ = TypZUS(args.zus.upper())
+    chorobowe = not args.bez_chorobowego
+
+    profile = CompanyProfile(
+        nip=nip_clean,
+        nazwa=nazwa,
+        forma_opodatkowania=forma,
+        domyslna_stawka_ryczaltu=float(args.stawka_ryczaltu),
+        platnik_vat=platnik_vat,
+        zus=ZUSConfig(typ=zus_typ, chorobowe_dobrowolne=chorobowe),
+        ksef=KSeFConfig(srodowisko=args.srodowisko.upper(), token=args.token),
+        kody_pkd=kody_pkd,
+        regon=regon,
+        adres=adres
+    )
+    profil_path = profile.save()
+
+    # 2. Generowanie wstępnych reguł kosztowych
+    reguly = RegulyKosztoweFirmy(nip_firmy=nip_clean)
+    reguly.reguly_globalne.append(
+        RegulaPozycji(wzorzec="paliwo", kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50, uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)")
+    )
+    is_it = any(code.startswith(("62.", "58.2", "63.")) for code in kody_pkd)
+    if is_it or not kody_pkd:
+        reguly.reguly_globalne.extend([
+            RegulaPozycji(wzorzec="hosting", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Infrastruktura serwerowa i chmurowa"),
+            RegulaPozycji(wzorzec="cloud", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Usługi chmurowe"),
+            RegulaPozycji(wzorzec="serwer", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Serwery i bazy danych"),
+            RegulaPozycji(wzorzec="oprogramowanie", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Licencje na oprogramowanie"),
+        ])
+    reguly.save(profile)
+
+    # 3. Puste reguły sprzedaży
+    reguly_sprz = RegulySprzedazyFirmy(nip_firmy=nip_clean)
+    reguly_sprz.save(profile)
+
+    # 4. Inicjalizacja struktury katalogów na faktury i rozliczenia
+    rok_akt = str(datetime.now().year)
+    for m in range(1, 13):
+        m_str = f"{m:02d}"
+        for kierunek in ["sprzedaz", "koszty"]:
+            for sub in ["ksef", "non-ksef-raw", "non-ksef-extracted"]:
+                (profile.katalog_firmy / "faktury" / rok_akt / m_str / kierunek / sub).mkdir(parents=True, exist_ok=True)
+    (profile.katalog_firmy / "rozliczenia").mkdir(parents=True, exist_ok=True)
+
+    print("\n🎉 Firma została pomyślnie zainicjowana!")
+    print(f" * NIP: {profile.nip}")
+    print(f" * Nazwa: {profile.nazwa}")
+    print(f" * Adres: {profile.adres or 'Brak'}")
+    print(f" * Forma opodatkowania: {profile.forma_opodatkowania.value} (stawka: {profile.domyslna_stawka_ryczaltu*100:.1f}%)")
+    print(f" * ZUS: {profile.zus.typ.value} (chorobowe: {'TAK' if profile.zus.chorobowe_dobrowolne else 'NIE'})")
+    print(f" * Kody PKD: {', '.join(profile.kody_pkd) if profile.kody_pkd else 'Nie podano'}")
+    print(f" * KSeF: Środowisko {profile.ksef.srodowisko}, Token: {'Skonfigurowany ✅' if profile.ksef.token else 'Brak (wymaga uzupełnienia) ⚠️'}")
+    print(f" * Katalog firmy: {profile.katalog_firmy}")
+    print(f" * Plik profilu: {profil_path}")
+    if not profile.ksef.token:
+        print("\n💡 Kolejny krok:")
+        print(f"   Wygeneruj token w Aplikacji Podatnika KSeF i uruchom:")
+        print(f"   python -m src.cli set-token --nip {profile.nip} --token \"<TWOJ_TOKEN>\" --srodowisko {profile.ksef.srodowisko}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="TaxPilot AI - Autonomiczny Asystent Podatkowy JDG")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -283,6 +395,25 @@ def main():
     p_tok.add_argument("--token", required=True, help="Token autoryzacyjny KSeF")
     p_tok.add_argument("--srodowisko", choices=["TEST", "DEMO", "PROD"], default=None, help="Środowisko KSeF (TEST / DEMO / PROD)")
     p_tok.set_defaults(func=cmd_set_token)
+
+    # Polecenie init-firma (onboarding nowego konta)
+    p_init = subparsers.add_parser("init-firma", aliases=["init"], help="Zainicjalizuj nowy profil firmy i strukturę katalogów")
+    p_init.add_argument("--nip", required=True, help="10-cyfrowy NIP firmy")
+    p_init.add_argument("--nazwa", default=None, help="Nazwa firmy (pobrana automatycznie z rejestru jeśli brak)")
+    p_init.add_argument("--adres", default=None, help="Adres firmy (pobrany automatycznie z rejestru jeśli brak)")
+    p_init.add_argument("--regon", default=None, help="REGON firmy (pobrany automatycznie z rejestru jeśli brak)")
+    p_init.add_argument("--forma", default="RYCZALT", choices=["RYCZALT", "LINIOWY", "SKALA"], help="Forma opodatkowania")
+    p_init.add_argument("--stawka-ryczaltu", type=float, default=0.12, help="Domyślna stawka ryczałtu (np. 0.12)")
+    p_init.add_argument("--zwolniony-z-vat", action="store_true", help="Oznacz, jeśli firma jest zwolniona z VAT")
+    p_init.add_argument("--zus", default="PELNY_ZUS", choices=["PELNY_ZUS", "MALY_ZUS_PLUS", "ULGA_NA_START"], help="Schemat składek ZUS")
+    p_init.add_argument("--bez-chorobowego", action="store_true", help="Wyłącz dobrowolne ubezpieczenie chorobowe ZUS")
+    p_init.add_argument("--pkd", default=None, help="Kody PKD po przecinku (np. '62.01.Z,62.02.Z')")
+    p_init.add_argument("--token", default=None, help="Token autoryzacyjny KSeF")
+    p_init.add_argument("--srodowisko", default="PROD", choices=["TEST", "DEMO", "PROD"], help="Środowisko KSeF")
+    p_init.add_argument("--no-fetch", action="store_true", help="Pomiń pobieranie danych z rejestrów publicznych online")
+    p_init.add_argument("--ceidg-token", default=None, help="Opcjonalny token API CEIDG (dane.biznes.gov.pl)")
+    p_init.add_argument("--force", action="store_true", help="Nadpisz profil jeśli już istnieje")
+    p_init.set_defaults(func=cmd_init_company)
 
     args = parser.parse_args()
     args.func(args)

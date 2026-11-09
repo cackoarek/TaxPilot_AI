@@ -109,7 +109,7 @@ class BookkeepingService:
         for inv in faktury_koszt:
             forced_prop = custom_vat.get(inv.numer)
             # Audyt pozycji kosztowych
-            report = audit_invoice_expense(inv, reguly_firmy)
+            report = audit_invoice_expense(inv, reguly_firmy, kody_pkd=profile.kody_pkd)
             audyty_kosztow.append(report)
             if report.wymaga_wyjasnienia:
                 pytania_uzytkownika.extend(report.pytania_do_uzytkownika)

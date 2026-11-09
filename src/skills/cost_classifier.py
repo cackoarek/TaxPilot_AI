@@ -174,7 +174,8 @@ class CostClassifier:
         cls,
         item: InvoiceItem,
         seller_nip: str,
-        reguly_firmy: RegulyKosztoweFirmy
+        reguly_firmy: RegulyKosztoweFirmy,
+        kody_pkd: Optional[List[str]] = None,
     ) -> PozycjaKwalifikacjaResult:
         desc_clean = item.opis.strip().lower()
 
@@ -223,18 +224,20 @@ class CostClassifier:
         # 3d. Firmowe
         for pattern in HEURYSTYKI_FIRMOWE:
             if re.search(pattern, desc_clean):
+                pkd_info = f" (zbieżne z PKD firmy: {', '.join(kody_pkd[:3])})" if kody_pkd else ""
                 return cls._build_result(
                     item,
                     KwalifikacjaKosztu.FIRMOWY_100,
-                    "Wydatek firmowy związany z prowadzoną działalnością IT",
+                    f"Wydatek firmowy związany z prowadzoną działalnością{pkd_info}",
                     "HEURYSTYKA"
                 )
 
         # Domyślnie – jeśli nic nie pasuje: firmowy 100% z ostrożną notatką
+        pkd_domyslne = f" (profil PKD: {', '.join(kody_pkd[:2])})" if kody_pkd else ""
         return cls._build_result(
             item,
             KwalifikacjaKosztu.FIRMOWY_100,
-            "Standardowy wydatek bieżący firmy",
+            f"Standardowy wydatek bieżący firmy{pkd_domyslne}",
             "DOMYSLNA"
         )
 
@@ -317,7 +320,8 @@ class InvoiceTaxAuditReport:
 
 def audit_invoice_expense(
     invoice: Invoice,
-    reguly_firmy: RegulyKosztoweFirmy
+    reguly_firmy: RegulyKosztoweFirmy,
+    kody_pkd: Optional[List[str]] = None,
 ) -> InvoiceTaxAuditReport:
     """
     Przeprowadza szczegółowy audyt pozycji faktury kosztowej.
@@ -327,7 +331,7 @@ def audit_invoice_expense(
 
     if invoice.pozycje:
         for p in invoice.pozycje:
-            res = CostClassifier.classify_item(p, invoice.sprzedawca.nip, reguly_firmy)
+            res = CostClassifier.classify_item(p, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
             pozycje_wyniki.append(res)
             if res.kwalifikacja == KwalifikacjaKosztu.DO_WYJASNIENIA:
                 pytania.append(
@@ -341,7 +345,7 @@ def audit_invoice_expense(
             kwota_vat=invoice.suma_vat,
             wartosc_brutto=invoice.suma_brutto
         )
-        res = CostClassifier.classify_item(dummy_item, invoice.sprzedawca.nip, reguly_firmy)
+        res = CostClassifier.classify_item(dummy_item, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
         pozycje_wyniki.append(res)
 
     kwalifikowane_netto = sum((p.netto_do_kup for p in pozycje_wyniki), Decimal("0.00"))

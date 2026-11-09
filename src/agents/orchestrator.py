@@ -111,6 +111,26 @@ GEMINI_TOOL_DECLARATIONS = [
             },
             "required": ["rok", "miesiac"]
         }
+    },
+    {
+        "name": "init_company",
+        "description": "Inicjalizuje nowy profil firmy dla użytkownika (onboarding), pobiera dane rejestrowe z Białej Listy MF i CEIDG oraz zakłada strukturę katalogów.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "nip": {"type": "string", "description": "10-cyfrowy NIP firmy"},
+                "nazwa": {"type": "string", "description": "Opcjonalna nazwa firmy (jeśli nie podano, pobrana z rejestru)"},
+                "forma_opodatkowania": {"type": "string", "enum": ["RYCZALT", "LINIOWY", "SKALA"], "default": "RYCZALT"},
+                "stawka_ryczaltu": {"type": "number", "description": "Domyślna stawka ryczałtu (np. 0.12 dla IT)", "default": 0.12},
+                "platnik_vat": {"type": "boolean", "default": True},
+                "zus_typ": {"type": "string", "enum": ["PELNY_ZUS", "MALY_ZUS_PLUS", "ULGA_NA_START"], "default": "PELNY_ZUS"},
+                "chorobowe_dobrowolne": {"type": "boolean", "default": True},
+                "kody_pkd": {"type": "array", "items": {"type": "string"}, "description": "Lista kodów PKD (np. ['62.01.Z', '62.02.Z'])"},
+                "token_ksef": {"type": "string", "description": "Opcjonalny token KSeF podany przez użytkownika"},
+                "srodowisko_ksef": {"type": "string", "enum": ["TEST", "DEMO", "PROD"], "default": "PROD"}
+            },
+            "required": ["nip"]
+        }
     }
 ]
 
@@ -128,6 +148,86 @@ class TaxOrchestrator:
         Wykonuje narzędzie wybrane przez model LLM.
         """
         nip = args.get("nip") or cls.DEFAULT_NIP
+
+        if name == "init_company":
+            from src.level_1_ingestion.company_fetcher import CompanyFetcher
+            from src.core.company import FormaOpodatkowania, ZUSConfig, KSeFConfig, TypZUS
+            from src.skills.cost_classifier import RegulyKosztoweFirmy, RegulaPozycji, KwalifikacjaKosztu
+            from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
+            from datetime import datetime
+            import re
+
+            clean_nip = re.sub(r"[^0-9]", "", nip)
+            nazwa = args.get("nazwa")
+            kody_pkd = args.get("kody_pkd") or []
+            platnik_vat = args.get("platnik_vat", True)
+            adres = None
+            regon = None
+
+            # Auto-fetch jeśli brak nazwy lub PKD
+            pub_data = CompanyFetcher.fetch_company_info(clean_nip)
+            if pub_data.get("nazwa") and not nazwa:
+                nazwa = pub_data["nazwa"]
+            if pub_data.get("adres"):
+                adres = pub_data["adres"]
+            if pub_data.get("regon"):
+                regon = pub_data["regon"]
+            if "platnik_vat" in pub_data and "platnik_vat" not in args:
+                platnik_vat = pub_data["platnik_vat"]
+            if pub_data.get("kody_pkd") and not kody_pkd:
+                kody_pkd = pub_data["kody_pkd"]
+
+            if not nazwa:
+                nazwa = f"Firma {clean_nip}"
+
+            forma = FormaOpodatkowania(args.get("forma_opodatkowania", "RYCZALT"))
+            zus_typ = TypZUS(args.get("zus_typ", "PELNY_ZUS"))
+            chorobowe = args.get("chorobowe_dobrowolne", True)
+
+            new_profile = CompanyProfile(
+                nip=clean_nip,
+                nazwa=nazwa,
+                forma_opodatkowania=forma,
+                domyslna_stawka_ryczaltu=float(args.get("stawka_ryczaltu", 0.12)),
+                platnik_vat=platnik_vat,
+                zus=ZUSConfig(typ=zus_typ, chorobowe_dobrowolne=chorobowe),
+                ksef=KSeFConfig(
+                    srodowisko=args.get("srodowisko_ksef", "PROD"),
+                    token=args.get("token_ksef")
+                ),
+                kody_pkd=kody_pkd,
+                regon=regon,
+                adres=adres
+            )
+            profil_path = new_profile.save()
+
+            # Utwórz reguły kosztowe
+            reguly = RegulyKosztoweFirmy(nip_firmy=clean_nip)
+            reguly.reguly_globalne.append(
+                RegulaPozycji(wzorzec="paliwo", kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50, uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)")
+            )
+            reguly.save(new_profile)
+
+            # Utwórz reguły sprzedaży
+            reguly_sprz = RegulySprzedazyFirmy(nip_firmy=clean_nip)
+            reguly_sprz.save(new_profile)
+
+            # Struktura folderów
+            rok_akt = str(datetime.now().year)
+            for m in range(1, 13):
+                m_str = f"{m:02d}"
+                for kierunek in ["sprzedaz", "koszty"]:
+                    for sub in ["ksef", "non-ksef-raw", "non-ksef-extracted"]:
+                        (new_profile.katalog_firmy / "faktury" / rok_akt / m_str / kierunek / sub).mkdir(parents=True, exist_ok=True)
+            (new_profile.katalog_firmy / "rozliczenia").mkdir(parents=True, exist_ok=True)
+
+            return {
+                "success": True,
+                "message": f"Pomyślnie zainicjowano firmę {new_profile.nazwa} (NIP: {new_profile.nip})!",
+                "profil": new_profile.to_dict(),
+                "katalog": str(new_profile.katalog_firmy)
+            }
+
         profile = CompanyProfile.load_by_nip(nip)
         if not profile:
             return {"error": True, "message": f"Nie znaleziono profilu firmy dla NIP: {nip}"}

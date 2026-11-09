@@ -197,7 +197,7 @@ class PreSettlementReview:
 
         clarification_idx = 1
         for idx, inv in enumerate(faktury_koszt, start=1):
-            audit = audit_invoice_expense(inv, reguly_firmy)
+            audit = audit_invoice_expense(inv, reguly_firmy, kody_pkd=profile.kody_pkd)
             opis_glowny = ", ".join([p.opis for p in inv.pozycje[:3]]) if inv.pozycje else "Zakup towarów/usług"
             if len(opis_glowny) > 50:
                 opis_glowny = opis_glowny[:47] + "..."

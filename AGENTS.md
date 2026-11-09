@@ -202,13 +202,15 @@ Dopiero po uzyskaniu akceptacji przedsiębiorcy agent przechodzi do Kroku 3.
 ## 6. Dedykowane Skille Workspace i Standard Implementacji
 
 ### A. Skille Proceduralne Workspace (`.agents/skills/`):
-1. **`rozlicz-miesiac`** (`.agents/skills/rozlicz-miesiac/SKILL.md`):
+1. **`inicjalizacja-firmy`** (`.agents/skills/inicjalizacja-firmy/SKILL.md`):
+   * Procedura onboardingu nowej firmy: pobranie danych z rejestrów (Biała Lista MF, CEIDG), rejestracja kodów PKD, instrukcja wygenerowania tokena KSeF i utworzenie struktury katalogów.
+2. **`rozlicz-miesiac`** (`.agents/skills/rozlicz-miesiac/SKILL.md`):
    * Procedura pełnego rozliczenia podatkowego miesiąca i wygenerowania przelewów.
-2. **`non-ksef-extract`** (`.agents/skills/non-ksef-extract/SKILL.md`):
+3. **`non-ksef-extract`** (`.agents/skills/non-ksef-extract/SKILL.md`):
    * Procedura ekstrakcji i weryfikacji dokumentów kosztowych oraz sprzedaży spoza KSeF (PDF, JSON, skany).
-3. **`ksef-sync`** (`.agents/skills/ksef-sync/SKILL.md`):
+4. **`ksef-sync`** (`.agents/skills/ksef-sync/SKILL.md`):
    * Procedura bezpiecznego połączenia z KSeF 2.0 (szyfrowanie RSA-OAEP SHA-256) i pobrania faktur.
-4. **`doradca-podatkowy`** (`.agents/skills/doradca-podatkowy/SKILL.md`):
+5. **`doradca-podatkowy`** (`.agents/skills/doradca-podatkowy/SKILL.md`):
    * Procedura symulacji form opodatkowania (Ryczałt vs Liniowy vs Skala) oraz audytu brakujących kosztów.
 
 ### B. Standard Definiowania Narzędzi w Pythonie (`src/skills/`):
