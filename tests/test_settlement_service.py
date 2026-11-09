@@ -35,15 +35,15 @@ class TestSettlementService(unittest.TestCase):
         # ZUS
         self.assertEqual(result.zus.podstawa_spoleczne, Decimal("5304.00"))
         self.assertEqual(result.zus.suma_spoleczne, Decimal("1808.14"))
-        self.assertEqual(result.zus.zdrowotna, Decimal("496.80"))
-        self.assertEqual(result.zus.lacznie_do_zaplaty, Decimal("2304.94"))
+        self.assertEqual(result.zus.zdrowotna, Decimal("486.44"))
+        self.assertEqual(result.zus.lacznie_do_zaplaty, Decimal("2294.58"))
 
         # PIT-28
         self.assertIsNotNone(result.pit28)
         self.assertEqual(result.pit28.przychod_laczny, Decimal("38969.00"))
         self.assertEqual(result.pit28.odliczenie_spoleczne, Decimal("1808.14"))
-        self.assertEqual(result.pit28.odliczenie_zdrowotna_50, Decimal("248.40"))
-        self.assertEqual(result.pit28.podstawa_opodatkowania, Decimal("36912.46"))
+        self.assertEqual(result.pit28.odliczenie_zdrowotna_50, Decimal("243.22"))
+        self.assertEqual(result.pit28.podstawa_opodatkowania, Decimal("36917.64"))
         self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 4430)
 
         # VAT
@@ -53,7 +53,7 @@ class TestSettlementService(unittest.TestCase):
 
         # Paczka przelewów
         self.assertEqual(len(result.paczka_przelewow), 3)
-        self.assertEqual(result.suma_wszystkich_zobowiazan, Decimal("15301.94"))
+        self.assertEqual(result.suma_wszystkich_zobowiazan, Decimal("15291.58"))
 
 
 if __name__ == "__main__":

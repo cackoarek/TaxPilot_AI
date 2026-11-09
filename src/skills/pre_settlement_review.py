@@ -161,7 +161,12 @@ class PreSettlementReview:
             if len(przedmiot) > 55:
                 przedmiot = przedmiot[:52] + "..."
 
-            buyer_stawka = reguly_sprzedazy.stawki_nabywcow.get(inv.nabywca.nip, domyslna_stawka_ryczaltu)
+            buyer_stawka = None
+            if inv.pozycje and inv.pozycje[0].stawka_ryczaltu is not None:
+                buyer_stawka = inv.pozycje[0].stawka_ryczaltu
+            else:
+                buyer_stawka = reguly_sprzedazy.stawki_nabywcow.get(inv.nabywca.nip, domyslna_stawka_ryczaltu)
+
             zrodlo_val = "Non-KSeF" if getattr(inv, "zrodlo", "") == "NON_KSEF" else "KSeF"
 
             sales_items.append(
@@ -337,8 +342,9 @@ class PreSettlementReview:
             for s in self.sprzedaz:
                 zrodlo_badge = "📁 Non-KSeF" if s.zrodlo == "Non-KSeF" else "🏛️ KSeF"
                 ryczalt_kwota = (s.kwota_netto * s.stawka_ryczaltu).quantize(Decimal("0.01"))
+                s_proc_val = f"{s.stawka_ryczaltu * 100:.2f}".rstrip("0").rstrip(".") + "%"
                 linie.append(
-                    f"| {s.lp} | {zrodlo_badge} | {s.data} | `{s.numer}` | {s.nabywca_nazwa} | `{s.nabywca_nip}` | {s.przedmiot} | {s.kwota_netto:.2f} zł | {stawka_proc}% ({ryczalt_kwota:.2f} zł) | {s.kwota_vat:.2f} zł | {s.kwota_brutto:.2f} zł |"
+                    f"| {s.lp} | {zrodlo_badge} | {s.data} | `{s.numer}` | {s.nabywca_nazwa} | `{s.nabywca_nip}` | {s.przedmiot} | {s.kwota_netto:.2f} zł | {s_proc_val} ({ryczalt_kwota:.2f} zł) | {s.kwota_vat:.2f} zł | {s.kwota_brutto:.2f} zł |"
                 )
             linie.append(
                 f"| | | | | **SUMA PRZYCHODÓW** | | | **{self.laczna_sprzedaz_netto:.2f} zł** | | **{self.laczna_sprzedaz_vat:.2f} zł** | **{self.laczna_sprzedaz_brutto:.2f} zł** |"

@@ -38,6 +38,7 @@ class InvoiceItem:
     kwota_vat: Decimal = Decimal("0.00")
     wartosc_brutto: Decimal = Decimal("0.00")
     stawka_ryczaltu: Optional[Decimal] = None  # np. Decimal("0.12") dla ryczałtu 12%
+    pkwiu: Optional[str] = None
 
 
 @dataclass
@@ -59,17 +60,65 @@ class Invoice:
     raw_xml: Optional[str] = None
     zrodlo: str = "KSEF"  # "KSEF" lub "NON_KSEF"
     plik_zrodlowy: Optional[str] = None
+    rodzaj_faktury: Optional[str] = "VAT"
+    przyczyna_korekty: Optional[str] = None
+    nr_faktury_korygowanej: Optional[str] = None
+    data_faktury_korygowanej: Optional[str] = None
+
+    @property
+    def czy_korekta(self) -> bool:
+        return (
+            (self.rodzaj_faktury and self.rodzaj_faktury.upper() == "KOR")
+            or "KOR" in self.numer.upper()
+            or self.suma_brutto < Decimal("0.00")
+            or self.suma_netto < Decimal("0.00")
+        )
+
+    @property
+    def czy_korekta_wsteczna_pit(self) -> bool:
+        """
+        Zgodnie z art. 14 ust. 1m ustawy o PIT:
+        Korekta przychodu spowodowana błędem rachunkowym lub inną oczywistą omyłką
+        jest rozliczana wstecznie w okresie, w którym wykazano pierwotny przychód,
+        a nie w bieżącym okresie rozliczeniowym.
+        """
+        if not self.czy_korekta:
+            return False
+        przyczyna = (self.przyczyna_korekty or "").lower()
+        if "błąd rachunkowy" in przyczyna or "omyłk" in przyczyna:
+            return True
+        return False
+
+    @property
+    def okres_rozliczeniowy(self) -> tuple[str, str]:
+        """
+        Wyznacza właściwy okres podatkowo-księgowy (rok, miesiac):
+        - Dla sprzedaży korygującej (in-minus KSeF): data wystawienia faktury korygującej (art. 29a ust. 13 VAT).
+        - Dla sprzedaży standardowej: data sprzedaży (wykonania usługi) lub data wystawienia (art. 19a VAT / art. 14 PIT).
+        - Dla kosztów (zakupów): data otrzymania/wystawienia faktury, nie wcześniej niż data sprzedaży
+          (zgodnie z art. 86 ust. 10b pkt 1 ustawy o VAT: prawo do odliczenia podatku naliczonego
+          powstaje nie wcześniej niż w okresie, w którym podatnik otrzymał fakturę).
+        """
+        if self.typ == InvoiceType.SPRZEDAZ:
+            if self.czy_korekta:
+                dt = self.data_wystawienia
+            else:
+                dt = self.data_sprzedazy or self.data_wystawienia
+        else:
+            if self.data_sprzedazy and self.data_wystawienia:
+                dt = max(self.data_sprzedazy, self.data_wystawienia)
+            else:
+                dt = self.data_wystawienia or self.data_sprzedazy
+        parts = dt.split("-")
+        return parts[0], parts[1].zfill(2)
 
     @property
     def rok(self) -> str:
-        # Bazując na dacie sprzedaży (lub dacie wystawienia, jeśli brak sprzedaży)
-        dt = self.data_sprzedazy or self.data_wystawienia
-        return dt.split("-")[0]
+        return self.okres_rozliczeniowy[0]
 
     @property
     def miesiac(self) -> str:
-        dt = self.data_sprzedazy or self.data_wystawienia
-        return dt.split("-")[1]
+        return self.okres_rozliczeniowy[1]
 
     @property
     def bezpieczny_numer_pliku(self) -> str:
@@ -86,6 +135,10 @@ class Invoice:
             "data_sprzedazy": self.data_sprzedazy,
             "typ": self.typ.value,
             "waluta": self.waluta,
+            "rodzaj_faktury": self.rodzaj_faktury,
+            "przyczyna_korekty": self.przyczyna_korekty,
+            "nr_faktury_korygowanej": self.nr_faktury_korygowanej,
+            "data_faktury_korygowanej": self.data_faktury_korygowanej,
             "sprzedawca": asdict(self.sprzedawca),
             "nabywca": asdict(self.nabywca),
             "suma_netto": str(self.suma_netto),
@@ -104,6 +157,7 @@ class Invoice:
                     "kwota_vat": str(p.kwota_vat),
                     "wartosc_brutto": str(p.wartosc_brutto),
                     "stawka_ryczaltu": str(p.stawka_ryczaltu) if p.stawka_ryczaltu is not None else None,
+                    "pkwiu": p.pkwiu,
                 }
                 for p in self.pozycje
             ]
@@ -134,15 +188,22 @@ class Invoice:
                 kwota_vat=Decimal(str(p.get("kwota_vat", "0.00"))),
                 wartosc_brutto=Decimal(str(p.get("wartosc_brutto", "0.00"))),
                 stawka_ryczaltu=Decimal(str(p["stawka_ryczaltu"])) if p.get("stawka_ryczaltu") is not None else None,
+                pkwiu=p.get("pkwiu"),
             )
             for p in data.get("pozycje", [])
         ]
+        raw_typ = str(data.get("typ", "koszty")).lower()
+        if raw_typ in ["sprzedaz", "sprzedaż", "sales"]:
+            inv_type = InvoiceType.SPRZEDAZ
+        else:
+            inv_type = InvoiceType.KOSZT
+
         return cls(
             numer=data["numer"],
             data_wystawienia=data["data_wystawienia"],
             sprzedawca=sprzedawca,
             nabywca=nabywca,
-            typ=InvoiceType(data["typ"]),
+            typ=inv_type,
             suma_netto=Decimal(str(data["suma_netto"])),
             suma_vat=Decimal(str(data["suma_vat"])),
             suma_brutto=Decimal(str(data["suma_brutto"])),
@@ -155,4 +216,8 @@ class Invoice:
             raw_xml=data.get("raw_xml"),
             zrodlo=data.get("zrodlo", "KSEF"),
             plik_zrodlowy=data.get("plik_zrodlowy"),
+            rodzaj_faktury=data.get("rodzaj_faktury", "VAT"),
+            przyczyna_korekty=data.get("przyczyna_korekty"),
+            nr_faktury_korygowanej=data.get("nr_faktury_korygowanej"),
+            data_faktury_korygowanej=data.get("data_faktury_korygowanej"),
         )

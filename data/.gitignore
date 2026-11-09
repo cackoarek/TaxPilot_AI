@@ -1,0 +1,5 @@
+# Ignoruj wszystkie pliki danych w tym folderze (dane pobierane dynamicznie z internetu)
+*
+!.gitignore
+!.gitkeep
+

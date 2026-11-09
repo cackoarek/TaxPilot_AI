@@ -48,7 +48,8 @@ HEURYSTYKI_FIRMOWE = [
 ]
 
 HEURYSTYKI_NIEPEWNE = [
-    r"^usługi inne$", r"^usługa inna$", r"^usługi dodatkowe$", r"^opłata$", r"^inne$"
+    r"^usługi inne$", r"^usługa inna$", r"^usługi dodatkowe$", r"^opłata$", r"^inne$",
+    r"\blego\b", r"klocki", r"premia bankowa", r"\bpremia\b"
 ]
 
 
@@ -348,17 +349,43 @@ def audit_invoice_expense(
         res = CostClassifier.classify_item(dummy_item, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
         pozycje_wyniki.append(res)
 
-    kwalifikowane_netto = sum((p.netto_do_kup for p in pozycje_wyniki), Decimal("0.00"))
-    kwalifikowany_vat = sum((p.vat_do_odliczenia for p in pozycje_wyniki), Decimal("0.00"))
-
-    odrzucone_netto = sum(
-        (p.wartosc_netto for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
-        Decimal("0.00")
-    )
-    odrzucony_vat = sum(
-        (p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
-        Decimal("0.00")
-    )
+    # Weryfikacja spójności kwalifikacji pozycji:
+    # Jeśli wszystkie pozycje mają taką samą kwalifikację, kwoty uzgadniamy z nagłówkiem faktury,
+    # aby uniknąć groszowych rozbieżności zaokrągleń cząstkowych pozycji (art. 106e / art. 86 ustawy o VAT).
+    unikalne_kwalifikacje = set(p.kwalifikacja for p in pozycje_wyniki)
+    if len(unikalne_kwalifikacje) == 1:
+        jedyna = next(iter(unikalne_kwalifikacje))
+        if jedyna == KwalifikacjaKosztu.FIRMOWY_100:
+            kwalifikowane_netto = invoice.suma_netto
+            kwalifikowany_vat = invoice.suma_vat
+            odrzucone_netto = Decimal("0.00")
+            odrzucony_vat = Decimal("0.00")
+        elif jedyna == KwalifikacjaKosztu.SAMOCHOD_50:
+            kwalifikowane_netto = invoice.suma_netto
+            kwalifikowany_vat = (invoice.suma_vat * Decimal("0.50")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            odrzucone_netto = Decimal("0.00")
+            odrzucony_vat = Decimal("0.00")
+        elif jedyna == KwalifikacjaKosztu.PRYWATNY_0:
+            kwalifikowane_netto = Decimal("0.00")
+            kwalifikowany_vat = Decimal("0.00")
+            odrzucone_netto = invoice.suma_netto
+            odrzucony_vat = invoice.suma_vat
+        else:
+            kwalifikowane_netto = sum((p.netto_do_kup for p in pozycje_wyniki), Decimal("0.00"))
+            kwalifikowany_vat = sum((p.vat_do_odliczenia for p in pozycje_wyniki), Decimal("0.00"))
+            odrzucone_netto = sum((p.wartosc_netto for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0), Decimal("0.00"))
+            odrzucony_vat = sum((p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0), Decimal("0.00"))
+    else:
+        kwalifikowane_netto = sum((p.netto_do_kup for p in pozycje_wyniki), Decimal("0.00"))
+        kwalifikowany_vat = sum((p.vat_do_odliczenia for p in pozycje_wyniki), Decimal("0.00"))
+        odrzucone_netto = sum(
+            (p.wartosc_netto for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
+            Decimal("0.00")
+        )
+        odrzucony_vat = sum(
+            (p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
+            Decimal("0.00")
+        )
 
     return InvoiceTaxAuditReport(
         numer_faktury=invoice.numer,

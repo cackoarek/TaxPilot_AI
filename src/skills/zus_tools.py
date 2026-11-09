@@ -9,6 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Optional
 
 from src.core.company import TypZUS, FormaOpodatkowania
+from src.skills.zus_indicators import get_zus_indicators, ZUSMacroParams
 
 
 # Domyślne wskaźniki makroekonomiczne
@@ -68,6 +69,10 @@ class ZUSCalculationResult:
     lacznie_do_zaplaty: Decimal
     termin_platnosci: str  # np. "2026-02-20" dla rozliczenia za styczeń 2026
 
+    # Metadane wskaźników makroekonomicznych
+    zrodlo_wskaznikow: str = "OFICJALNE_GUS"
+    ostrzezenie_wskaznikow: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "rok": self.rok,
@@ -75,6 +80,8 @@ class ZUSCalculationResult:
             "typ_zus": self.typ_zus.value,
             "chorobowe_dobrowolne": self.chorobowe_dobrowolne,
             "forma_opodatkowania": self.forma_opodatkowania.value,
+            "zrodlo_wskaznikow": self.zrodlo_wskaznikow,
+            "ostrzezenie_wskaznikow": self.ostrzezenie_wskaznikow,
             "podstawa_spoleczne": str(self.podstawa_spoleczne),
             "skladki_spoleczne": {
                 "emerytalna": str(self.emerytalna),
@@ -118,7 +125,13 @@ def calculate_zus(
         custom_podstawa_spoleczne: Opcjonalne ręczne nadpisanie podstawy składek społecznych
         custom_przecietne_wynagrodzenie: Opcjonalne ręczne nadpisanie przeciętnego wynagrodzenia do zdrowotnej
     """
-    params = DEFAULT_ZUS_PARAMS.get(str(rok), DEFAULT_ZUS_PARAMS["2026"])
+    overrides = {}
+    if custom_podstawa_spoleczne:
+        overrides["custom_podstawa_spoleczne"] = custom_podstawa_spoleczne
+    if custom_przecietne_wynagrodzenie:
+        overrides["custom_przecietne_wynagrodzenie"] = custom_przecietne_wynagrodzenie
+
+    macro = get_zus_indicators(rok, profile_overrides=overrides if overrides else None)
 
     # 1. Wyznaczenie podstawy składek społecznych
     if typ_zus == TypZUS.ULGA_NA_START:
@@ -129,7 +142,7 @@ def calculate_zus(
         wypadkowa = Decimal("0.00")
         fundusz_pracy = Decimal("0.00")
     elif typ_zus == TypZUS.MALY_ZUS_PLUS:
-        podstawa_spol = custom_podstawa_spoleczne or params["podstawa_preferencyjny_zus"]
+        podstawa_spol = custom_podstawa_spoleczne or macro.podstawa_preferencyjny_zus
         emerytalna = _round_money(podstawa_spol * STOPA_EMERYTALNA)
         rentowa = _round_money(podstawa_spol * STOPA_RENTOWA)
         chorobowa = _round_money(podstawa_spol * STOPA_CHOROBOWA) if chorobowe_dobrowolne else Decimal("0.00")
@@ -137,7 +150,7 @@ def calculate_zus(
         # Przy preferencyjnym ZUS podstawa jest niższa niż minimalne wynagrodzenie -> brak FP
         fundusz_pracy = Decimal("0.00")
     else:  # PELNY_ZUS
-        podstawa_spol = custom_podstawa_spoleczne or params["podstawa_pelny_zus"]
+        podstawa_spol = custom_podstawa_spoleczne or macro.podstawa_pelny_zus
         emerytalna = _round_money(podstawa_spol * STOPA_EMERYTALNA)
         rentowa = _round_money(podstawa_spol * STOPA_RENTOWA)
         chorobowa = _round_money(podstawa_spol * STOPA_CHOROBOWA) if chorobowe_dobrowolne else Decimal("0.00")
@@ -147,7 +160,7 @@ def calculate_zus(
     suma_spoleczne = emerytalna + rentowa + chorobowa + wypadkowa + fundusz_pracy
 
     # 2. Składka zdrowotna
-    przecietne_wynagrodzenie = custom_przecietne_wynagrodzenie or params["przecietne_wynagrodzenie_zdrowotna"]
+    przecietne_wynagrodzenie = custom_przecietne_wynagrodzenie or macro.przecietne_wynagrodzenie_zdrowotna
 
     if forma_opodatkowania == FormaOpodatkowania.RYCZALT:
         # Progi przychodu narastająco w roku podatkowym dla ryczałtu:
@@ -206,5 +219,7 @@ def calculate_zus(
         odliczenie_zdrowotna_ryczalt_50=odliczenie_zdrowotna_50,
         lacznie_do_zaplaty=lacznie_do_zaplaty,
         termin_platnosci=termin_platnosci,
+        zrodlo_wskaznikow=macro.zrodlo,
+        ostrzezenie_wskaznikow=macro.ostrzezenie,
     )
 

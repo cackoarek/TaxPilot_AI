@@ -92,11 +92,18 @@ class BookkeepingService:
         domyslna_stawka_ryczaltu = Decimal(str(profile.domyslna_stawka_ryczaltu))
 
         for inv in faktury_sprzedaz:
-            ewidencja.dodaj_fakture(
-                inv,
-                default_rate=domyslna_stawka_ryczaltu,
-                custom_buyer_rates=reguly_sprzedazy.stawki_nabywcow
-            )
+            # Weryfikacja czy korekta dotyczy bieżącej Ewidencji Przychodów (PIT-28):
+            # Zgodnie z art. 14 ust. 1m ustawy o PIT: korekta przychodu spowodowana błędem rachunkowym
+            # lub inną oczywistą omyłką koryguje przychody wstecznie (w okresie pierwotnym),
+            # a nie w bieżącym okresie rozliczeniowym.
+            if inv.czy_korekta and inv.czy_korekta_wsteczna_pit:
+                pass
+            else:
+                ewidencja.dodaj_fakture(
+                    inv,
+                    default_rate=domyslna_stawka_ryczaltu,
+                    custom_buyer_rates=reguly_sprzedazy.stawki_nabywcow
+                )
             if profile.platnik_vat:
                 rejestr_vat.dodaj_fakture_sprzedazy(inv)
 
@@ -115,6 +122,9 @@ class BookkeepingService:
                 pytania_uzytkownika.extend(report.pytania_do_uzytkownika)
 
             if profile.platnik_vat:
+                # Faktury odrzucone w 100% jako wydatki prywatne (np. pakiety medyczne z VAT zw) nie wchodzą do rejestru VAT
+                if report.odrzucone_netto_prywatne == inv.suma_netto and report.odrzucony_vat_prywatny == inv.suma_vat:
+                    continue
                 rejestr_vat.dodaj_fakture_zakupu(inv, forced_ratio=forced_prop, audit_report=report)
 
         return MonthlyLedger(
