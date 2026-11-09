@@ -100,7 +100,13 @@ Silnik automatycznie:
 5. Wylicza składki społeczne ZUS oraz składkę zdrowotną.
 6. Wylicza zaliczkę PIT-28 z odliczeniami.
 7. Oblicza bilans VAT-7.
-8. Zapisuje oficjalny raport w `firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/rozliczenie.md`.
+8. Generuje kompletny pakiet 4 raportów markdown oraz maszynowy plik JSON w folderze:
+   `firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/`
+   * `rozliczenie.md` – Główny raport rozliczenia miesięcznego z Paczką Przelewów Podatnika,
+   * `ewidencja-przychodow.md` – Oficjalna Ewidencja Przychodów z wykazem faktur, datą wpływu, stawkami podatku i podsumowaniem,
+   * `ewidencja-przychodow-sumy.md` – Roczne zestawienie przychodów w poszczególnych miesiącach z podziałem na wysokość podatku, składkami ZUS do odliczenia oraz drugą tabelą z podziałem na podstawę/ryczałt i sumami rocznymi (YTD),
+   * `sprawozdanie.md` – Szczegółowy audyt prac księgowych: omówienie każdej faktury (sprzedaży i zakupów), wyjaśnienie sposobu rozliczenia, podstaw prawnych, powodów odrzucenia pozycji prywatnych i wysokości podatków,
+   * `rozliczenie.json` – Maszynowy stan rozliczenia.
 
 ---
 
@@ -120,5 +126,8 @@ Zwróć użytkownikowi zwięzłą, czytelną tabelę podsumowującą 3 przelewy:
 **Łączna kwota do zapłaty:** **{SUMA} zł**
 ```
 
-Podaj również link do wygenerowanego raportu szczegółowego:
-`firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/rozliczenie.md`
+Podaj również linki do wygenerowanego pakietu dokumentów archiwalnych:
+* 📄 Główny raport: `firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/rozliczenie.md`
+* 📋 Ewidencja przychodów: `firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/ewidencja-przychodow.md`
+* 📊 Zestawienie sum rocznych: `firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/ewidencja-przychodow-sumy.md`
+* 🔍 Sprawozdanie i audyt: `firmy/{NIP-Nazwa}/rozliczenia/{ROK}/{MIESIAC}/sprawozdanie.md`

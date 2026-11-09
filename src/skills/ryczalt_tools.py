@@ -104,6 +104,8 @@ class EwidencjaPrzychodowWpis:
     nabywca_nip: str
     przychody_wg_stawek: Dict[Decimal, Decimal]
     suma_przychodu: Decimal
+    opis_zdarzenia: str = ""
+    zrodlo: str = "KSEF"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -113,6 +115,8 @@ class EwidencjaPrzychodowWpis:
             "nabywca_nip": self.nabywca_nip,
             "przychody_wg_stawek": {str(k): str(v) for k, v in self.przychody_wg_stawek.items()},
             "suma_przychodu": str(self.suma_przychodu),
+            "opis_zdarzenia": self.opis_zdarzenia,
+            "zrodlo": self.zrodlo,
         }
 
 
@@ -147,6 +151,8 @@ class EwidencjaPrzychodowMiesiaca:
             przychody_faktury[rate] = invoice.suma_netto
 
         suma_faktury = sum(przychody_faktury.values(), Decimal("0.00"))
+        opis_zdarzenia = ", ".join(p.opis for p in invoice.pozycje if p.opis) if invoice.pozycje else "Świadczenie usług"
+        zrodlo = invoice.zrodlo or "KSEF"
 
         wpis = EwidencjaPrzychodowWpis(
             numer_faktury=invoice.numer,
@@ -155,6 +161,8 @@ class EwidencjaPrzychodowMiesiaca:
             nabywca_nip=invoice.nabywca.nip,
             przychody_wg_stawek=przychody_faktury,
             suma_przychodu=suma_faktury,
+            opis_zdarzenia=opis_zdarzenia,
+            zrodlo=zrodlo,
         )
 
         self.wpisy.append(wpis)

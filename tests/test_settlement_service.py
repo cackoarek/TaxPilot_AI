@@ -55,6 +55,37 @@ class TestSettlementService(unittest.TestCase):
         self.assertEqual(len(result.paczka_przelewow), 3)
         self.assertEqual(result.suma_wszystkich_zobowiazan, Decimal("15291.58"))
 
+    def test_reports_generation(self):
+        # Rozliczenie kwietnia z zapisem raportów
+        result = SettlementService.settle_month(
+            self.profile, "2026", "04", nadwyzka_vat_poprzedni=Decimal("217.10"), zapisz_raporty=True
+        )
+
+        target_dir = self.profile.katalog_firmy / "rozliczenia" / "2026" / "04"
+        self.assertTrue((target_dir / "rozliczenie.md").exists())
+        self.assertTrue((target_dir / "rozliczenie.json").exists())
+        self.assertTrue((target_dir / "ewidencja-przychodow.md").exists())
+        self.assertTrue((target_dir / "ewidencja-przychodow-sumy.md").exists())
+        self.assertTrue((target_dir / "sprawozdanie.md").exists())
+
+        ep_content = (target_dir / "ewidencja-przychodow.md").read_text(encoding="utf-8")
+        self.assertIn("Ewidencja Przychodów – 2026-04", ep_content)
+        self.assertIn("38969.00 zł", ep_content)
+        self.assertIn("12%", ep_content)
+
+        eps_content = (target_dir / "ewidencja-przychodow-sumy.md").read_text(encoding="utf-8")
+        self.assertIn("Ewidencja Przychodów – Zestawienie Roczne i Sumy", eps_content)
+        self.assertIn("Tabela 1:", eps_content)
+        self.assertIn("Tabela 2:", eps_content)
+        self.assertIn("SUMA (YTD)", eps_content)
+        self.assertIn("SUMA ROCZNA", eps_content)
+
+        spr_content = (target_dir / "sprawozdanie.md").read_text(encoding="utf-8")
+        self.assertIn("Sprawozdanie z Czynności Księgowych i Audytu Podatkowego", spr_content)
+        self.assertIn("Część I: Faktury Sprzedaży", spr_content)
+        self.assertIn("Część II: Faktury Kosztowe", spr_content)
+        self.assertIn("Część III: Podsumowanie Audytu", spr_content)
+
 
 if __name__ == "__main__":
     unittest.main()

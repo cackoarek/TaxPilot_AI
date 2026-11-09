@@ -69,12 +69,29 @@ def cmd_settle(args):
 
     print("\n" + result.generate_markdown_report())
 
+    target_dir = profile.katalog_firmy / "rozliczenia" / str(args.rok) / str(args.miesiac).zfill(2)
+    print("\n📂 Wygenerowane raporty archiwalne:")
+    print(f" * Paczka Przelewów i Podsumowanie: {target_dir / 'rozliczenie.md'}")
+    print(f" * Ewidencja Przychodów (miesiąc):  {target_dir / 'ewidencja-przychodow.md'}")
+    print(f" * Ewidencja Przychodów - Sumy YTD: {target_dir / 'ewidencja-przychodow-sumy.md'}")
+    print(f" * Sprawozdanie i Audyt Podatkowy:  {target_dir / 'sprawozdanie.md'}")
+    print(f" * Stan maszynowy JSON:             {target_dir / 'rozliczenie.json'}")
+
 
 def cmd_settle_year(args):
     profile = CompanyProfile.load_by_nip(args.nip)
     if not profile:
         print(f"Błąd: Nie znaleziono profilu firmy dla NIP: {args.nip}")
         sys.exit(1)
+
+    import shutil
+
+    if getattr(args, "clean", False):
+        target_year_dir = profile.katalog_firmy / "rozliczenia" / str(args.rok)
+        if target_year_dir.exists():
+            print(f"🧹 Usuwam dotychczasowe rozliczenia w {target_year_dir}...")
+            shutil.rmtree(target_year_dir)
+            target_year_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Rozpoczynam sekwencyjne rozliczenie roku {args.rok} (od {args.od} do {args.do}) dla firmy: {profile.nazwa}...")
     nadwyzka = Decimal("0.00")
@@ -353,6 +370,7 @@ def main():
     p_settle_year.add_argument("--rok", default="2026", help="Rok podatkowy")
     p_settle_year.add_argument("--od", default="1", help="Miesiąc początkowy (1-12)")
     p_settle_year.add_argument("--do", default="12", help="Miesiąc końcowy (1-12)")
+    p_settle_year.add_argument("--clean", action="store_true", help="Usuń istniejące rozliczenia i przelicz od nowa")
     p_settle_year.set_defaults(func=cmd_settle_year)
 
     # Polecenie symulacja

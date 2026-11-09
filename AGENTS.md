@@ -130,8 +130,11 @@ firmy/{NIP-Nazwa}/
 └── rozliczenia/                      # Archiwum wygenerowanych rozliczeń
     └── {ROK}/
         └── {MIESIAC}/
-            ├── rozliczenie.json      # Maszynowy stan rozliczenia
-            └── rozliczenie.md        # Oficjalny raport z Paczką Przelewów Podatnika
+            ├── rozliczenie.json            # Maszynowy stan rozliczenia
+            ├── rozliczenie.md              # Oficjalny raport z Paczką Przelewów Podatnika
+            ├── ewidencja-przychodow.md     # Ewidencja przychodów za dany miesiąc
+            ├── ewidencja-przychodow-sumy.md# Zestawienie przychodów i odliczeń w ujęciu rocznym (YTD)
+            └── sprawozdanie.md             # Sprawozdanie i audyt podatkowy dokumentów
 ```
 
 ---
@@ -195,7 +198,11 @@ Dopiero po uzyskaniu akceptacji przedsiębiorcy agent przechodzi do Kroku 3.
   * **ZUS (NRS):** kwota, termin do 20. dnia kolejnego miesiąca,
   * **Urząd Skarbowy (PIT-28):** kwota, termin do 20. dnia,
   * **Urząd Skarbowy (VAT-7):** kwota, termin do 25. dnia.
-* Wskaż ścieżkę do zapisanego raportu `rozliczenie.md`.
+* Wskaż ścieżki do wygenerowanego pakietu 4 raportów:
+  * `rozliczenie.md` (Paczka Przelewów i podsumowanie),
+  * `ewidencja-przychodow.md` (oficjalna ewidencja przychodów za dany miesiąc),
+  * `ewidencja-przychodow-sumy.md` (zestawienie roczne przychodów, stawek i odliczeń ZUS),
+  * `sprawozdanie.md` (szczegółowy audyt dokumentów i czynności księgowych).
 
 ---
 
