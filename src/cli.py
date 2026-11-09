@@ -393,7 +393,7 @@ def main():
     p_tok = subparsers.add_parser("set-token", help="Zapisz token KSeF w profilu firmy (firmy/{nazwa}/profil.json)")
     p_tok.add_argument("--nip", default="7770001122", help="NIP rozliczanej firmy")
     p_tok.add_argument("--token", required=True, help="Token autoryzacyjny KSeF")
-    p_tok.add_argument("--srodowisko", choices=["TEST", "DEMO", "PROD"], default=None, help="Środowisko KSeF (TEST / DEMO / PROD)")
+    p_tok.add_argument("--srodowisko", choices=["TEST", "PROD"], default=None, help="Środowisko KSeF (TEST / PROD)")
     p_tok.set_defaults(func=cmd_set_token)
 
     # Polecenie init-firma (onboarding nowego konta)
@@ -409,7 +409,7 @@ def main():
     p_init.add_argument("--bez-chorobowego", action="store_true", help="Wyłącz dobrowolne ubezpieczenie chorobowe ZUS")
     p_init.add_argument("--pkd", default=None, help="Kody PKD po przecinku (np. '62.01.Z,62.02.Z')")
     p_init.add_argument("--token", default=None, help="Token autoryzacyjny KSeF")
-    p_init.add_argument("--srodowisko", default="PROD", choices=["TEST", "DEMO", "PROD"], help="Środowisko KSeF")
+    p_init.add_argument("--srodowisko", default="PROD", choices=["TEST", "PROD"], help="Środowisko KSeF")
     p_init.add_argument("--no-fetch", action="store_true", help="Pomiń pobieranie danych z rejestrów publicznych online")
     p_init.add_argument("--ceidg-token", default=None, help="Opcjonalny token API CEIDG (dane.biznes.gov.pl)")
     p_init.add_argument("--force", action="store_true", help="Nadpisz profil jeśli już istnieje")

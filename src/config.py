@@ -16,7 +16,6 @@ TESTS_DIR = BASE_DIR / "tests"
 # KSeF 2.0 API Base URLs
 KSEF_URLS = {
     "TEST": "https://api-test.ksef.mf.gov.pl/v2",
-    "DEMO": "https://api-demo.ksef.mf.gov.pl/v2",
     "PROD": "https://api.ksef.mf.gov.pl/v2",
 }
 

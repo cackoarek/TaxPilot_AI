@@ -127,7 +127,7 @@ AGENT_TOOL_DECLARATIONS = [
                 "chorobowe_dobrowolne": {"type": "boolean", "default": True},
                 "kody_pkd": {"type": "array", "items": {"type": "string"}, "description": "Lista kodów PKD (np. ['62.01.Z', '62.02.Z'])"},
                 "token_ksef": {"type": "string", "description": "Opcjonalny token KSeF podany przez użytkownika"},
-                "srodowisko_ksef": {"type": "string", "enum": ["TEST", "DEMO", "PROD"], "default": "PROD"}
+                "srodowisko_ksef": {"type": "string", "enum": ["TEST", "PROD"], "default": "PROD"}
             },
             "required": ["nip"]
         }

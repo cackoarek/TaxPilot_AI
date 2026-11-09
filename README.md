@@ -85,7 +85,7 @@ Wystarczy będąc w katalogu głównym projektu w terminalu odpalić odpowiedni�
   Otwórz folder projektu w edytorze. Agent AI w panelu czatu odczyta instrukcje z [AGENTS.md](AGENTS.md) i poprowadzi proces rozliczenia.
 
 * **Antigravity IDE:**
-  Otwórz katalog poleceniem `agy .` – system załaduje procedury workspace z `.agents/skills/`.
+  Otwórz katalog poleceniem `agy` – system załaduje procedury workspace z `.agents/skills/`.
 
 * **Terminal CLI:**
   Możesz też używać TaxPilota bez żadnego modelu AI, bezpośrednio przez komendy:
@@ -98,15 +98,15 @@ Wystarczy będąc w katalogu głównym projektu w terminalu odpalić odpowiedni�
 ### Krok 3: Kompleksowy Onboarding Firmy & KSeF (skill `inicjalizacja-firmy`)
 
 Wystarczy, że w panelu czatu napiszesz do Agenta:
-> *"Cześć! Chcę skonfigurować nową firmę. Mój NIP to 6462933516."*
+> *"Cześć! Chcę skonfigurować nową firmę. Mój NIP to 7770001122."*
 
 Dedykowany skill [inicjalizacja-firmy](.agents/skills/inicjalizacja-firmy/SKILL.md) poprowadzi Cię kompleksowo przez cały proces:
 1. 🏛️ **Pobranie danych rejestrowych:** Agent automatycznie odpyta oficjalne rejestry publiczne (Biała Lista MF oraz CEIDG) po pełną nazwę firmy, REGON, siedzibę i status podatnika VAT.
 2. 📋 **Profil podatkowy:** Ustali z Tobą kody PKD, formę opodatkowania (np. Ryczałt 12%) oraz schemat ZUS (Duży ZUS, Mały ZUS Plus, Ulga na Start).
-3. 🔑 **Asystent Tokena KSeF:** Agent przedstawi prosty przewodnik krok po kroku z bezpośrednimi linkami do Portalu Podatnika MF, wyjaśni jak wygenerować token z uprawnieniem do odczytu faktur, poprosi Cię o jego wklejenie i **automatycznie zapisze go we właściwym miejscu** w pliku `firmy/{NIP-Nazwa}/profil.json`.
+3. 🔑 **Asystent Tokena KSeF 2.0:** Agent przedstawi prosty przewodnik krok po kroku do Aplikacji Podatnika KSeF 2.0 (zakładka *Tokeny* ➔ *Generuj token*), wyjaśni jak wygenerować token z uprawnieniem do odczytu faktur, poprosi Cię o jego wklejenie w czacie i **automatycznie zapisze go we właściwym miejscu** w pliku `firmy/{NIP-Nazwa}/profil.json`.
 4. 📁 **Struktura katalogów:** Utworzy strukturę folderów firmy na cały rok podatkowy oraz bazowe reguły kosztowe i sprzedażowe.
 
-*(W przypadku pracy czysto terminalowej bez Agenta AI, ten sam proces zrealizujesz przez CLI: `python -m src.cli init --nip 6462933516 ...` oraz `python -m src.cli set-token ...`).*
+*(W przypadku pracy czysto terminalowej bez Agenta AI, ten sam proces zrealizujesz przez CLI: `python -m src.cli init --nip 7770001122 ...` oraz `python -m src.cli set-token ...`).*
 
 ---
 
@@ -158,28 +158,28 @@ TaxPilot AI posiada pełne, skryptowalne CLI do integracji w potokach CI/CD lub 
 python -m src.cli --help
 
 # 1. Synchronizacja faktur z KSeF (miesiąc)
-python -m src.cli sync --nip 6462933516 --rok 2026 --miesiac 06
+python -m src.cli sync --nip 7770001122 --rok 2026 --miesiac 06
 
 # 2. Synchronizacja zakresu dat KSeF (wielomiesięczna)
-python -m src.cli sync-zakres --nip 6462933516 --od 2026-01-01 --do 2026-06-30
+python -m src.cli sync-zakres --nip 7770001122 --od 2026-01-01 --do 2026-06-30
 
 # 3. Ekstrakcja dokumentów spoza KSeF (PDF, JPG, TXT)
-python -m src.cli extract-non-ksef --nip 6462933516 --rok 2026 --miesiac 06
+python -m src.cli extract-non-ksef --nip 7770001122 --rok 2026 --miesiac 06
 
 # 4. Wstępny przegląd dokumentów przed rozliczeniem
-python -m src.cli przeglad --nip 6462933516 --rok 2026 --miesiac 06
+python -m src.cli przeglad --nip 7770001122 --rok 2026 --miesiac 06
 
 # 5. Pełne rozliczenie miesiąca i wygenerowanie przelewów
-python -m src.cli rozlicz --nip 6462933516 --rok 2026 --miesiac 06
+python -m src.cli rozlicz --nip 7770001122 --rok 2026 --miesiac 06
 
 # 6. Sekwencyjne rozliczenie wielu miesięcy (z przenoszeniem nadwyżek VAT)
-python -m src.cli rozlicz-rok --nip 6462933516 --rok 2026 --od 01 --do 06
+python -m src.cli rozlicz-rok --nip 7770001122 --rok 2026 --od 01 --do 06
 
 # 7. Symulacja form opodatkowania (Ryczałt vs Liniowy vs Skala)
-python -m src.cli symulacja --nip 6462933516 --dochod 250000 --koszty 30000
+python -m src.cli symulacja --nip 7770001122 --dochod 250000 --koszty 30000
 
 # 8. Audyt brakujących faktur kosztowych
-python -m src.cli audyt --nip 6462933516 --rok 2026 --miesiac 06
+python -m src.cli audyt --nip 7770001122 --rok 2026 --miesiac 06
 ```
 
 ---

@@ -1,6 +1,6 @@
 """
 Klient API Krajowego Systemu e-Faktur (KSeF 2.0).
-Obsługuje środowiska PROD, DEMO i TEST z asynchronicznym uwierzytelnieniem tokenem (RSA-OAEP SHA-256)
+Obsługuje środowiska PROD i TEST z asynchronicznym uwierzytelnieniem tokenem (RSA-OAEP SHA-256)
 oraz automatyczną synchronizacją i zapisem faktur w archiwum firmy.
 """
 

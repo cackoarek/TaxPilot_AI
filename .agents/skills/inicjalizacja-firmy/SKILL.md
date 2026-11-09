@@ -76,39 +76,49 @@ Agent weryfikuje z przedsiębiorcą formę opodatkowania oraz schemat opłacania
 
 ---
 
-### Krok 4: Instrukcja Generowania i Przekazania Tokena KSeF
+### Krok 4: Instrukcja Generowania i Przekazania Tokena KSeF 2.0
 
-Agent przedstawia przedsiębiorcy prostą instrukcję wygenerowania tokena w systemie Ministerstwa Finansów:
+Agent przedstawia przedsiębiorcy precyzyjną, oficjalną instrukcję wygenerowania **Tokena KSeF 2.0** w Aplikacji Podatnika Ministerstwa Finansów:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│  INSTRUKCJA: Jak wygenerować token autoryzacyjny KSeF krok po kroku   │
+│  INSTRUKCJA: Jak wygenerować Token KSeF 2.0 krok po kroku              │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Wejdź do Aplikacji Podatnika KSeF:**
-   * Wersja Produkcyjna (rzeczywiste faktury):  
-     👉 **https://ksef.mf.gov.pl/web/**
-   * Wersja Testowa (środowisko testowe MF):  
-     👉 **https://ksef-test.mf.gov.pl/web/**
+1. **Wejdź do oficjalnej Aplikacji Podatnika KSeF 2.0:**
+   * **Wersja Produkcyjna (PROD – rzeczywiste faktury):**  
+     👉 **https://ap.ksef.mf.gov.pl/** *(lub przez portal podatki.gov.pl/ksef)*
+   * **Wersja Testowa (TEST – do bezpiecznych testów integracyjnych):**  
+     👉 **https://ksef-test.mf.gov.pl/**
+
 2. **Zaloguj się do systemu:**
-   * Wpisz swój NIP i wybierz metodę uwierzytelnienia: **Profil Zaufany (Login.gov.pl)**, aplikację **mObywatel** lub podpis kwalifikowany.
-3. **Przejdź do zarządzania tokenami:**
-   * W menu bocznym po lewej stronie kliknij zakładkę **"Uprawnienia"**, a następnie **"Zarządzaj tokenami"** (lub **"Generuj token"**).
+   * Wybierz metodę logowania: **Login.gov.pl** (Profil Zaufany, aplikacja **mObywatel**, e-Dowód lub bankowość elektroniczna) bądź **podpis kwalifikowany / pieczęć kwalifikowaną**.
+   * Po uwierzytelnieniu wskaż **kontekst firmy** (wybierz NIP Twojej działalności gospodarczej, w imieniu której działasz).
+
+3. **Przejdź do zakładki z tokenami:**
+   * W menu głównym po lewej stronie kliknij bezpośrednio zakładkę **„Tokeny”**.
+
 4. **Wypełnij formularz generowania tokena:**
-   * **Nazwa / opis tokena:** wpisz np. `TaxPilot AI`
-   * **Wybierz uprawnienia:**
-     * ✅ **Dostęp do faktur (odczyt / pobieranie)** – *obowiązkowe do importu faktur*,
-     * ⬜ *Wystawianie faktur* – *opcjonalne, jeśli w przyszłości będziesz chciał wystawiać e-faktury przez agenta*.
+   * Kliknij przycisk **„Generuj token”**.
+   * **Nazwa tokena:** Wpisz czytelną nazwę, np. `TaxPilot AI` lub `Token do księgowości`.
+   * **Zakres uprawnień:**
+     * ✅ **Dostęp do faktur (odczyt / przeglądanie faktur)** – *obowiązkowe do pobierania faktur zakupowych i sprzedaży*,
+     * ⬜ *Wystawianie faktur* – *opcjonalne, jeśli w przyszłości zechcesz wystawiać faktury przez asystenta*.
+
 5. **Wygeneruj i skopiuj token:**
-   * Kliknij **"Generuj token"**.
-   * ⚠️ **BARDZO WAŻNE:** Skopiuj wygenerowany token natychmiast! Ze względów bezpieczeństwa KSeF wyświetla pełny ciąg znaków **tylko raz**.
-6. **Zapisz token w TaxPilot AI:**
-   * Przekaż token w czacie agentowi lub uruchom w terminalu:
+   * Kliknij przycisk **„Generuj”**.
+   * ⚠️ **BARDZO WAŻNE:** System KSeF 2.0 wyświetli wygenerowany token (długi ciąg znaków) **TYLKO JEDEN RAZ**. Kliknij ikonę **„Kopiuj”** i natychmiast skopiuj token do schowka! Jeśli zamkniesz okno bez skopiowania, nie będzie możliwości ponownego podejrzenia tokena (konieczne będzie wygenerowanie nowego).  
+     *(Uwaga: Tokeny wygenerowane w starym systemie KSeF 1.0 nie są kompatybilne z KSeF 2.0).*
+
+6. **Wklej token w czacie – Agent zapisze go automatycznie:**
+   * Agent prosi użytkownika:  
+     > *"Wklej teraz wygenerowany token tutaj w czacie (oraz potwierdź, czy to środowisko `PROD` czy `TEST`). Natychmiast zapiszę go w bezpiecznym profilu Twojej firmy."*
+   * Po podaniu tokena przez użytkownika, skill natychmiast zapisuje go w profilu firmy:
      ```bash
-     python -m src.cli set-token --nip {NIP} --token "TWOJ_TOKEN_KSEF" --srodowisko PROD
+     python -m src.cli set-token --nip {NIP} --token "{TOKEN}" --srodowisko {PROD|TEST}
      ```
-   * Token zostanie bezpiecznie zapisany w lokalnym pliku `firmy/{NIP-Nazwa}/profil.json` (plik ten jest ściśle chroniony i ignorowany przez Git w `.gitignore`).
+   * Token zostaje bezpiecznie zapisany w lokalnym pliku `firmy/{NIP-Nazwa}/profil.json` w sekcji `ksef: { "srodowisko": "PROD", "token": "..." }` (plik ten jest ściśle chroniony i ignorowany przez Git w `.gitignore`).
 
 ---
 

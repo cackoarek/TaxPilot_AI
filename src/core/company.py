@@ -39,7 +39,7 @@ class ZUSConfig:
 
 @dataclass
 class KSeFConfig:
-    srodowisko: str = "PROD"  # TEST | DEMO | PROD
+    srodowisko: str = "PROD"  # TEST | PROD
     token: Optional[str] = None
     token_env_var: Optional[str] = None
 
