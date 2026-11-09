@@ -8,7 +8,7 @@ Każdy agent operujący w tym projekcie ma bezwzględny obowiązek stosowania po
 ## 1. Naczelne Zasady Architektoniczne (Non-Negotiable)
 
 1. **Zero-Hallucination Policy (Separacja Rozumowania od Arytmetyki):**
-   * **LLM (Gemini):** Odpowiada za rozumienie intencji użytkownika w języku naturalnym, orkiestrację procesu, weryfikację wyjątków z przedsiębiorcą oraz prezentację czytelnych raportów.
+   * **LLM (Claude / ChatGPT / Gemini / Agent AI):** Odpowiada za rozumienie intencji użytkownika w języku naturalnym, orkiestrację procesu, weryfikację wyjątków z przedsiębiorcą oraz prezentację czytelnych raportów.
    * **Python (`Decimal`):** Wszelkie operacje arytmetyczne (podatki, ZUS, kwoty VAT, odliczenia, sumy) **MUSZĄ** być wykonywane deterministycznie przez dedykowane narzędzia w Pythonie (`src/skills/` oraz `src/level_3_tax_settlement/settlement_service.py`).
    * **ZAKAZ:** Agentowi zabrania się liczenia podatków "w pamięci" LLM. Każda liczba w raporcie musi pochodzić z wykonania kodu Pythona.
 
@@ -32,7 +32,7 @@ Proces rozliczenia i optymalizacji podatkowej opiera się na orkiestracji wyspec
 sequenceDiagram
     autonumber
     actor U as Przedsiębiorca
-    participant O as Tax Orchestrator (Gemini)
+    participant O as Tax Orchestrator (AI Agent)
     participant DA as Document Agent
     participant BA as Bookkeeping Agent
     participant TA as Tax Settlement Agent
@@ -67,7 +67,7 @@ sequenceDiagram
 ## 3. Katalog Ról i Odpowiedzialności Agentów
 
 ### 1. Tax Director / Orchestrator Agent (Główny Koordynator)
-* **Model:** Gemini 1.5 Pro / Flash.
+* **Model:** Dowolny wiodący model LLM (Claude 3.5 Sonnet / Opus, GPT-4o, Gemini 1.5 Pro).
 * **Rola:** Pierwsza linia kontaktu z przedsiębiorcą. Odpowiada za kierowanie przepływem informacji, zarządzanie kontekstem firmy i generowanie finalnych raportów.
 * **Zakres wiedzy:**
   * Profil podatnika (`profil.json`).

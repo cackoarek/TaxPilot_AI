@@ -1,6 +1,6 @@
 """
 Główny Agent Koordynator (Tax Orchestrator Agent).
-Integruje deterministyczne narzędzia z modelami Gemini za pomocą deklaracji Function Calling.
+Integruje deterministyczne narzędzia z modelami AI (Claude, GPT, Gemini) za pomocą uniwersalnych deklaracji Function Calling / Tool Use.
 """
 
 from decimal import Decimal
@@ -14,8 +14,8 @@ from src.skills.tax_advisor_tools import simulate_tax_regimes, audit_expense_lea
 from src.skills.pre_settlement_review import PreSettlementReview
 
 
-# Definicje narzędzi (Function Declarations dla Gemini API)
-GEMINI_TOOL_DECLARATIONS = [
+# Uniwersalne definicje narzędzi (kompatybilne ze standardem JSON Schema / OpenAPI)
+AGENT_TOOL_DECLARATIONS = [
     {
         "name": "sync_ksef_invoices",
         "description": "Pobiera i synchronizuje faktury sprzedaży i zakupu z Krajowego Systemu e-Faktur (KSeF 2.0) za wskazany miesiąc i rok.",
@@ -133,6 +133,26 @@ GEMINI_TOOL_DECLARATIONS = [
         }
     }
 ]
+
+# Wsteczna kompatybilność oraz adaptery dla dostawców LLM
+GEMINI_TOOL_DECLARATIONS = AGENT_TOOL_DECLARATIONS
+
+
+def get_openai_tools() -> List[Dict[str, Any]]:
+    """Zwraca deklaracje narzędzi w standardowym formacie OpenAI / ChatGPT."""
+    return [{"type": "function", "function": tool} for tool in AGENT_TOOL_DECLARATIONS]
+
+
+def get_anthropic_tools() -> List[Dict[str, Any]]:
+    """Zwraca deklaracje narzędzi w formacie Anthropic / Claude."""
+    return [
+        {
+            "name": tool["name"],
+            "description": tool["description"],
+            "input_schema": tool["parameters"]
+        }
+        for tool in AGENT_TOOL_DECLARATIONS
+    ]
 
 
 class TaxOrchestrator:

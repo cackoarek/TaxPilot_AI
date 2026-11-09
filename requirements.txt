@@ -1,8 +1,7 @@
 # Główne zależności TaxPilot AI
-requests>=2.31.0
+requests>=2.28.0
+cryptography>=3.4.8
 python-dotenv>=1.0.0
 
-# Opcjonalne (dla przyszłych poziomów i zaawansowanego OCR/AI):
+# Opcjonalne (dla zaawansowanego OCR i asystentów VLM):
 # google-genai
-# pydantic>=2.0
-# streamlit>=1.30.0
