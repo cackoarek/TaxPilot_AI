@@ -82,6 +82,7 @@ sequenceDiagram
   1. `KSeFClient` & `KSeFParser`: Szyfrowanie tokena RSA-OAEP SHA-256 certyfikatem MF, pobieranie paczek faktur XML `FA (2)`/`FA (3)` i zapis w `sprzedaz/ksef/` oraz `koszty/ksef/`.
   2. `NonKSeFExtractor`: Ekstrakcja dokumentów spoza KSeF (PDF, skany, JSON, TXT) dla kosztów i sprzedaży zagranicznej.
   3. `InvoiceStorage`: Organizacja fizycznej symetrycznej struktury dyskowej firmy.
+  4. `InvoiceDeduplicator`: Wykrywanie kolizji KSeF vs Non-KSeF (KSeF First), eliminacja duplikatów międzyokresowych (Cross-month) i ochrona przed podwójnym odliczeniem VAT / kosztu.
 
 ### 3. Bookkeeping Agent (Agent Księgowy)
 * **Rola:** Prawidłowa kwalifikacja podatkowa zdarzeń gospodarczych i prowadzenie ewidencji.

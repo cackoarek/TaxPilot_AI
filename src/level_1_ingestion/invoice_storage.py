@@ -18,6 +18,7 @@ from typing import Tuple, List, Optional
 
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceType
+from src.level_1_ingestion.invoice_deduplicator import InvoiceDeduplicator, DuplicateAnomaly
 
 
 class InvoiceStorage:
@@ -111,7 +112,9 @@ class InvoiceStorage:
         profile: CompanyProfile,
         invoice: Invoice,
         typ: InvoiceType = InvoiceType.KOSZT,
-        raw_source_name: Optional[str] = None
+        raw_source_name: Optional[str] = None,
+        target_rok: Optional[str] = None,
+        target_miesiac: Optional[str] = None,
     ) -> Path:
         """
         Zapisuje wyekstrahowaną encję faktury non-ksef do katalogu:
@@ -122,8 +125,8 @@ class InvoiceStorage:
         if raw_source_name:
             invoice.plik_zrodlowy = raw_source_name
 
-        rok = invoice.rok
-        miesiac = invoice.miesiac.zfill(2)
+        rok = str(target_rok) if target_rok else invoice.rok
+        miesiac = str(target_miesiac).zfill(2) if target_miesiac else invoice.miesiac.zfill(2)
         target_dir = cls.get_non_ksef_extracted_dir(profile, rok, miesiac, typ=typ)
 
         if raw_source_name:
@@ -139,65 +142,27 @@ class InvoiceStorage:
         return json_path
 
     @classmethod
-    def list_invoices(cls, profile: CompanyProfile, rok: str, miesiac: str, typ: InvoiceType = None) -> List[Invoice]:
+    def list_invoices(cls, profile: CompanyProfile, rok: str, miesiac: str, typ: Optional[InvoiceType] = None) -> List[Invoice]:
         """
-        Zwraca listę załadowanych faktur z danego miesiąca i roku.
-        Zarówno dla sprzedaży, jak i dla kosztów pobiera:
-        - faktury KSeF (z katalogu {typ}/ksef/ oraz wstecznie z {typ}/)
-        - faktury Non-KSeF z {typ}/non-ksef-extracted/
-        Deduplikuje wpisy na podstawie (numer, nip_sprzedawcy).
+        Zwraca listę unikalnych, zweryfikowanych faktur do zaksięgowania z danego miesiąca i roku.
+        Przeprowadza pełną deduplikację przy użyciu InvoiceDeduplicator:
+        - priorytet dla faktur KSeF (KSeF First)
+        - eliminacja zdublowanych plików w non-ksef-raw
+        - eliminacja duplikatów z innych miesięcy (Cross-Month Deduplication).
         """
-        base_path = profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2)
-        invoices: List[Invoice] = []
-        if not base_path.exists():
-            return invoices
+        clean_invoices, _ = InvoiceDeduplicator.deduplicate_month(
+            profile=profile, rok=rok, miesiac=miesiac, typ=typ
+        )
+        return clean_invoices
 
-        seen_keys = set()
-
-        subfolders = [typ.value] if typ else ["sprzedaz", "koszty"]
-        for sub in subfolders:
-            sub_dir = base_path / sub
-            if not sub_dir.exists():
-                continue
-
-            current_type = InvoiceType.SPRZEDAZ if sub == "sprzedaz" else InvoiceType.KOSZT
-
-            # 1. Faktury KSeF z {sub}/ksef/ oraz ew. root {sub}/ (dla wstecznej kompatybilności)
-            ksef_dirs = []
-            if (sub_dir / "ksef").exists():
-                ksef_dirs.append(sub_dir / "ksef")
-            ksef_dirs.append(sub_dir)
-
-            for k_dir in ksef_dirs:
-                for json_file in sorted(k_dir.glob("*.json")):
-                    if json_file.is_file():
-                        try:
-                            with open(json_file, "r", encoding="utf-8") as f:
-                                data = json.load(f)
-                                inv = Invoice.from_dict(data)
-                                key = (inv.numer, inv.sprzedawca.nip)
-                                if key not in seen_keys:
-                                    seen_keys.add(key)
-                                    invoices.append(inv)
-                        except Exception:
-                            continue
-
-            # 2. Faktury Non-KSeF z {sub}/non-ksef-extracted/
-            extracted_dir = sub_dir / "non-ksef-extracted"
-            if extracted_dir.exists():
-                for json_file in sorted(extracted_dir.glob("*.json")):
-                    if json_file.is_file():
-                        try:
-                            with open(json_file, "r", encoding="utf-8") as f:
-                                data = json.load(f)
-                                inv = Invoice.from_dict(data)
-                                inv.typ = current_type
-                                inv.zrodlo = "NON_KSEF"
-                                key = (inv.numer, inv.sprzedawca.nip)
-                                if key not in seen_keys:
-                                    seen_keys.add(key)
-                                    invoices.append(inv)
-                        except Exception:
-                            continue
-
-        return invoices
+    @classmethod
+    def get_duplicate_anomalies(
+        cls, profile: CompanyProfile, rok: str, miesiac: str, typ: Optional[InvoiceType] = None
+    ) -> List[DuplicateAnomaly]:
+        """
+        Zwraca listę wykrytych anomalii duplikatów dla danego miesiąca.
+        """
+        _, anomalies = InvoiceDeduplicator.deduplicate_month(
+            profile=profile, rok=rok, miesiac=miesiac, typ=typ
+        )
+        return anomalies

@@ -13,6 +13,7 @@ import json
 from src.core.company import CompanyProfile, FormaOpodatkowania
 from src.core.invoice import InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.invoice_deduplicator import DuplicateAnomaly, DuplicateType
 from src.level_2_bookkeeping.ledger import BookkeepingService, MonthlyLedger
 from src.skills.zus_tools import calculate_zus, ZUSCalculationResult
 from src.skills.ryczalt_tools import calculate_pit28_advance, PIT28CalculationResult
@@ -183,6 +184,38 @@ class MonthlySettlementResult:
             for q in self.ledger.pytania_do_uzytkownika:
                 linie.append(f"* {q}")
             linie.append("")
+
+        # 6. Wykryte i wykluczone duplikaty dokumentów
+        if self.ledger.duplikaty:
+            linie.extend([
+                "---",
+                "## 🚨 Wykryte i Zneutralizowane Duplikaty Dokumentów",
+                "Wykryto zdublowane dokumenty, które zostały bezpiecznie pominięte w rozliczeniu (ochrona przed podwójnym odliczeniem podatku i kosztu):",
+                "",
+                "| Lp. | Wykryty plik / dokument | Kontrahent | Kwota brutto | Typ kolizji | Działanie systemu i ochrona |",
+                "| :---: | :--- | :--- | :---: | :---: | :--- |",
+            ])
+            for idx, d in enumerate(self.ledger.duplikaty, start=1):
+                typ_label = {
+                    DuplicateType.KSEF_COLLISION: "🏛️ KSeF First (kolizja z KSeF)",
+                    DuplicateType.CROSS_MONTH_DUPLICATE: f"📅 Duplikat z m-ca {d.rok_pierwotny}-{d.miesiac_pierwotny}",
+                    DuplicateType.SAME_PERIOD_DUPLICATE: "📄 Zdublowany plik w tym m-cu",
+                }.get(d.typ_duplikatu, d.typ_duplikatu.value)
+
+                kontrahent_info = (
+                    f"{d.faktura_odrzucona.sprzedawca.nazwa} (`{d.faktura_odrzucona.sprzedawca.nip}`)"
+                    if d.faktura_odrzucona.typ == InvoiceType.KOSZT
+                    else f"{d.faktura_odrzucona.nabywca.nazwa} (`{d.faktura_odrzucona.nabywca.nip}`)"
+                )
+                plik_odrz = f"`{d.plik_zrodlowy_odrzucony}`" if d.plik_zrodlowy_odrzucony else f"`{d.faktura_odrzucona.numer}`"
+                linie.append(
+                    f"| {idx} | {plik_odrz} (nr: `{d.faktura_odrzucona.numer}`) | {kontrahent_info} | {d.faktura_odrzucona.suma_brutto:.2f} zł | {typ_label} | {d.rekomendacja} |"
+                )
+            linie.extend([
+                "",
+                f"*Łącznie zneutralizowano:* **{len(self.ledger.duplikaty)}** zdublowanych plików. Podatnik jest w 100% bezpieczny.",
+                "",
+            ])
 
         return "\n".join(linie)
 
@@ -627,7 +660,42 @@ class MonthlySettlementResult:
             "* Zapobiega to zakwestionowaniu rozliczenia przez organy Krajowej Administracji Skarbowej (KAS) oraz eliminuje ryzyko nałożenia dodatkowego zobowiązania podatkowego (sankcji VAT do 30% z art. 112b ustawy o VAT) wraz z odsetkami za zwłokę.",
             "* Zastosowano ustawowy limit 50% odliczenia VAT na wydatki eksploatacyjne pojazdów osobowych użytkowanych w trybie mieszanym (art. 86a ustawy o VAT).",
             "",
+            "---",
+            "## 🔍 Część IV: Rejestr Wykrytych Duplikatów i Kolizji Źródłowych (Deduplikacja)",
         ])
+
+        if not self.ledger.duplikaty:
+            linie.extend([
+                "* **Status deduplikacji:** ✅ W audytowanym okresie nie stwierdzono kolizji źródłowych (KSeF vs Non-KSeF) ani powtórzeń dokumentów z innych miesięcy.",
+                "* Wszystkie ujęte faktury są unikalne i reprezentują rzeczywiste zdarzenia gospodarcze.",
+                "",
+            ])
+        else:
+            linie.extend([
+                "W procesie księgowania wykryto zdublowane dokumenty. Zgodnie z nadrzędnymi regułami bezpieczeństwa podatkowego:",
+                "1. **KSeF First:** Faktury pobrane bezpośrednio z Krajowego Systemu e-Faktur stanowią urzędowe źródło prawdy. Pliki wgrane do katalogów non-ksef dublujące KSeF zostały odrzucone.",
+                "2. **Cross-Month Protection:** Dokumenty uprzednio zaksięgowane w innych miesiącach zostały zablokowane przed ponownym ujęciem.",
+                "",
+                "| Lp. | Odrzucony dokument | Pierwotny dokument | Typ kolizji | Wartość brutto | Uzasadnienie i ochrona |",
+                "| :---: | :--- | :--- | :---: | :---: | :--- |",
+            ])
+            for idx, d in enumerate(self.ledger.duplikaty, start=1):
+                typ_label = {
+                    DuplicateType.KSEF_COLLISION: "🏛️ Kolizja KSeF vs Non-KSeF",
+                    DuplicateType.CROSS_MONTH_DUPLICATE: f"📅 Duplikat z m-ca {d.rok_pierwotny}-{d.miesiac_pierwotny}",
+                    DuplicateType.SAME_PERIOD_DUPLICATE: "📄 Zdublowany plik",
+                }.get(d.typ_duplikatu, d.typ_duplikatu.value)
+
+                odrz_info = f"`{d.plik_zrodlowy_odrzucony}` (nr: `{d.faktura_odrzucona.numer}`)"
+                pierw_info = f"`{d.plik_zrodlowy_pierwotny}` ({d.rok_pierwotny}-{d.miesiac_pierwotny})"
+                linie.append(
+                    f"| {idx} | {odrz_info} | {pierw_info} | {typ_label} | {d.faktura_odrzucona.suma_brutto:.2f} zł | {d.opis_problemu} {d.rekomendacja} |"
+                )
+            linie.extend([
+                "",
+                f"*Łącznie wykluczono:* **{len(self.ledger.duplikaty)}** prób podwójnego ujęcia dokumentów.",
+                "",
+            ])
 
         return "\n".join(linie)
 

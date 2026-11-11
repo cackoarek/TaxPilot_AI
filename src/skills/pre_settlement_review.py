@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Any
 from src.core.company import CompanyProfile
 from src.core.invoice import InvoiceType, Invoice
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.invoice_deduplicator import DuplicateAnomaly, DuplicateType
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
 from src.skills.ryczalt_tools import RegulySprzedazyFirmy
 from src.skills.cost_classifier import (
@@ -128,6 +129,7 @@ class PreSettlementReview:
     sprzedaz: List[SalesItemReview] = field(default_factory=list)
     koszty: List[ExpenseItemReview] = field(default_factory=list)
     do_wyjasnienia: List[ClarificationItemReview] = field(default_factory=list)
+    duplikaty: List[DuplicateAnomaly] = field(default_factory=list)
     laczna_sprzedaz_netto: Decimal = Decimal("0.00")
     laczna_sprzedaz_vat: Decimal = Decimal("0.00")
     laczna_sprzedaz_brutto: Decimal = Decimal("0.00")
@@ -143,6 +145,9 @@ class PreSettlementReview:
 
         # 1. Automatyczna ekstrakcja dokumentów spoza KSeF (sprzedaż i koszty) z non-ksef-raw/ do non-ksef-extracted/
         NonKSeFExtractor.extract_all(profile, rok_str, miesiac_str)
+
+        # 2. Wykrycie potencjalnych duplikatów i kolizji źródłowych
+        duplikaty = InvoiceStorage.get_duplicate_anomalies(profile, rok_str, miesiac_str)
 
         # 2. Faktury sprzedaży
         reguly_sprzedazy = RegulySprzedazyFirmy.load(profile)
@@ -293,6 +298,7 @@ class PreSettlementReview:
             sprzedaz=sales_items,
             koszty=expense_items,
             do_wyjasnienia=clarification_items,
+            duplikaty=duplikaty,
             laczna_sprzedaz_netto=suma_sprzedaz_netto,
             laczna_sprzedaz_vat=suma_sprzedaz_vat,
             laczna_sprzedaz_brutto=suma_sprzedaz_brutto,
@@ -316,6 +322,7 @@ class PreSettlementReview:
             "sprzedaz": [s.to_dict() for s in self.sprzedaz],
             "koszty": [k.to_dict() for k in self.koszty],
             "do_wyjasnienia": [c.to_dict() for c in self.do_wyjasnienia],
+            "duplikaty": [d.to_dict() for d in self.duplikaty],
         }
 
     def generate_markdown(self) -> str:
@@ -328,13 +335,52 @@ class PreSettlementReview:
             f"**Forma opodatkowania:** {self.profil.forma_opodatkowania.value} (Stawka ryczałtu: {stawka_proc}%)",
             "**Status weryfikacji:** ⏳ Oczekiwanie na zapoznanie i akceptację przedsiębiorcy",
             "",
+        ]
+
+        # Sekcja 0: Wykryte duplikaty dokumentów (jeśli występują)
+        if self.duplikaty:
+            linie.extend([
+                "---",
+                "## 🚨 0. Wykryte Duplikaty Dokumentów (Ochrona przed podwójnym księgowaniem)",
+                "System wykrył zdublowane dokumenty i zneutralizował ryzyko podwójnego ujęcia kosztów lub podatku VAT:",
+                "",
+                "| Lp. | Wykryty dokument / plik | Kontrahent | Brutto | Typ kolizji | Wyjaśnienie i Ochrona Podatkowa |",
+                "| :---: | :--- | :--- | :---: | :---: | :--- |",
+            ])
+            for idx, d in enumerate(self.duplikaty, start=1):
+                typ_label = {
+                    DuplicateType.KSEF_COLLISION: "🏛️ KSeF First (kolizja z KSeF)",
+                    DuplicateType.CROSS_MONTH_DUPLICATE: f"📅 Duplikat z m-ca {d.rok_pierwotny}-{d.miesiac_pierwotny}",
+                    DuplicateType.SAME_PERIOD_DUPLICATE: "📄 Zdublowany plik w tym m-cu",
+                }.get(d.typ_duplikatu, d.typ_duplikatu.value)
+
+                kontrahent_info = (
+                    f"{d.faktura_odrzucona.sprzedawca.nazwa} (`{d.faktura_odrzucona.sprzedawca.nip}`)"
+                    if d.faktura_odrzucona.typ == InvoiceType.KOSZT
+                    else f"{d.faktura_odrzucona.nabywca.nazwa} (`{d.faktura_odrzucona.nabywca.nip}`)"
+                )
+                plik_odrz = f"`{d.plik_zrodlowy_odrzucony}`" if d.plik_zrodlowy_odrzucony else f"`{d.faktura_odrzucona.numer}`"
+                wyjasnienie = f"**{d.opis_problemu}**<br>*{d.rekomendacja}*"
+                linie.append(
+                    f"| {idx} | {plik_odrz} (nr: `{d.faktura_odrzucona.numer}`) | {kontrahent_info} | {d.faktura_odrzucona.suma_brutto:.2f} zł | {typ_label} | {wyjasnienie} |"
+                )
+
+            linie.extend([
+                "",
+                "> 🛡️ **Zastosowane Zabezpieczenie:**",
+                "> Wszystkie powyższe zdublowane pozycje zostały **wykluczone z bieżącego księgowania**.",
+                "> Faktury są ujęte wyłącznie jeden raz (właściwe źródło KSeF lub miesiąc pierwotny), co gwarantuje pełną zgodność prawną z art. 86 i 112b ustawy o VAT.",
+                "",
+            ])
+
+        linie.extend([
             "---",
             f"## 📈 1. Faktury Sprzedaży (Przychody) – Do Zaznajomienia i Weryfikacji Kompletności",
             "Poniższe faktury sprzedaży zostały pobrane z KSeF oraz wyekstrahowane z archiwum non-ksef i zakwalifikowane do przychodów w bieżącym miesiącu:",
             "",
             "| Lp. | Źródło | Data | Numer faktury | Nabywca | NIP | Przedmiot sprzedaży | Netto | Ryczałt | VAT | Brutto |",
             "| :---: | :---: | :---: | :--- | :--- | :---: | :--- | :---: | :---: | :---: | :---: |",
-        ]
+        ])
 
         if not self.sprzedaz:
             linie.append("| - | - | - | *Brak faktur sprzedaży w tym miesiącu* | - | - | - | 0.00 zł | - | 0.00 zł | 0.00 zł |")

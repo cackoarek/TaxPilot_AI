@@ -70,6 +70,11 @@ def cmd_settle(args):
     print("\n" + result.generate_markdown_report())
 
     target_dir = profile.katalog_firmy / "rozliczenia" / str(args.rok) / str(args.miesiac).zfill(2)
+    if result.ledger.duplikaty:
+        print(f"\n⚠️  UWAGA: Wykryto i bezpiecznie wykluczono {len(result.ledger.duplikaty)} zdublowanych dokumentów!")
+        for d in result.ledger.duplikaty:
+            print(f"    - [{d.typ_duplikatu.value}] {d.faktura_odrzucona.numer} ({d.plik_zrodlowy_odrzucony}): {d.rekomendacja}")
+
     print("\n📂 Wygenerowane raporty archiwalne:")
     print(f" * Paczka Przelewów i Podsumowanie: {target_dir / 'rozliczenie.md'}")
     print(f" * Ewidencja Przychodów (miesiąc):  {target_dir / 'ewidencja-przychodow.md'}")

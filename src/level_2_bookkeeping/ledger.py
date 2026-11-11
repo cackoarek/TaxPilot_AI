@@ -13,6 +13,7 @@ from typing import Dict, Any, List, Optional
 from src.core.company import CompanyProfile
 from src.core.invoice import InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.invoice_deduplicator import DuplicateAnomaly
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
 from src.skills.ryczalt_tools import EwidencjaPrzychodowMiesiaca, STAWKA_12, RegulySprzedazyFirmy
 from src.skills.vat_tools import RejestrVATMiesiaca, ProporcjaOdliczeniaVAT
@@ -29,6 +30,7 @@ class MonthlyLedger:
     rejestr_vat: RejestrVATMiesiaca
     audyt_kosztow: List[InvoiceTaxAuditReport] = field(default_factory=list)
     pytania_do_uzytkownika: List[str] = field(default_factory=list)
+    duplikaty: List[DuplicateAnomaly] = field(default_factory=list)
 
     @property
     def laczne_odrzucone_netto_prywatne(self) -> Decimal:
@@ -50,6 +52,7 @@ class MonthlyLedger:
             "laczne_odrzucone_netto_prywatne": str(self.laczne_odrzucone_netto_prywatne),
             "laczny_odrzucony_vat_prywatny": str(self.laczny_odrzucony_vat_prywatny),
             "pytania_do_uzytkownika": self.pytania_do_uzytkownika,
+            "duplikaty": [d.to_dict() for d in self.duplikaty],
         }
 
 
@@ -127,6 +130,9 @@ class BookkeepingService:
                     continue
                 rejestr_vat.dodaj_fakture_zakupu(inv, forced_ratio=forced_prop, audit_report=report)
 
+        # 5. Wykryte duplikaty i anomalie
+        duplikaty = InvoiceStorage.get_duplicate_anomalies(profile, rok_str, miesiac_str)
+
         return MonthlyLedger(
             profil=profile,
             rok=rok_str,
@@ -135,4 +141,5 @@ class BookkeepingService:
             rejestr_vat=rejestr_vat,
             audyt_kosztow=audyty_kosztow,
             pytania_do_uzytkownika=pytania_uzytkownika,
+            duplikaty=duplikaty,
         )

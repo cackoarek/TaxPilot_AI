@@ -50,6 +50,12 @@ Sprawdź stan dokumentów w katalogu firmy za wskazany miesiąc:
      ```
      *(Narzędzia `przeglad` oraz `rozlicz` uruchamiają ten krok również automatycznie, zapewniając pełną spójność danych).*
 
+3. **Automatyczna Deduplikacja i Ochrona Przed Podwójnym Księgowaniem:**
+   System automatycznie chroni przedsiębiorcę przed dwoma powszechnymi błędami:
+   * **Kolizja KSeF vs Non-KSeF (KSeF First):** Gdy faktura została pobrana z KSeF, a użytkownik równocześnie wgrał jej pobrany plik PDF/skan do folderu `non-ksef-raw`, plik z non-ksef jest automatycznie wykluczany z księgowania, a KSeF traktowany jest jako źródło nadrzędne.
+   * **Duplikaty międzyokresowe (Cross-Month Deduplication):** Gdy faktura lub paragon został wgrany i zaksięgowany w jednym miesiącu, a ktoś wgra ten sam plik powtórnie w innym miesiącu (lub podwójnie w tym samym miesiącu), system blokuje drugie ujęcie, zapobiegając zawyżeniu kosztów i podwójnemu odliczeniu VAT (ochrona przed sankcją 30% z art. 112b ustawy o VAT).
+   Wykryte kolizje są raportowane przedsiębiorcy w sekcji `🚨 0. Wykryte Duplikaty Dokumentów`.
+
 ---
 
 ## Krok 2: Wstępny Przegląd i Akceptacja Dokumentów (Pre-settlement Review)
@@ -61,7 +67,10 @@ python -m src.cli przeglad --nip {NIP} --rok {ROK} --miesiac {MIESIAC}
 ```
 *(lub wywołaj narzędzie `review_month_invoices`).*
 
-Agent prezentuje użytkownikowi trzy przejrzyste tabele:
+Agent prezentuje użytkownikowi zestawienie weryfikacyjne (w tym alert o wykrytych duplikatach, jeśli wystąpiły):
+
+### 0. Wykryte Duplikaty Dokumentów (jeśli wystąpiły)
+* Wykaz zneutralizowanych kolizji (zduplikowane pliki, faktury KSeF vs PDF, faktury powtórzone z innych miesięcy) wraz z wyjaśnieniem, dlaczego plik został wykluczony.
 
 ### 1. Tabela Faktur Przychodowych (Sprzedaż)
 * Prezentuje listę faktur sprzedaży zakwalifikowanych do przychodów danego miesiąca (numer, data, nabywca, NIP, kwota netto, ryczałt, VAT, brutto, przedmiot sprzedaży).
