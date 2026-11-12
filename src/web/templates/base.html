@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TaxPilot AI – Autonomiczny Asystent Księgowo-Podatkowy JDG{% endblock %}</title>
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                900: '#1e3a8a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/custom.css">
+
+    <!-- HTMX 2.x -->
+    <script src="/static/js/htmx.min.js"></script>
+
+    <!-- Alpine.js 3.x (with x-cloak style) -->
+    <style>[x-cloak] { display: none !important; }</style>
+    <script defer src="/static/js/alpine.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased" x-data="{ copilotOpen: false }">
+
+    <!-- Header & Navigation -->
+    {% include "components/navbar.html" %}
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- AI Copilot Drawer -->
+    {% include "components/copilot_drawer.html" %}
+
+    <!-- Toast Notifications -->
+    {% include "components/alerts.html" %}
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+            <div>
+                <strong>TaxPilot AI</strong> – Deterministyczna Księgowość i Podatki JDG &copy; 2026.
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Stos: FastAPI + HTMX + TailwindCSS</span>
+                <span>•</span>
+                <span>Zasada: Zero-Hallucination (`Decimal`)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Globalne skróty klawiszowe (Ctrl+K dla Asystenta) -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const body = document.querySelector('body');
+                if (window.Alpine) {
+                    const data = Alpine.$data(body);
+                    if (data) {
+                        data.copilotOpen = !data.copilotOpen;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
