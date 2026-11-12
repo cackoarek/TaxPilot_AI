@@ -128,14 +128,25 @@ firmy/{NIP-Nazwa}/
 │               ├── ksef/             # Faktury kosztowe pobrane z KSeF ({data}_{nr}.xml/.json)
 │               ├── non-ksef-raw/     # Oryginalne pliki wrzucone przez użytkownika (PDF, skany, JSON)
 │               └── non-ksef-extracted/ # Znormalizowane encje podlegające księgowaniu ({stem}.json)
-└── rozliczenia/                      # Archiwum wygenerowanych rozliczeń
+├── rozliczenia/                      # Archiwum wygenerowanych rozliczeń
+│   └── {ROK}/
+│       └── {MIESIAC}/
+│           ├── rozliczenie.json            # Maszynowy stan rozliczenia
+│           ├── rozliczenie.md              # Oficjalny raport z Paczką Przelewów Podatnika
+│           ├── ewidencja-przychodow.md     # Ewidencja przychodów za dany miesiąc
+│           ├── ewidencja-przychodow-sumy.md# Zestawienie przychodów i odliczeń w ujęciu rocznym (YTD)
+│           └── sprawozdanie.md             # Sprawozdanie i audyt podatkowy dokumentów
+└── weryfikacje/                      # Archiwum procedury należytej staranności (AML / Sankcje / Biała Lista)
     └── {ROK}/
         └── {MIESIAC}/
-            ├── rozliczenie.json            # Maszynowy stan rozliczenia
-            ├── rozliczenie.md              # Oficjalny raport z Paczką Przelewów Podatnika
-            ├── ewidencja-przychodow.md     # Ewidencja przychodów za dany miesiąc
-            ├── ewidencja-przychodow-sumy.md# Zestawienie przychodów i odliczeń w ujęciu rocznym (YTD)
-            └── sprawozdanie.md             # Sprawozdanie i audyt podatkowy dokumentów
+            ├── raport-weryfikacji.md       # Zbiorczy raport compliance za dany miesiąc
+            ├── raport-weryfikacji.pdf      # Zbiorczy raport w formacie PDF (A4 pejzaż)
+            ├── raport-weryfikacji.json     # Maszynowy stan z sumami kryptograficznymi SHA-256
+            └── karty/                      # Indywidualne Karty Weryfikacji Kontrahenta (dowód na 5 lat)
+                ├── {NIP1}-karta.md
+                ├── {NIP1}-karta.pdf        # Oficjalna karta w formacie PDF (A4)
+                ├── {NIP1}-raw.json
+                └── ...
 ```
 
 ---
@@ -220,6 +231,8 @@ Dopiero po uzyskaniu akceptacji przedsiębiorcy agent przechodzi do Kroku 3.
    * Procedura bezpiecznego połączenia z KSeF 2.0 (szyfrowanie RSA-OAEP SHA-256) i pobrania faktur.
 5. **`doradca-podatkowy`** (`.agents/skills/doradca-podatkowy/SKILL.md`):
    * Procedura symulacji form opodatkowania (Ryczałt vs Liniowy vs Skala) oraz audytu brakujących kosztów.
+6. **`weryfikacja-kontrahentow`** (`.agents/skills/weryfikacja-kontrahentow/SKILL.md`):
+   * Procedura deterministycznej weryfikacji kontrahentów pod kątem AML, sankcji MSWiA i UE, Białej Listy VAT oraz rachunków bankowych z dwupoziomowym cache'owaniem i archiwizacją dowodów na 5 lat w `weryfikacje/{ROK}/{MIESIAC}/`.
 
 ### B. Standard Definiowania Narzędzi w Pythonie (`src/skills/`):
 Każde narzędzie obliczeniowe implementowane jest jako deterministyczna funkcja Pythona z pełnymi adnotacjami typów, dokumentacją i użyciem typu `Decimal`:

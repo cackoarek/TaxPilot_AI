@@ -857,5 +857,12 @@ class SettlementService:
             with open(spr_path, "w", encoding="utf-8") as f:
                 f.write(wynik.generate_sprawozdanie_report())
 
+            # 4. Automatyczna weryfikacja compliance kontrahentów (AML / Sankcje / Biała Lista)
+            try:
+                from src.skills.aml_tools import VerificationService
+                VerificationService.verify_month(profile, rok_str, miesiac_str, zapisz_pliki=True)
+            except Exception:
+                pass
+
         return wynik
 

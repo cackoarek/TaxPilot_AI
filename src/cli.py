@@ -82,6 +82,10 @@ def cmd_settle(args):
     print(f" * Sprawozdanie i Audyt Podatkowy:  {target_dir / 'sprawozdanie.md'}")
     print(f" * Stan maszynowy JSON:             {target_dir / 'rozliczenie.json'}")
 
+    wer_dir = profile.katalog_firmy / "weryfikacje" / str(args.rok) / str(args.miesiac).zfill(2)
+    if (wer_dir / "raport-weryfikacji.md").exists():
+        print(f" * Raport Weryfikacji (AML / Sankcje): {wer_dir / 'raport-weryfikacji.md'}")
+
 
 def cmd_settle_year(args):
     profile = CompanyProfile.load_by_nip(args.nip)
@@ -224,6 +228,66 @@ def cmd_extract_non_ksef(args):
     print(f"✅ Zakończono ekstrakcję non-KSeF! Przetworzono i zaktualizowano {len(extracted)} faktur w non-ksef-extracted/.")
     for p in extracted:
         print(f" * Zapisano: {p.parent.parent.name}/{p.parent.name}/{p.name}")
+
+
+def cmd_weryfikuj(args):
+    """Weryfikuje pojedynczego kontrahenta (ad-hoc) pod kątem AML, sankcji i Białej Listy."""
+    from src.skills.aml_tools import AMLVerificationEngine
+    profile = None
+    if getattr(args, "firma", None):
+        profile = CompanyProfile.load_by_nip(args.firma)
+
+    kwota = Decimal(str(args.kwota)) if getattr(args, "kwota", None) else None
+    print(f"Rozpoczynam weryfikację kontrahenta NIP: {args.kontrahent_nip}...")
+    karta = AMLVerificationEngine.verify_contractor(
+        nip=args.kontrahent_nip,
+        nazwa=getattr(args, "nazwa", None),
+        rachunek_bankowy=getattr(args, "konto", None),
+        kwota_transakcji=kwota,
+        profile=profile,
+        force=getattr(args, "force", False),
+    )
+
+    print("\n" + karta.generate_markdown_card())
+
+    if profile and getattr(args, "rok", None) and getattr(args, "miesiac", None):
+        rok_str = str(args.rok)
+        miesiac_str = str(args.miesiac).zfill(2)
+        target_dir = profile.katalog_firmy / "weryfikacje" / rok_str / miesiac_str / "karty"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        md_file = target_dir / f"{karta.nip}-karta.md"
+        json_file = target_dir / f"{karta.nip}-raw.json"
+        pdf_file = target_dir / f"{karta.nip}-karta.pdf"
+        with open(md_file, "w", encoding="utf-8") as f:
+            f.write(karta.generate_markdown_card())
+        import json
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(karta.to_dict(), f, indent=2, ensure_ascii=False)
+        try:
+            karta.generate_pdf_card(pdf_file)
+        except Exception:
+            pass
+        print(f"\n📂 Zapisano kartę weryfikacji w: {md_file} oraz {pdf_file}")
+
+
+def cmd_weryfikuj_miesiac(args):
+    """Weryfikuje wszystkich kontrahentów z faktur miesiąca pod kątem AML, sankcji i Białej Listy."""
+    from src.skills.aml_tools import VerificationService
+    profile = CompanyProfile.load_by_nip(args.nip)
+    if not profile:
+        print(f"Błąd: Nie znaleziono profilu firmy dla NIP: {args.nip}")
+        sys.exit(1)
+
+    print(f"Rozpoczynam weryfikację kontrahentów dla {profile.nazwa} za {args.rok}-{args.miesiac.zfill(2)}...")
+    raport = VerificationService.verify_month(profile, args.rok, args.miesiac, zapisz_pliki=True, force=getattr(args, "force", False))
+    print("\n" + raport.generate_markdown_report())
+
+    target_dir = profile.katalog_firmy / "weryfikacje" / str(args.rok) / str(args.miesiac).zfill(2)
+    print(f"\n📂 Zapisano kompletny pakiet weryfikacji w: {target_dir}")
+    print(f" * Raport zbiorczy Markdown: {target_dir / 'raport-weryfikacji.md'}")
+    print(f" * Raport zbiorczy PDF:      {target_dir / 'raport-weryfikacji.pdf'}")
+    print(f" * Raport maszynowy JSON:    {target_dir / 'raport-weryfikacji.json'}")
+    print(f" * Indywidualne karty ({raport.liczba_kontrahentow} szt. MD + PDF + JSON): {target_dir / 'karty'}")
 
 
 def cmd_init_company(args):
@@ -437,6 +501,26 @@ def main():
     p_init.add_argument("--ceidg-token", default=None, help="Opcjonalny token API CEIDG (dane.biznes.gov.pl)")
     p_init.add_argument("--force", action="store_true", help="Nadpisz profil jeśli już istnieje")
     p_init.set_defaults(func=cmd_init_company)
+
+    # Polecenie weryfikuj (ad-hoc weryfikacja kontrahenta AML / Sankcje / Biała Lista)
+    p_wer = subparsers.add_parser("weryfikuj", help="Zweryfikuj kontrahenta pod kątem AML, sankcji MSWiA/UE i Białej Listy VAT")
+    p_wer.add_argument("--kontrahent-nip", required=True, help="NIP sprawdzanego kontrahenta")
+    p_wer.add_argument("--nazwa", default=None, help="Opcjonalna nazwa kontrahenta")
+    p_wer.add_argument("--konto", default=None, help="Numer konta bankowego do weryfikacji na Białej Liście")
+    p_wer.add_argument("--kwota", default=None, help="Kwota transakcji (brutto w PLN)")
+    p_wer.add_argument("--firma", default="7770001122", help="NIP firmy zlecającej weryfikację")
+    p_wer.add_argument("--rok", default=None, help="Rok do zapisu w weryfikacje/{ROK}/{MIESIAC}/karty/")
+    p_wer.add_argument("--miesiac", default=None, help="Miesiąc do zapisu")
+    p_wer.add_argument("--force", action="store_true", help="Wymuś świeże zapytanie z pominięciem cache")
+    p_wer.set_defaults(func=cmd_weryfikuj)
+
+    # Polecenie weryfikuj-miesiac (zbiorcza weryfikacja wszystkich kontrahentów z miesiąca)
+    p_wer_m = subparsers.add_parser("weryfikuj-miesiac", help="Zbiorcza weryfikacja kontrahentów ze wszystkich faktur danego miesiąca")
+    p_wer_m.add_argument("--nip", default="7770001122", help="NIP rozliczanej firmy")
+    p_wer_m.add_argument("--rok", default="2026", help="Rok podatkowy")
+    p_wer_m.add_argument("--miesiac", required=True, help="Miesiąc (01-12)")
+    p_wer_m.add_argument("--force", action="store_true", help="Wymuś świeże odpytanie API rejestrów z pominięciem cache")
+    p_wer_m.set_defaults(func=cmd_weryfikuj_miesiac)
 
     args = parser.parse_args()
     args.func(args)

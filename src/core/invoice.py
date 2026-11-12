@@ -22,6 +22,7 @@ class InvoiceParty:
     nazwa: str
     kraj: str = "PL"
     adres: Optional[str] = None
+    regon: Optional[str] = None
 
     def __post_init__(self):
         self.nip = re.sub(r"[^0-9A-Za-z]", "", self.nip)
@@ -64,6 +65,7 @@ class Invoice:
     przyczyna_korekty: Optional[str] = None
     nr_faktury_korygowanej: Optional[str] = None
     data_faktury_korygowanej: Optional[str] = None
+    rachunek_bankowy: Optional[str] = None
 
     @property
     def czy_korekta(self) -> bool:
@@ -139,6 +141,7 @@ class Invoice:
             "przyczyna_korekty": self.przyczyna_korekty,
             "nr_faktury_korygowanej": self.nr_faktury_korygowanej,
             "data_faktury_korygowanej": self.data_faktury_korygowanej,
+            "rachunek_bankowy": self.rachunek_bankowy,
             "sprzedawca": asdict(self.sprzedawca),
             "nabywca": asdict(self.nabywca),
             "suma_netto": str(self.suma_netto),
@@ -170,12 +173,14 @@ class Invoice:
             nazwa=data["sprzedawca"]["nazwa"],
             kraj=data["sprzedawca"].get("kraj", "PL"),
             adres=data["sprzedawca"].get("adres"),
+            regon=data["sprzedawca"].get("regon"),
         )
         nabywca = InvoiceParty(
             nip=data["nabywca"]["nip"],
             nazwa=data["nabywca"]["nazwa"],
             kraj=data["nabywca"].get("kraj", "PL"),
             adres=data["nabywca"].get("adres"),
+            regon=data["nabywca"].get("regon"),
         )
         pozycje = [
             InvoiceItem(
@@ -220,4 +225,5 @@ class Invoice:
             przyczyna_korekty=data.get("przyczyna_korekty"),
             nr_faktury_korygowanej=data.get("nr_faktury_korygowanej"),
             data_faktury_korygowanej=data.get("data_faktury_korygowanej"),
+            rachunek_bankowy=data.get("rachunek_bankowy"),
         )

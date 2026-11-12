@@ -88,7 +88,15 @@ class KSeFParser:
             or cls._find_text(podmiot1_elem, "DaneIdentyfikacyjne/PelnaNazwa")
             or cls._find_text(podmiot1_elem, "DaneIdentyfikacyjne/NazwaPierwsza")
         )
-        sprzedawca = InvoiceParty(nip=nip_sprzedawcy, nazwa=nazwa_sprzedawcy)
+        regon_sprzedawcy = (
+            cls._find_text(podmiot1_elem, "DaneIdentyfikacyjne/REGON")
+            or cls._find_text(root, "Stopka/Rejestry/REGON")
+            or None
+        )
+        adres_l1 = cls._find_text(podmiot1_elem, "Adres/AdresL1")
+        adres_l2 = cls._find_text(podmiot1_elem, "Adres/AdresL2")
+        adres_sprzedawcy = f"{adres_l1}, {adres_l2}".strip(", ") if (adres_l1 or adres_l2) else None
+        sprzedawca = InvoiceParty(nip=nip_sprzedawcy, nazwa=nazwa_sprzedawcy, adres=adres_sprzedawcy, regon=regon_sprzedawcy)
 
         # 2. Nabywca (Podmiot2)
         nip_nabywcy = cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/NIP")
@@ -97,7 +105,11 @@ class KSeFParser:
             or cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/PelnaNazwa")
             or cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/NazwaPierwsza")
         )
-        nabywca = InvoiceParty(nip=nip_nabywcy, nazwa=nazwa_nabywcy)
+        regon_nabywcy = (
+            cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/REGON")
+            or None
+        )
+        nabywca = InvoiceParty(nip=nip_nabywcy, nazwa=nazwa_nabywcy, regon=regon_nabywcy)
 
         # 3. Nagłówek faktury (Fa)
         numer_faktury = cls._find_text(fa_elem, "P_2")
@@ -244,6 +256,15 @@ class KSeFParser:
             elif sprzedawca.nip == clean_target_nip:
                 typ = InvoiceType.SPRZEDAZ
 
+        # Rachunek bankowy
+        rachunek_bankowy = (
+            cls._find_text(fa_elem, "Platnosc/RachunekBankowy/NrRB")
+            or cls._find_text(fa_elem, "Platnosc/RachunekBankowyFaktora/NrRB")
+            or cls._find_text(root, "Fa/Platnosc/RachunekBankowy/NrRB")
+            or cls._find_text(root, "Platnosc/RachunekBankowy/NrRB")
+            or None
+        )
+
         return Invoice(
             numer=numer_faktury,
             data_wystawienia=data_wystawienia,
@@ -263,4 +284,5 @@ class KSeFParser:
             przyczyna_korekty=przyczyna_korekty,
             nr_faktury_korygowanej=nr_faktury_korygowanej,
             data_faktury_korygowanej=data_faktury_korygowanej,
+            rachunek_bankowy=rachunek_bankowy,
         )

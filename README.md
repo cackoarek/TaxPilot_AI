@@ -116,8 +116,10 @@ Możesz komunikować się z TaxPilotem w naturalnym języku polskim. Oto zestaw 
 
 ### 📥 1. Pobieranie faktur z KSeF i Non-KSeF
 * *"Pobierz faktury z KSeF za czerwiec 2026"*
-* *"Zsynchronizuj zakres od 2026-01-01 do 2026-06-30 z KSeF TEST"*
+* *"Zaksięguj miesiąc czerwiec 2026"*
+* *"Zsynchronizuj zakres od 2026-01-01 do 2026-06-30 z KSeF"*
 * *"Dodałem fakturę za paliwo w PDF do folderu non-ksef-raw. Wyekstrahuj ją"*
+* *"Wygeneruj mi raport o fakturach za paliwo za 2025"*
 
 ### 🔍 2. Wstępny Przegląd Przed Rozliczeniem (Pre-settlement Review)
 Zanim podatki zostaną zaksięgowane, asystent generuje zestawienie weryfikacyjne w 3 tabelach:
@@ -146,6 +148,11 @@ Gdy asystent zapyta o pozycję sporną, wystarczy odpowiedzieć:
 ### 📊 5. Doradztwo i optymalizacja podatkowa
 * *"Czy w przyszłym roku bardziej opłaca mi się pozostać na ryczałcie 12%, czy przejść na podatek liniowy 19%?"*
 * *"Przeprowadź audyt moich kosztów – czy nie zapomniałem o jakiejś powtarzalnej fakturze (leasing, telefon, hosting)?"*
+
+### 🛡️ 6. Weryfikacja Kontrahentów (AML, Sankcje MSWiA/UE, Biała Lista VAT)
+* *"Sprawdź nowego kontrahenta NIP 5250001090 pod kątem sankcji i AML przed podpisaniem umowy"*
+* *"Zweryfikuj kontrahenta i potwierdź czy rachunek bankowy PL 12 1020... jest na Białej Liście"*
+* *"Przeprowadź weryfikację compliance wszystkich kontrahentów za luty 2024"*
 
 ---
 
@@ -180,6 +187,12 @@ python -m src.cli symulacja --nip 7770001122 --dochod 250000 --koszty 30000
 
 # 8. Audyt brakujących faktur kosztowych
 python -m src.cli audyt --nip 7770001122 --rok 2026 --miesiac 06
+
+# 9. Weryfikacja kontrahenta ad-hoc (AML / Sankcje MSWiA i UE / Biała Lista VAT)
+python -m src.cli weryfikuj --kontrahent-nip 5250001090 --konto "12102010260000123456789012"
+
+# 10. Miesięczny audyt należytej staranności wszystkich kontrahentów z faktur
+python -m src.cli weryfikuj-miesiac --nip 7770001122 --rok 2026 --miesiac 06
 ```
 
 ---

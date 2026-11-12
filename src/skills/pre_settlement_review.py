@@ -8,6 +8,7 @@ Generuje deterministyczne zestawienia:
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+import re
 from typing import Dict, List, Optional, Any
 
 from src.core.company import CompanyProfile
@@ -23,6 +24,7 @@ from src.skills.cost_classifier import (
     KwalifikacjaKosztu,
     PozycjaKwalifikacjaResult,
 )
+from src.skills.aml_tools import check_sanctions
 
 
 @dataclass
@@ -39,6 +41,7 @@ class SalesItemReview:
     kwota_vat: Decimal
     kwota_brutto: Decimal
     zrodlo: str = "KSeF"
+    status_aml: str = "🟢 Czysty"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -53,6 +56,7 @@ class SalesItemReview:
             "stawka_ryczaltu": str(self.stawka_ryczaltu),
             "kwota_vat": str(self.kwota_vat),
             "kwota_brutto": str(self.kwota_brutto),
+            "status_aml": self.status_aml,
         }
 
 
@@ -71,6 +75,7 @@ class ExpenseItemReview:
     kwalifikacja_podatkowa: str
     status_weryfikacji: str
     zrodlo: str = "KSeF"
+    status_aml: str = "🟢 Czysty"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -86,6 +91,7 @@ class ExpenseItemReview:
             "kwota_brutto": str(self.kwota_brutto),
             "kwalifikacja_podatkowa": self.kwalifikacja_podatkowa,
             "status_weryfikacji": self.status_weryfikacji,
+            "status_aml": self.status_aml,
         }
 
 
@@ -161,6 +167,18 @@ class PreSettlementReview:
         suma_sprzedaz_vat = Decimal("0.00")
         suma_sprzedaz_brutto = Decimal("0.00")
 
+        # Pamięć podręczna weryfikacji sankcyjnej w ramach przeglądu (jeden kontrahent sprawdzany dokładnie 1 raz)
+        kontrahent_aml_cache: Dict[str, str] = {}
+
+        def get_contractor_aml_status(c_nip: str, c_nazwa: str) -> str:
+            clean = re.sub(r"[^0-9]", "", c_nip)
+            if clean in kontrahent_aml_cache:
+                return kontrahent_aml_cache[clean]
+            mswia, ue, _ = check_sanctions(clean, c_nazwa)
+            res = "🚨 STOP (Sankcje)" if (mswia or ue) else "🟢 Czysty"
+            kontrahent_aml_cache[clean] = res
+            return res
+
         for idx, inv in enumerate(faktury_sprzedaz, start=1):
             przedmiot = ", ".join([p.opis for p in inv.pozycje]) if inv.pozycje else "Usługi IT"
             if len(przedmiot) > 55:
@@ -173,6 +191,9 @@ class PreSettlementReview:
                 buyer_stawka = reguly_sprzedazy.stawki_nabywcow.get(inv.nabywca.nip, domyslna_stawka_ryczaltu)
 
             zrodlo_val = "Non-KSeF" if getattr(inv, "zrodlo", "") == "NON_KSEF" else "KSeF"
+
+            # Weryfikacja sankcyjna z cache (jeden kontrahent sprawdzany 1 raz)
+            status_aml = get_contractor_aml_status(inv.nabywca.nip, inv.nabywca.nazwa)
 
             sales_items.append(
                 SalesItemReview(
@@ -187,6 +208,7 @@ class PreSettlementReview:
                     kwota_vat=inv.suma_vat,
                     kwota_brutto=inv.suma_brutto,
                     zrodlo=zrodlo_val,
+                    status_aml=status_aml,
                 )
             )
             suma_sprzedaz_netto += inv.suma_netto
@@ -234,6 +256,10 @@ class PreSettlementReview:
                 status_tekst = "Do akceptacji"
 
             zrodlo_val = "Non-KSeF" if getattr(inv, "zrodlo", "") == "NON_KSEF" else "KSeF"
+
+            # Weryfikacja sankcyjna z cache (jeden kontrahent sprawdzany 1 raz)
+            status_aml = get_contractor_aml_status(inv.sprzedawca.nip, inv.sprzedawca.nazwa)
+
             expense_items.append(
                 ExpenseItemReview(
                     lp=idx,
@@ -248,6 +274,7 @@ class PreSettlementReview:
                     kwalifikacja_podatkowa=kwal_tekst,
                     status_weryfikacji=status_tekst,
                     zrodlo=zrodlo_val,
+                    status_aml=status_aml,
                 )
             )
             suma_koszt_netto += inv.suma_netto
@@ -378,22 +405,22 @@ class PreSettlementReview:
             f"## 📈 1. Faktury Sprzedaży (Przychody) – Do Zaznajomienia i Weryfikacji Kompletności",
             "Poniższe faktury sprzedaży zostały pobrane z KSeF oraz wyekstrahowane z archiwum non-ksef i zakwalifikowane do przychodów w bieżącym miesiącu:",
             "",
-            "| Lp. | Źródło | Data | Numer faktury | Nabywca | NIP | Przedmiot sprzedaży | Netto | Ryczałt | VAT | Brutto |",
-            "| :---: | :---: | :---: | :--- | :--- | :---: | :--- | :---: | :---: | :---: | :---: |",
+            "| Lp. | Źródło | Data | Numer faktury | Nabywca | NIP | Przedmiot sprzedaży | Netto | Ryczałt | VAT | Brutto | Status AML |",
+            "| :---: | :---: | :---: | :--- | :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |",
         ])
 
         if not self.sprzedaz:
-            linie.append("| - | - | - | *Brak faktur sprzedaży w tym miesiącu* | - | - | - | 0.00 zł | - | 0.00 zł | 0.00 zł |")
+            linie.append("| - | - | - | *Brak faktur sprzedaży w tym miesiącu* | - | - | - | 0.00 zł | - | 0.00 zł | 0.00 zł | - |")
         else:
             for s in self.sprzedaz:
                 zrodlo_badge = "📁 Non-KSeF" if s.zrodlo == "Non-KSeF" else "🏛️ KSeF"
                 ryczalt_kwota = (s.kwota_netto * s.stawka_ryczaltu).quantize(Decimal("0.01"))
                 s_proc_val = f"{s.stawka_ryczaltu * 100:.2f}".rstrip("0").rstrip(".") + "%"
                 linie.append(
-                    f"| {s.lp} | {zrodlo_badge} | {s.data} | `{s.numer}` | {s.nabywca_nazwa} | `{s.nabywca_nip}` | {s.przedmiot} | {s.kwota_netto:.2f} zł | {s_proc_val} ({ryczalt_kwota:.2f} zł) | {s.kwota_vat:.2f} zł | {s.kwota_brutto:.2f} zł |"
+                    f"| {s.lp} | {zrodlo_badge} | {s.data} | `{s.numer}` | {s.nabywca_nazwa} | `{s.nabywca_nip}` | {s.przedmiot} | {s.kwota_netto:.2f} zł | {s_proc_val} ({ryczalt_kwota:.2f} zł) | {s.kwota_vat:.2f} zł | {s.kwota_brutto:.2f} zł | {s.status_aml} |"
                 )
             linie.append(
-                f"| | | | | **SUMA PRZYCHODÓW** | | | **{self.laczna_sprzedaz_netto:.2f} zł** | | **{self.laczna_sprzedaz_vat:.2f} zł** | **{self.laczna_sprzedaz_brutto:.2f} zł** |"
+                f"| | | | | **SUMA PRZYCHODÓW** | | | **{self.laczna_sprzedaz_netto:.2f} zł** | | **{self.laczna_sprzedaz_vat:.2f} zł** | **{self.laczna_sprzedaz_brutto:.2f} zł** | |"
             )
 
         linie.extend([
@@ -406,20 +433,20 @@ class PreSettlementReview:
             f"## 🧾 2. Faktury Kosztowe (Zakupy) – Do Weryfikacji i Akceptacji Przedsiębiorcy",
             "Poniższe faktury kosztowe zostały pobrane z KSeF oraz wyekstrahowane z archiwum non-ksef na NIP Twojej działalności:",
             "",
-            "| Lp. | Źródło | Data | Numer faktury | Sprzedawca | NIP | Przedmiot zakupu | Netto | VAT | Brutto | Kwalifikacja podatkowa |",
-            "| :---: | :---: | :---: | :--- | :--- | :---: | :--- | :---: | :---: | :---: | :--- |",
+            "| Lp. | Źródło | Data | Numer faktury | Sprzedawca | NIP | Przedmiot zakupu | Netto | VAT | Brutto | Kwalifikacja podatkowa | Status AML |",
+            "| :---: | :---: | :---: | :--- | :--- | :---: | :--- | :---: | :---: | :---: | :--- | :---: |",
         ]        )
 
         if not self.koszty:
-            linie.append("| - | - | - | *Brak faktur kosztowych w tym miesiącu* | - | - | - | 0.00 zł | 0.00 zł | 0.00 zł | - |")
+            linie.append("| - | - | - | *Brak faktur kosztowych w tym miesiącu* | - | - | - | 0.00 zł | 0.00 zł | 0.00 zł | - | - |")
         else:
             for k in self.koszty:
                 zrodlo_badge = "📁 Non-KSeF" if k.zrodlo == "Non-KSeF" else "🏛️ KSeF"
                 linie.append(
-                    f"| {k.lp} | {zrodlo_badge} | {k.data} | `{k.numer}` | {k.sprzedawca_nazwa} | `{k.sprzedawca_nip}` | {k.glowny_przedmiot} | {k.kwota_netto:.2f} zł | {k.kwota_vat:.2f} zł | {k.kwota_brutto:.2f} zł | {k.kwalifikacja_podatkowa} |"
+                    f"| {k.lp} | {zrodlo_badge} | {k.data} | `{k.numer}` | {k.sprzedawca_nazwa} | `{k.sprzedawca_nip}` | {k.glowny_przedmiot} | {k.kwota_netto:.2f} zł | {k.kwota_vat:.2f} zł | {k.kwota_brutto:.2f} zł | {k.kwalifikacja_podatkowa} | {k.status_aml} |"
                 )
             linie.append(
-                f"| | | | | **SUMA WYDATKÓW** | | | **{self.laczny_koszt_netto:.2f} zł** | **{self.laczny_koszt_vat:.2f} zł** | **{self.laczny_koszt_brutto:.2f} zł** | |"
+                f"| | | | | **SUMA WYDATKÓW** | | | **{self.laczny_koszt_netto:.2f} zł** | **{self.laczny_koszt_vat:.2f} zł** | **{self.laczny_koszt_brutto:.2f} zł** | | |"
             )
 
         linie.extend([

@@ -201,6 +201,27 @@ class InvoiceDeduplicator:
                             inv.typ = current_type
                             if not getattr(inv, "zrodlo", None):
                                 inv.zrodlo = "KSEF"
+
+                            # Uzupełnij rachunek bankowy i dane z XML jeśli istnieją obok
+                            xml_file = json_file.with_suffix(".xml")
+                            if xml_file.exists() and (not inv.rachunek_bankowy or not inv.sprzedawca.regon):
+                                try:
+                                    with open(xml_file, "r", encoding="utf-8") as xf:
+                                        xml_content = xf.read()
+                                    from src.level_1_ingestion.ksef_parser import KSeFParser
+                                    parsed_xml_inv = KSeFParser.parse_xml(xml_content, target_company_nip=profile.nip)
+                                    if parsed_xml_inv.rachunek_bankowy and not inv.rachunek_bankowy:
+                                        inv.rachunek_bankowy = parsed_xml_inv.rachunek_bankowy
+                                    if parsed_xml_inv.sprzedawca.regon and not inv.sprzedawca.regon:
+                                        inv.sprzedawca.regon = parsed_xml_inv.sprzedawca.regon
+                                    if parsed_xml_inv.sprzedawca.adres and not inv.sprzedawca.adres:
+                                        inv.sprzedawca.adres = parsed_xml_inv.sprzedawca.adres
+                                    # Zaktualizuj json
+                                    with open(json_file, "w", encoding="utf-8") as jf:
+                                        json.dump(inv.to_dict(), jf, indent=2, ensure_ascii=False)
+                                except Exception:
+                                    pass
+
                             ksef_list.append((inv, json_file))
                         except Exception:
                             continue
