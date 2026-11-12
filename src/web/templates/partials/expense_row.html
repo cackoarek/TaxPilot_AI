@@ -1,0 +1,54 @@
+<!-- Fragment wiersza kosztowego: partials/expense_row.html -->
+<tr id="expense-row-{{ item.lp }}" class="hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs">
+  <td class="p-3 text-slate-400 font-mono text-center">{{ item.lp }}</td>
+  <td class="p-3 font-mono text-slate-600 whitespace-nowrap">{{ item.data }}</td>
+  <td class="p-3 font-mono font-medium text-slate-800">{{ item.numer }}</td>
+  <td class="p-3">
+    <div class="font-bold text-slate-900 truncate max-w-xs">{{ item.sprzedawca_nazwa }}</div>
+    <div class="text-[10px] text-slate-400 font-mono">NIP: {{ item.sprzedawca_nip }} • {{ item.zrodlo }}</div>
+  </td>
+  <td class="p-3 text-slate-600 truncate max-w-xs" title="{{ item.glowny_przedmiot }}">
+    {{ item.glowny_przedmiot }}
+  </td>
+  <td class="p-3 font-mono text-right font-semibold text-slate-900">
+    {{ "%.2f"|format(item.kwota_netto) }} zł
+  </td>
+  <td class="p-3 font-mono text-right text-slate-600">
+    {{ "%.2f"|format(item.kwota_vat) }} zł
+  </td>
+  
+  <!-- Dynamiczny selektor kwalifikacji HTMX -->
+  <td class="p-3">
+    <form class="inline-block" hx-post="/api/costs/qualify?lp={{ item.lp }}&numer={{ item.numer }}" hx-target="#expense-row-{{ item.lp }}" hx-swap="outerHTML">
+      <input type="hidden" name="sprzedawca_nip" value="{{ item.sprzedawca_nip }}">
+      <input type="hidden" name="opis" value="{{ item.glowny_przedmiot }}">
+      <select name="kwalifikacja" onchange="this.form.requestSubmit()"
+              class="text-xs font-semibold rounded-lg px-2.5 py-1 border 
+                     {% if '100%' in item.kwalifikacja_podatkowa or 'FIRMOWY' in item.kwalifikacja_podatkowa %}bg-emerald-50 text-emerald-800 border-emerald-300
+                     {% elif '50%' in item.kwalifikacja_podatkowa or 'SAMOCHOD' in item.kwalifikacja_podatkowa %}bg-blue-50 text-blue-800 border-blue-300
+                     {% elif '0%' in item.kwalifikacja_podatkowa or 'PRYWATNY' in item.kwalifikacja_podatkowa %}bg-slate-100 text-slate-600 border-slate-300
+                     {% else %}bg-amber-50 text-amber-800 border-amber-300 animate-pulse{% endif %}
+                     focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+        <option value="FIRMOWY_100" {% if '100%' in item.kwalifikacja_podatkowa or 'FIRMOWY' in item.kwalifikacja_podatkowa %}selected{% endif %}>
+          ✅ 100% Firmowy (Pełny VAT)
+        </option>
+        <option value="SAMOCHOD_50" {% if '50%' in item.kwalifikacja_podatkowa or 'SAMOCHOD' in item.kwalifikacja_podatkowa %}selected{% endif %}>
+          🚗 Samochód 50% (art. 86a)
+        </option>
+        <option value="PRYWATNY_0" {% if '0%' in item.kwalifikacja_podatkowa or 'PRYWATNY' in item.kwalifikacja_podatkowa %}selected{% endif %}>
+          ⛔ 0% Prywatny (Bez odliczenia)
+        </option>
+      </select>
+    </form>
+  </td>
+
+  <!-- Status AML -->
+  <td class="p-3 text-center whitespace-nowrap">
+    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold 
+                 {% if 'Czysty' in item.status_aml or 'Niskie' in item.status_aml %}bg-emerald-100 text-emerald-800
+                 {% elif 'Błąd sieci' in item.status_aml %}bg-amber-100 text-amber-800
+                 {% else %}bg-slate-100 text-slate-700{% endif %}">
+      {{ item.status_aml }}
+    </span>
+  </td>
+</tr>

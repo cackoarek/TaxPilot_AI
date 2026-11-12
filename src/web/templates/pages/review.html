@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Wstępny Przegląd Dokumentów – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Nagłówek Procedury -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded">KROK 2</span>
+        <h1 class="text-xl font-bold text-slate-900">
+          Wstępny Przegląd i Akceptacja Dokumentów (Pre-settlement Review)
+        </h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">
+        Okres: <strong class="text-slate-800">{{ rok }}-{{ miesiac }}</strong> • Firma: <strong class="text-slate-800">{{ profile.nazwa if profile else '' }}</strong> (NIP: {{ profile.nip if profile else '' }})
+      </p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <a href="/" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors">
+        &larr; Wróć do Pulpitu
+      </a>
+    </div>
+  </div>
+
+  <!-- Baner Relokacji i Duplikatów (Auto-Routing) -->
+  {% if review and review.relokacje %}
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl text-xs text-blue-900 space-y-1 shadow-xs">
+      <div class="flex items-center space-x-2 font-bold">
+        <span>📁</span>
+        <span>AUTOMATYCZNY ROUTING DOKUMENTÓW (AUTO-ROUTING)</span>
+      </div>
+      <p class="text-blue-800">
+        Wykryto <strong>{{ review.relokacje|length }}</strong> plików wrzuconych do niewłaściwego folderu. System automatycznie rozpoznał NIP wystawcy i zrelokował dokumenty sprzedaży do właściwego katalogu przychodów.
+      </p>
+    </div>
+  {% endif %}
+
+  <!-- Baner Ostrzegawczy AML (Błąd sieci) -->
+  {% if review and review.ostrzezenie_sieci_aml %}
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl text-xs text-amber-900 space-y-1 shadow-xs flex items-center justify-between">
+      <div class="flex items-center space-x-2 font-bold">
+        <span class="text-lg">⚠️</span>
+        <div>
+          <span class="block">UWAGA: NIEZWERYFIKOWANI KONTRAHENCI W REJESTRACH MF (BŁĄD SIECI)</span>
+          <span class="font-normal text-amber-800 text-[11px]">Dla części kontrahentów nie udało się potwierdzić statusu VAT z powodu błędu połączenia.</span>
+        </div>
+      </div>
+      <a href="/aml" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors">
+        Weryfikuj w module AML &rarr;
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- ========================================== -->
+  <!-- 1. TABELA PRZYCHODÓW (SPRZEDAŻ)            -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-3">
+    
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>1. Tabela Faktur Przychodowych (Sprzedaż)</span>
+          <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">
+            {{ review.sprzedaz|length if review else 0 }} faktur
+          </span>
+        </h2>
+        <p class="text-xs text-slate-500">Przychody podlegające opodatkowaniu ryczałtem od przychodów ewidencjonowanych (stawka 12%).</p>
+      </div>
+      <div class="text-right">
+        <span class="text-xs text-slate-500">Przychód Netto Łącznie:</span>
+        <span class="block text-base font-black text-slate-900 font-mono">
+          {{ "%.2f"|format(review.laczna_sprzedaz_netto) if review else '0.00' }} zł
+        </span>
+      </div>
+    </div>
+
+    <!-- Tabela Sprzedaży -->
+    <div class="overflow-x-auto px-5">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+            <th class="p-3 text-center">LP</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Numer Faktury</th>
+            <th class="p-3">Nabywca (Kontrahent)</th>
+            <th class="p-3">Przedmiot Sprzedaży</th>
+            <th class="p-3 text-right">Netto</th>
+            <th class="p-3 text-right">Ryczałt</th>
+            <th class="p-3 text-center">Status AML</th>
+            <th class="p-3 text-center">Źródło</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% if review and review.sprzedaz %}
+            {% for item in review.sprzedaz %}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">{{ item.lp }}</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">{{ item.data }}</td>
+                <td class="p-3 font-mono font-medium text-slate-800">{{ item.numer }}</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">{{ item.nabywca_nazwa }}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">NIP: {{ item.nabywca_nip }}</div>
+                </td>
+                <td class="p-3 text-slate-600 truncate max-w-xs">{{ item.przedmiot }}</td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">{{ "%.2f"|format(item.kwota_netto) }} zł</td>
+                <td class="p-3 font-mono text-right text-blue-700 font-semibold">{{ item.stawka_ryczaltu }}</td>
+                <td class="p-3 text-center">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    {{ item.status_aml }}
+                  </span>
+                </td>
+                <td class="p-3 text-center text-slate-500 font-medium">{{ item.zrodlo }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="9" class="p-6 text-center text-slate-400 italic">Brak zarejestrowanych faktur sprzedaży w tym miesiącu.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Oświadczenie o kompletności przychodów -->
+    <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center space-x-3 text-xs text-slate-700">
+      <input type="checkbox" id="confirm-revenues" checked class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+      <label for="confirm-revenues" class="cursor-pointer select-none">
+        <strong>Oświadczenie przedsiębiorcy:</strong> Potwierdzam, że powyższy wykaz obejmuje wszystkie przychody gospodarcze uzyskane w miesiącu {{ rok }}-{{ miesiac }}.
+      </label>
+    </div>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 2. TABELA KOSZTÓW (ZAKUPY & KWALIFIKACJA)  -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-4">
+    
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>2. Tabela Faktur Kosztowych (Zakupy) – Kwalifikacja Podatkowa</span>
+          <span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold">
+            {{ review.koszty|length if review else 0 }} dokumentów
+          </span>
+        </h2>
+        <p class="text-xs text-slate-500">
+          Wybierz odpowiednią kwalifikację odliczenia VAT w kolumnie rozwijanej (zmiana przelicza sumy w czasie rzeczywistym).
+        </p>
+      </div>
+      <div class="flex items-center space-x-2 text-xs">
+        <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium text-[11px]">100% Firmowy</span>
+        <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-medium text-[11px]">50% Samochód</span>
+        <span class="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200 font-medium text-[11px]">0% Prywatny</span>
+      </div>
+    </div>
+
+    <!-- Tabela Kosztów -->
+    <div class="overflow-x-auto px-5">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+            <th class="p-3 text-center">LP</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Numer Faktury</th>
+            <th class="p-3">Sprzedawca</th>
+            <th class="p-3">Przedmiot Wydatku</th>
+            <th class="p-3 text-right">Netto</th>
+            <th class="p-3 text-right">VAT</th>
+            <th class="p-3">Kwalifikacja (HTMX)</th>
+            <th class="p-3 text-center">Status AML</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% if review and review.koszty %}
+            {% for item in review.koszty %}
+              {% include "partials/expense_row.html" %}
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="9" class="p-6 text-center text-slate-400 italic">Brak zarejestrowanych faktur kosztowych w tym miesiącu.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pasek Podsumowania Kosztów (Auto-Refresh przez HTMX) -->
+    <div class="px-5 pb-5">
+      {% include "partials/costs_summary.html" %}
+    </div>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. POZYCJE DO ROZSTRZYGNIĘCIA & REGUŁY     -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>3. Rozstrzyganie Wątpliwości & Nauka Reguł Firmy (Human-in-the-Loop)</span>
+        </h2>
+        <p class="text-xs text-slate-500">
+          Zdefiniuj stałe reguły dla powtarzalnych wydatków, aby w kolejnych miesiącach system kwalifikował je automatycznie.
+        </p>
+      </div>
+      <span class="text-xs text-slate-400 font-mono">firmy/{{ profile.nip }}/reguly_kosztowe.json</span>
+    </div>
+
+    <!-- Formularz Dodawania / Utrwalania Reguły -->
+    <form hx-post="/api/rules/save" 
+          hx-target="#rule-save-result" 
+          class="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+      
+      <div>
+        <label class="block font-bold text-slate-700 mb-1">Wzorzec w opisie wydatku <span class="text-red-500">*</span></label>
+        <input type="text" name="wzorzec" required placeholder="np. Abonament, Serwis, Paliwo"
+               class="w-full border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 mb-1">NIP Kontrahenta (opcjonalny)</label>
+        <input type="text" name="sprzedawca_nip" placeholder="np. 5261040567"
+               class="w-full border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 mb-1">Kwalifikacja Podatkowa <span class="text-red-500">*</span></label>
+        <select name="kwalifikacja" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+          <option value="FIRMOWY_100">✅ 100% Firmowy (Pełny VAT)</option>
+          <option value="SAMOCHOD_50">🚗 50% Samochód (art. 86a)</option>
+          <option value="PRYWATNY_0">⛔ 0% Prywatny (Bez KUP/VAT)</option>
+        </select>
+      </div>
+
+      <div class="flex items-end">
+        <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs transition-colors">
+          💾 Zapisz Regułę na Stałe
+        </button>
+      </div>
+
+      <div class="sm:col-span-4" id="rule-save-result">
+        <!-- Komunikat po zapisaniu reguły -->
+      </div>
+    </form>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 4. FINALIZACJA ROZLICZENIA MIESIĄCA        -->
+  <!-- ========================================== -->
+  <div class="bg-gradient-to-r from-slate-900 to-blue-950 rounded-2xl p-6 text-white shadow-lg space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="space-y-1">
+        <h2 class="text-base font-bold flex items-center space-x-2">
+          <span>🚀 Gotowy do zamknięcia rozliczenia?</span>
+        </h2>
+        <p class="text-xs text-slate-300 max-w-xl">
+          Po zatwierdzeniu silnik podatkowy wyliczy składki ZUS, zaliczkę PIT-28 oraz bilans VAT-7, a na Pulpicie pojawi się gotowa <strong>Paczka Przelewów z kodami QR</strong>.
+        </p>
+      </div>
+
+      <form action="/api/settlement/close" method="POST" class="flex items-center space-x-3">
+        <div class="text-right">
+          <label class="block text-[10px] text-slate-300 uppercase font-semibold">Nadwyżka VAT z ub. miesiąca:</label>
+          <input type="text" name="nadwyzka_vat" value="0.00" 
+                 class="w-24 text-xs font-mono text-right bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+        </div>
+
+        <button type="submit" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2">
+          <span>✅ Zamknij Miesiąc i Generuj Przelewy</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
