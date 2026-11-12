@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Centrum Compliance & AML – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Tytuł Strony i Wprowadzenie -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <h1 class="text-xl font-bold text-slate-900 flex items-center space-x-2">
+        <span>🛡️ Centrum Compliance & Biała Lista VAT</span>
+        <span class="text-xs font-normal text-slate-500">({{ rok }}-{{ miesiac }})</span>
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">
+        Procedura należytej staranności, weryfikacja statusu podatnika VAT, ochrona kosztów powyżej 15 000 zł (art. 22p PIT) oraz sankcje MSWiA/UE.
+      </p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <form hx-post="/aml/verify-month" hx-target="#aml-table-container" hx-indicator="#verify-month-spinner">
+        <input type="hidden" name="force" value="false">
+        <button type="submit" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors flex items-center space-x-1.5">
+          <span>🔍 Sprawdź faktury z tego miesiąca</span>
+        </button>
+      </form>
+      <div id="verify-month-spinner" class="htmx-indicator text-xs text-blue-600 font-medium">
+        ⏳ Badanie rejestrów...
+      </div>
+    </div>
+  </div>
+
+  <!-- Sekcja 1: Kalkulator Weryfikacji Ad-Hoc -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <span>🔍 Szybka Weryfikacja Ad-Hoc Kontrahenta</span>
+        </h2>
+        <p class="text-xs text-slate-500">Sprawdź status kontrahenta i numer konta bankowego przed zleceniem przelewu w banku.</p>
+      </div>
+      <span class="text-[11px] text-slate-400 font-mono">Biała Lista MF • MSWiA • UE</span>
+    </div>
+
+    <!-- Formularz HTMX -->
+    <form hx-post="/aml/verify" 
+          hx-target="#aml-result-container" 
+          hx-indicator="#aml-spinner" 
+          class="space-y-4">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <!-- NIP -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            NIP Kontrahenta <span class="text-red-500">*</span>
+          </label>
+          <input type="text" 
+                 name="nip" 
+                 required 
+                 placeholder="np. 5252545285" 
+                 class="w-full text-xs font-mono border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Numer Rachunku Bankowego -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Numer Konta Bankowego (opcjonalny)
+          </label>
+          <input type="text" 
+                 name="rachunek" 
+                 placeholder="26 cyfr lub IBAN PL..." 
+                 class="w-full text-xs font-mono border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-0.5 block">Wymagane dla transakcji powyżej 15 000 zł</span>
+        </div>
+
+        <!-- Kwota Brutto -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Kwota Transakcji Brutto PLN (opcjonalna)
+          </label>
+          <input type="text" 
+                 name="kwota" 
+                 placeholder="np. 18500.00" 
+                 class="w-full text-xs font-mono border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-0.5 block">Sprawdzenie progu art. 22p PIT</span>
+        </div>
+
+      </div>
+
+      <!-- Opcje i Przycisk Submit -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-slate-100 gap-3">
+        <label class="inline-flex items-center text-xs text-slate-600 cursor-pointer">
+          <input type="checkbox" name="force" value="true" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-2">
+          <span>Wymuś odpytanie rejestrów na żywo (pomiń lokalny cache na dysku <code>--force</code>)</span>
+        </label>
+        
+        <div class="flex items-center space-x-3">
+          <div id="aml-spinner" class="htmx-indicator text-xs text-blue-600 font-medium">
+            ⏳ Weryfikacja w API MF i bazach sankcyjnych...
+          </div>
+          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow transition-colors flex items-center space-x-1">
+            <span>🔍 Sprawdź kontrahenta</span>
+          </button>
+        </div>
+      </div>
+
+    </form>
+
+    <!-- Kontener na wynik HTMX -->
+    <div id="aml-result-container" class="pt-2">
+      <!-- Tutaj wstrzykiwana jest Karta Kontrahenta (partials/aml_card_result.html) -->
+    </div>
+
+  </div>
+
+  <!-- Sekcja 2: Miesięczny Rejestr Należytej Staranności -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <span>📋 Rejestr Należytej Staranności za Okres {{ rok }}-{{ miesiac }}</span>
+        </h2>
+        <p class="text-xs text-slate-500">Zarchiwizowane dowody weryfikacji kontrahentów z faktur wystawionych i otrzymanych w tym miesiącu.</p>
+      </div>
+    </div>
+
+    <!-- Tabela Kontrahentów Miesiąca -->
+    {% include "partials/aml_table_rows.html" %}
+
+  </div>
+
+</div>
+{% endblock %}
