@@ -44,31 +44,75 @@ class CompanyFetcher:
         try:
             resp = requests.get(url, headers=headers, timeout=timeout)
             if resp.status_code != 200:
-                return None
+                # 404 oznacza brak podmiotu w wykazie (ale sieć działa poprawnie)
+                if resp.status_code == 404:
+                    return {
+                        "nip": clean_nip,
+                        "status_vat": "Niezarejestrowany (brak w wykazie MF)",
+                        "platnik_vat": False,
+                        "blad_polaczenia": False,
+                        "zrodlo": "MF_BIALA_LISTA"
+                    }
+                # Błędy serwera lub limitu zapytań (np. 429, 500, 503)
+                return {
+                    "nip": clean_nip,
+                    "status_vat": f"Błąd serwisu MF (HTTP {resp.status_code})",
+                    "platnik_vat": False,
+                    "blad_polaczenia": True,
+                    "komunikat_bledu": f"Odpowiedź serwera MF HTTP {resp.status_code}",
+                    "zrodlo": "MF_BIALA_LISTA_ERROR"
+                }
 
             data = resp.json()
             subject = data.get("result", {}).get("subject")
             if not subject:
-                return None
+                return {
+                    "nip": clean_nip,
+                    "status_vat": "Niezarejestrowany (brak w wykazie MF)",
+                    "platnik_vat": False,
+                    "blad_polaczenia": False,
+                    "zrodlo": "MF_BIALA_LISTA"
+                }
 
             status_vat = subject.get("statusVat", "").strip().lower()
             platnik_vat = (status_vat == "czynny")
 
             adres = subject.get("workingAddress") or subject.get("residenceAddress") or ""
 
+            krs = subject.get("krs", "")
+            krs = krs.strip() if krs else None
+
             return {
                 "nip": clean_nip,
                 "nazwa": subject.get("name", "").strip(),
                 "regon": subject.get("regon", "").strip(),
+                "krs": krs,
                 "adres": adres.strip(),
                 "status_vat": subject.get("statusVat", ""),
                 "platnik_vat": platnik_vat,
                 "rachunki_bankowe": subject.get("accountNumbers", []),
-                "zrodlo": "MF_BIALA_LISTA"
+                "zrodlo": "MF_BIALA_LISTA",
+                "blad_polaczenia": False
             }
-        except Exception:
-            # W środowisku offline lub przy braku sieci zwracamy None
-            return None
+        except requests.RequestException as exc:
+            # W środowisku offline lub przy braku sieci zwracamy jawny błąd połączenia
+            return {
+                "nip": clean_nip,
+                "status_vat": "Brak połączenia z API MF (błąd sieci / offline)",
+                "platnik_vat": False,
+                "blad_polaczenia": True,
+                "komunikat_bledu": f"Błąd połączenia z API MF: {exc.__class__.__name__}",
+                "zrodlo": "MF_BIALA_LISTA_ERROR"
+            }
+        except Exception as exc:
+            return {
+                "nip": clean_nip,
+                "status_vat": "Błąd zapytania do API MF",
+                "platnik_vat": False,
+                "blad_polaczenia": True,
+                "komunikat_bledu": str(exc),
+                "zrodlo": "MF_BIALA_LISTA_ERROR"
+            }
 
     @classmethod
     def fetch_from_ceidg(cls, nip: str, api_token: Optional[str] = None, timeout: int = 5) -> Optional[Dict[str, Any]]:
@@ -135,13 +179,17 @@ class CompanyFetcher:
 
         # 1. Próba pobrania z Białej Listy MF (bezpłatna, bez tokena)
         mf_data = cls.fetch_from_mf_biala_lista(clean_nip)
-        if mf_data:
+        if mf_data and not mf_data.get("blad_polaczenia"):
             res["nazwa"] = mf_data.get("nazwa")
             res["adres"] = mf_data.get("adres")
             res["regon"] = mf_data.get("regon")
+            res["krs"] = mf_data.get("krs")
             res["platnik_vat"] = mf_data.get("platnik_vat", True)
             res["rachunki_bankowe"] = mf_data.get("rachunki_bankowe", [])
             res["zrodlo"].append("MF_BIALA_LISTA")
+        elif mf_data and mf_data.get("blad_polaczenia"):
+            res["blad_polaczenia"] = True
+            res["komunikat_bledu"] = mf_data.get("komunikat_bledu")
 
         # 2. Próba pobrania z CEIDG (jeśli jest token)
         ceidg_data = cls.fetch_from_ceidg(clean_nip, api_token=ceidg_token)

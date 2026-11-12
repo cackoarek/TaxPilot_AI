@@ -66,6 +66,7 @@ class Invoice:
     nr_faktury_korygowanej: Optional[str] = None
     data_faktury_korygowanej: Optional[str] = None
     rachunek_bankowy: Optional[str] = None
+    relokacja: Optional[Dict[str, Any]] = None
 
     @property
     def czy_korekta(self) -> bool:
@@ -142,6 +143,7 @@ class Invoice:
             "nr_faktury_korygowanej": self.nr_faktury_korygowanej,
             "data_faktury_korygowanej": self.data_faktury_korygowanej,
             "rachunek_bankowy": self.rachunek_bankowy,
+            "relokacja": self.relokacja,
             "sprzedawca": asdict(self.sprzedawca),
             "nabywca": asdict(self.nabywca),
             "suma_netto": str(self.suma_netto),
@@ -226,4 +228,5 @@ class Invoice:
             nr_faktury_korygowanej=data.get("nr_faktury_korygowanej"),
             data_faktury_korygowanej=data.get("data_faktury_korygowanej"),
             rachunek_bankowy=data.get("rachunek_bankowy"),
+            relokacja=data.get("relokacja"),
         )

@@ -22,6 +22,13 @@ Każdy agent operujący w tym projekcie ma bezwzględny obowiązek stosowania po
    * Zmiana tokenu może odbywać się edycją `profil.json` lub komendą CLI: `python -m src.cli set-token --nip {NIP} --token {TOKEN}`.
    * Nigdy nie umieszczaj tokenów ani haseł w kodzie, promptach ani w publicznych repozytoriach gita.
 
+4. **Bezkompromisowa Rzetelność Compliance i Należytej Staranności (Obsługa Braku Sieci / Offline):**
+   * W przypadku braku połączenia internetowego lub niedostępności API rejestrów publicznych (Biała Lista MF, CEIDG, KRS):
+     - Karta kontrahenta oraz zbiorczy raport weryfikacji **MUSZĄ** jawnie wskazywać błąd połączenia sieciowego jako przyczynę braku danych (nie wolno traktować błędu sieci jako braku rejestracji VAT lub podmiotu nieistniejącego).
+     - **ZAKAZ:** Agentowi bezwzględnie zabrania się cichego zatwierdzania i zamykania rozliczenia podatkowego na podstawie niekompletnych danych compliance spowodowanych błędem sieci.
+     - **Obowiązek Agenta:** Agent ma obowiązek wyraźnie zaakcentować użytkownikowi brak połączenia z rejestrem państwowym i zaproponować ponowne uruchomienie procedury weryfikacyjnej w środowisku z dostępem do Internetu (polecenie z parametrem `--force`).
+     - Błędy połączenia sieciowego nie mogą zatruwać trwałego cache'a dyskowego – po przywróceniu sieci ponowna próba musi automatycznie odpytać rejestry live.
+
 ---
 
 ## 2. Architektura Zespołu Agentów i Schemat Współpracy
@@ -168,6 +175,7 @@ Gdy użytkownik poprosi o rozliczenie danego miesiąca (np. *"Rozlicz październ
      ```bash
      python -m src.cli extract-non-ksef --nip {NIP} --rok {ROK} --miesiac {MIESIAC}
      ```
+   * **Auto-Routing i Relokacja Dokumentów (Opcja 2):** W przypadku wykrycia pomyłki użytkownika (np. faktura sprzedaży wrzucona do `koszty/non-ksef-raw/` lub faktura kosztowa do `sprzedaz/non-ksef-raw/`), moduł automatycznie przenosi plik surowy do właściwego katalogu, pozostawiając w pierwotnym miejscu plik informacyjny `{oryginalny_plik}.PRZENIESIONO.txt` z pełnym audytem, a w podsumowaniu `przeglad` wyświetla sekcję relokacji.
    *(Moduły `przeglad` oraz `rozlicz` uruchamiają ten krok również automatycznie).*
 
 ### Krok 2: Wstępny Przegląd i Akceptacja Dokumentów (Pre-settlement Review)

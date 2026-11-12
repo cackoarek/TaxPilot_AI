@@ -5,12 +5,14 @@ Przetwarza surowe pliki wrzucone przez użytkownika:
   faktury/{ROK}/{MIESIĄC}/sprzedaz/non-ksef-raw/      ->  sprzedaz/non-ksef-extracted/{stem}.json
 """
 
+from datetime import datetime
 import json
 import os
+from pathlib import Path
 import re
+import shutil
 import subprocess
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from src.core.company import CompanyProfile
@@ -1584,14 +1586,74 @@ class NonKSeFExtractor:
         # Auto-routing na podstawie faktycznego typu faktury
         actual_type = extracted_invoice.typ
         if actual_type != invoice_type:
-            dest_dir = InvoiceStorage.get_non_ksef_extracted_dir(profile, rok, miesiac, typ=actual_type)
-            # Usuń ewentualny błędny plik z drugiego katalogu
+            dest_raw_dir = InvoiceStorage.get_non_ksef_raw_dir(profile, rok, miesiac, typ=actual_type)
+            dest_raw_dir.mkdir(parents=True, exist_ok=True)
+            dest_raw_file = dest_raw_dir / raw_path.name
+
+            # Usuń ewentualny błędny plik json z drugiego katalogu wyekstrahowanych
             wrong_path = target_dir / f"{raw_path.stem}.json"
             if wrong_path.exists():
                 try:
                     wrong_path.unlink()
                 except Exception:
                     pass
+
+            # Informacje o relokacji
+            type_label = "SPRZEDAŻ" if actual_type == InvoiceType.SPRZEDAZ else "KOSZTY"
+            relokacja_data = {
+                "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "zrodlo_katalog": str(raw_path.parent),
+                "docelowy_katalog": str(dest_raw_dir),
+                "oryginalny_plik": raw_path.name,
+                "nowy_plik": dest_raw_file.name,
+                "pierwotny_typ": invoice_type.value,
+                "faktyczny_typ": actual_type.value,
+                "powod": (
+                    f"Wykryto faktyczny typ: {type_label} "
+                    f"(Sprzedawca: {extracted_invoice.sprzedawca.nazwa} [{extracted_invoice.sprzedawca.nip}], "
+                    f"Nabywca: {extracted_invoice.nabywca.nazwa} [{extracted_invoice.nabywca.nip}])"
+                ),
+            }
+            extracted_invoice.relokacja = relokacja_data
+
+            # Utwórz czytelny plik-znacznik audytowy w pierwotnym katalogu
+            marker_path = raw_path.parent / f"{raw_path.name}.PRZENIESIONO.txt"
+            try:
+                rel_src = f"faktury/{rok}/{miesiac}/{invoice_type.value}/non-ksef-raw/{raw_path.name}"
+                rel_dst = f"faktury/{rok}/{miesiac}/{actual_type.value}/non-ksef-raw/{dest_raw_file.name}"
+                marker_content = (
+                    "================================================================================\n"
+                    "INFORMACJA O AUTOMATYCZNEJ RELOKACJI DOKUMENTU NON-KSEF (Auto-Routing)\n"
+                    "================================================================================\n"
+                    f"Data relokacji:     {relokacja_data['data']}\n"
+                    f"Oryginalny plik:    {raw_path.name}\n"
+                    f"Pierwotna ścieżka:  {rel_src}\n"
+                    f"Nowa lokalizacja:   {rel_dst}\n"
+                    f"Powód relokacji:    {relokacja_data['powod']}\n\n"
+                    "Dane faktury:\n"
+                    f"  - Numer faktury:  {extracted_invoice.numer}\n"
+                    f"  - Data faktury:   {extracted_invoice.data_wystawienia}\n"
+                    f"  - Sprzedawca:     {extracted_invoice.sprzedawca.nazwa} (NIP: {extracted_invoice.sprzedawca.nip})\n"
+                    f"  - Nabywca:        {extracted_invoice.nabywca.nazwa} (NIP: {extracted_invoice.nabywca.nip})\n"
+                    f"  - Kwota brutto:   {extracted_invoice.suma_brutto} {extracted_invoice.waluta}\n\n"
+                    "Ten plik informacyjny został wygenerowany automatycznie przez TaxPilot AI.\n"
+                    "Oryginalny plik dokumentu został bezpiecznie przeniesiony do właściwego folderu.\n"
+                    "================================================================================\n"
+                )
+                marker_path.write_text(marker_content, encoding="utf-8")
+            except Exception:
+                pass
+
+            # Fizyczne przeniesienie pliku źródłowego do właściwego folderu non-ksef-raw
+            if raw_path.resolve() != dest_raw_file.resolve() and raw_path.exists():
+                try:
+                    if dest_raw_file.exists():
+                        dest_raw_file.unlink()
+                    shutil.move(str(raw_path), str(dest_raw_file))
+                except Exception:
+                    pass
+
+            dest_dir = InvoiceStorage.get_non_ksef_extracted_dir(profile, rok, miesiac, typ=actual_type)
         else:
             dest_dir = target_dir
 
@@ -1600,6 +1662,8 @@ class NonKSeFExtractor:
             try:
                 with open(out_path, "r", encoding="utf-8") as ef:
                     existing_data = json.load(ef)
+                    if not extracted_invoice.relokacja and existing_data.get("relokacja"):
+                        extracted_invoice.relokacja = existing_data["relokacja"]
                     if existing_data.get("plik_zrodlowy") and existing_data.get("plik_zrodlowy") != raw_path.name:
                         out_path = dest_dir / f"{raw_path.stem}_{raw_path.suffix.lstrip('.')}.json"
             except Exception:
@@ -1633,8 +1697,15 @@ class NonKSeFExtractor:
                 inv = Invoice.from_dict(data)
                 inv.zrodlo = "NON_KSEF"
                 inv.plik_zrodlowy = json_path.name
-                # Jeśli typ w JSON był już określony, zachowaj go, inaczej przyjmij invoice_type
-                if not inv.typ:
+                # Weryfikacja faktycznego typu na podstawie NIP stron
+                p_clean = re.sub(r"[^0-9]", "", profile.nip)
+                s_clean = re.sub(r"[^0-9]", "", inv.sprzedawca.nip)
+                b_clean = re.sub(r"[^0-9]", "", inv.nabywca.nip)
+                if p_clean and s_clean == p_clean:
+                    inv.typ = InvoiceType.SPRZEDAZ
+                elif p_clean and b_clean == p_clean:
+                    inv.typ = InvoiceType.KOSZT
+                elif not inv.typ:
                     inv.typ = invoice_type
                 return inv
             except Exception:
@@ -1645,20 +1716,43 @@ class NonKSeFExtractor:
         data_wyst = data.get("issue_date") or data.get("data_wystawienia") or f"{rok}-{miesiac.zfill(2)}-01"
         data_sprz = data.get("sale_date") or data.get("data_sprzedazy") or data_wyst
 
-        if invoice_type == InvoiceType.SPRZEDAZ:
-            seller = InvoiceParty(nip=profile.nip, nazwa=profile.nazwa, kraj="PL")
-            buyer_data = data.get("buyer") or data.get("nabywca") or data.get("customer") or data.get("client") or {}
-            buyer_nip = str(buyer_data.get("nip") or buyer_data.get("vat_id") or "0000000000")
+        seller_data = data.get("seller") or data.get("sprzedawca") or {}
+        buyer_data = data.get("buyer") or data.get("nabywca") or data.get("customer") or data.get("client") or {}
+
+        seller_nip = str(seller_data.get("nip") or seller_data.get("vat_id") or "")
+        buyer_nip = str(buyer_data.get("nip") or buyer_data.get("vat_id") or "")
+
+        p_clean = re.sub(r"[^0-9]", "", profile.nip)
+        s_clean = re.sub(r"[^0-9]", "", seller_nip)
+        b_clean = re.sub(r"[^0-9]", "", buyer_nip)
+
+        # Wykrycie typu transakcji
+        if p_clean and s_clean == p_clean:
+            actual_type = InvoiceType.SPRZEDAZ
+        elif p_clean and b_clean == p_clean:
+            actual_type = InvoiceType.KOSZT
+        elif "typ" in data:
+            actual_type = InvoiceType.SPRZEDAZ if data["typ"].lower() in ["sprzedaz", "sprzedaż", "sales"] else InvoiceType.KOSZT
+        else:
+            actual_type = invoice_type
+
+        # Złożenie stron transakcji
+        if actual_type == InvoiceType.SPRZEDAZ:
+            seller_name = str(seller_data.get("name") or seller_data.get("nazwa") or profile.nazwa)
+            seller_country = str(seller_data.get("country") or seller_data.get("kraj") or "PL")
+            seller = InvoiceParty(nip=profile.nip, nazwa=seller_name, kraj=seller_country)
+
             buyer_name = str(buyer_data.get("name") or buyer_data.get("nazwa") or "Nieznany Klient")
             buyer_country = str(buyer_data.get("country") or buyer_data.get("kraj") or "PL")
-            buyer = InvoiceParty(nip=buyer_nip, nazwa=buyer_name, kraj=buyer_country)
+            buyer = InvoiceParty(nip=buyer_nip or "0000000000", nazwa=buyer_name, kraj=buyer_country)
         else:
-            seller_data = data.get("seller") or data.get("sprzedawca") or {}
-            seller_nip = str(seller_data.get("nip") or seller_data.get("vat_id") or "0000000000")
             seller_name = str(seller_data.get("name") or seller_data.get("nazwa") or "Nieznany Sprzedawca")
             seller_country = str(seller_data.get("country") or seller_data.get("kraj") or "PL")
-            seller = InvoiceParty(nip=seller_nip, nazwa=seller_name, kraj=seller_country)
-            buyer = InvoiceParty(nip=profile.nip, nazwa=profile.nazwa, kraj="PL")
+            seller = InvoiceParty(nip=seller_nip or "0000000000", nazwa=seller_name, kraj=seller_country)
+
+            buyer_name = str(buyer_data.get("name") or buyer_data.get("nazwa") or profile.nazwa)
+            buyer_country = str(buyer_data.get("country") or buyer_data.get("kraj") or "PL")
+            buyer = InvoiceParty(nip=profile.nip, nazwa=buyer_name, kraj=buyer_country)
 
         netto = _clean_amount(str(data.get("net_amount") or data.get("suma_netto") or data.get("netto") or "0.00"))
         vat = _clean_amount(str(data.get("vat_amount") or data.get("suma_vat") or data.get("vat") or "0.00"))
@@ -1708,7 +1802,7 @@ class NonKSeFExtractor:
             data_sprzedazy=data_sprz,
             sprzedawca=seller,
             nabywca=buyer,
-            typ=invoice_type,
+            typ=actual_type,
             suma_netto=netto,
             suma_vat=vat,
             suma_brutto=brutto,
@@ -2114,15 +2208,29 @@ class NonKSeFExtractor:
             if not raw_dir.exists():
                 continue
 
-            raw_files = [f for f in raw_dir.iterdir() if f.is_file() and not f.name.startswith(".")]
+            raw_files = [
+                f for f in raw_dir.iterdir()
+                if f.is_file()
+                and not f.name.startswith(".")
+                and not f.name.endswith(".PRZENIESIONO.txt")
+                and not f.name.endswith(".RELOCATED.txt")
+                and not f.name.startswith("_")
+            ]
 
             for raw_file in raw_files:
                 target_json = extracted_dir / f"{raw_file.stem}.json"
                 # Sprawdź cache / czas modyfikacji
                 if not force and target_json.exists():
-                    if target_json.stat().st_mtime >= raw_file.stat().st_mtime:
-                        extracted_paths.append(target_json)
-                        continue
+                    try:
+                        with open(target_json, "r", encoding="utf-8") as tj:
+                            data = json.load(tj)
+                            json_typ = data.get("typ")
+                            if json_typ and json_typ.lower() == curr_type.value.lower() and target_json.stat().st_mtime >= raw_file.stat().st_mtime:
+                                if target_json not in extracted_paths:
+                                    extracted_paths.append(target_json)
+                                continue
+                    except Exception:
+                        pass
 
                 out = cls.extract_file(
                     raw_path=raw_file,
@@ -2132,7 +2240,7 @@ class NonKSeFExtractor:
                     miesiac=str(miesiac).zfill(2),
                     invoice_type=curr_type,
                 )
-                if out:
+                if out and out not in extracted_paths:
                     extracted_paths.append(out)
 
         return extracted_paths

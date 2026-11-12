@@ -84,6 +84,11 @@ Agent prezentuje użytkownikowi zestawienie weryfikacyjne (w tym alert o wykryty
 * Prezentuje wyodrębnione pozycje niejednoznaczne (`DO_WYJASNIENIA`) oraz pozycje wykluczone jako prywatne (`PRYWATNY_0`).
 * **Zadanie dla przedsiębiorcy:** Rozstrzygnięcie wątpliwości (np. opłaty za usługi inne w Play – czy to firmowe stałe IP serwera, czy wydatek prywatny; potwierdzenie wykluczenia pakietu medycznego/TV).
 
+### 4. Weryfikacja Statusu AML i Ochrona Przed Błędami Sieci (Offline Alert)
+Jeśli w tabelach przeglądu lub weryfikacji pojawi się ostrzeżenie o braku połączenia z API Białej Listy MF (`⚠️ Błąd sieci (Offline)`):
+* **Zakaz bezkrytycznego zatwierdzania:** Agentowi bezwzględnie zabrania się finalizowania rozliczenia na podstawie niekompletnych danych compliance.
+* **Akcent i propozycja:** Agent ma obowiązek poinformować przedsiębiorcę o braku połączenia i zaproponować ponowne odpytanie rejestru online (`python -m src.cli weryfikuj-miesiac --nip {NIP} --rok {ROK} --miesiac {MIESIAC} --force`) przed przejściem do Kroku 3.
+
 ### Utrwalenie Reguł Firmy:
 Po uzyskaniu odpowiedzi od przedsiębiorcy, agent zapisuje decyzję do bazy wiedzy firmy:
 ```bash

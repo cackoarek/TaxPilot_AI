@@ -49,13 +49,26 @@ class TestCompanyFetcher(unittest.TestCase):
         self.assertEqual(res["zrodlo"], "MF_BIALA_LISTA")
 
     @patch("requests.get")
-    def test_fetch_mf_biala_lista_error(self, mock_get):
+    def test_fetch_mf_biala_lista_not_found_404(self, mock_get):
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_get.return_value = mock_response
 
         res = CompanyFetcher.fetch_from_mf_biala_lista("7770001122")
-        self.assertIsNone(res)
+        self.assertIsNotNone(res)
+        self.assertFalse(res["platnik_vat"])
+        self.assertFalse(res["blad_polaczenia"])
+        self.assertIn("Niezarejestrowany", res["status_vat"])
+
+    @patch("requests.get")
+    def test_fetch_mf_biala_lista_connection_error(self, mock_get):
+        import requests
+        mock_get.side_effect = requests.exceptions.ConnectionError("Brak sieci")
+
+        res = CompanyFetcher.fetch_from_mf_biala_lista("7770001122")
+        self.assertIsNotNone(res)
+        self.assertTrue(res["blad_polaczenia"])
+        self.assertIn("Brak połączenia", res["status_vat"])
 
     @patch("requests.get")
     def test_fetch_ceidg_success(self, mock_get):

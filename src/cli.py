@@ -250,6 +250,15 @@ def cmd_weryfikuj(args):
 
     print("\n" + karta.generate_markdown_card())
 
+    if karta.blad_polaczenia:
+        print("\n" + "=" * 80)
+        print("⚠️  OSTRZEŻENIE: Brak połączenia z API Białej Listy MF (błąd sieci / tryb offline)!")
+        print(f"   Szczegóły: {karta.komunikat_bledu or 'brak odpowiedzi z serwera MF'}")
+        print("   Weryfikacja podmiotu jest NIEKOMPLETNA i nie może zostać zatwierdzona w tym stanie.")
+        print("👉 Propozycja: Ponów weryfikację w środowisku z dostępem do Internetu:")
+        print(f"   python -m src.cli weryfikuj --kontrahent-nip {karta.nip} --force")
+        print("=" * 80 + "\n")
+
     if profile and getattr(args, "rok", None) and getattr(args, "miesiac", None):
         rok_str = str(args.rok)
         miesiac_str = str(args.miesiac).zfill(2)
@@ -288,6 +297,14 @@ def cmd_weryfikuj_miesiac(args):
     print(f" * Raport zbiorczy PDF:      {target_dir / 'raport-weryfikacji.pdf'}")
     print(f" * Raport maszynowy JSON:    {target_dir / 'raport-weryfikacji.json'}")
     print(f" * Indywidualne karty ({raport.liczba_kontrahentow} szt. MD + PDF + JSON): {target_dir / 'karty'}")
+
+    if raport.liczba_bledow_sieci > 0:
+        print("\n" + "=" * 80)
+        print(f"⚠️  OSTRZEŻENIE: Wykryto brak połączenia z API rejestrów MF dla {raport.liczba_bledow_sieci} kontrahentów!")
+        print("   Zbiorczy raport compliance jest NIEKOMPLETNY i nie powinien być zatwierdzany w tym stanie.")
+        print("👉 Propozycja: Uruchom ponowną weryfikację w środowisku z dostępem do Internetu:")
+        print(f"   python -m src.cli weryfikuj-miesiac --nip {args.nip} --rok {args.rok} --miesiac {args.miesiac} --force")
+        print("=" * 80 + "\n")
 
 
 def cmd_init_company(args):

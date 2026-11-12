@@ -233,6 +233,156 @@ class TestNonKSeFExtractor(unittest.TestCase):
         self.assertIn("FV-INT-2026/11/01", md)
         self.assertIn("📁 Non-KSeF", md)
 
+    def test_auto_routing_and_relocation_sales_in_expenses(self):
+        """
+        Testuje fizyczną relokację faktury sprzedaży omyłkowo umieszczonej w koszty/non-ksef-raw/
+        do sprzedaz/non-ksef-raw/ z pozostawieniem znacznika .PRZENIESIONO.txt.
+        """
+        # 1. Tworzymy fakturę sprzedaży w folderze KOSZTÓW (błąd użytkownika)
+        misplaced_sales = {
+            "invoice_number": "FV-SALES-MISPLACED-01",
+            "issue_date": "2026-11-10",
+            "seller": {
+                "name": self.profile.nazwa,
+                "nip": self.profile.nip,
+                "country": "PL"
+            },
+            "buyer": {
+                "name": "Klient Testowy Sp. z o.o.",
+                "nip": "1234567890",
+                "country": "PL"
+            },
+            "net_amount": "8000.00",
+            "vat_amount": "1840.00",
+            "gross_amount": "9840.00",
+            "items": [
+                {
+                    "description": "Usługi programistyczne",
+                    "net": "8000.00",
+                    "vat": "1840.00",
+                    "gross": "9840.00",
+                    "vat_rate": "23"
+                }
+            ]
+        }
+        orig_raw_path = self.raw_dir / "misplaced_sales.json"
+        with open(orig_raw_path, "w", encoding="utf-8") as f:
+            json.dump(misplaced_sales, f)
+
+        self.assertTrue(orig_raw_path.exists())
+
+        # 2. Wywołujemy ekstrakcję
+        extracted_files = NonKSeFExtractor.extract_all(self.profile, self.test_rok, self.test_miesiac, force=True)
+
+        # 3. Weryfikacja fizycznej relokacji
+        # Plik w koszty/non-ksef-raw/ NIE powinien istnieć (został przeniesiony)
+        self.assertFalse(orig_raw_path.exists())
+
+        # Znacznik .PRZENIESIONO.txt w koszty/non-ksef-raw/ POWINIEN istnieć
+        marker_path = self.raw_dir / "misplaced_sales.json.PRZENIESIONO.txt"
+        self.assertTrue(marker_path.exists())
+        marker_content = marker_path.read_text(encoding="utf-8")
+        self.assertIn("INFORMACJA O AUTOMATYCZNEJ RELOKACJI DOKUMENTU NON-KSEF", marker_content)
+        self.assertIn("Wykryto faktyczny typ: SPRZEDAŻ", marker_content)
+        self.assertIn("Nowa lokalizacja", marker_content)
+
+        # Plik fizyczny w sprzedaz/non-ksef-raw/ POWINIEN istnieć
+        target_raw_path = self.sales_raw_dir / "misplaced_sales.json"
+        self.assertTrue(target_raw_path.exists())
+
+        # Plik JSON w sprzedaz/non-ksef-extracted/ POWINIEN istnieć
+        target_extracted_path = self.sales_extracted_dir / "misplaced_sales.json"
+        self.assertTrue(target_extracted_path.exists())
+
+        with open(target_extracted_path, "r", encoding="utf-8") as f:
+            ext_data = json.load(f)
+
+        self.assertEqual(ext_data["typ"], "sprzedaz")
+        self.assertIsNotNone(ext_data.get("relokacja"))
+        self.assertEqual(ext_data["relokacja"]["pierwotny_typ"], "koszty")
+        self.assertEqual(ext_data["relokacja"]["faktyczny_typ"], "sprzedaz")
+
+        # 4. Ponowne uruchomienie extract_all nie powinno przetwarzać pliku .PRZENIESIONO.txt
+        repeat_extracted = NonKSeFExtractor.extract_all(self.profile, self.test_rok, self.test_miesiac, force=False)
+        self.assertFalse(any("PRZENIESIONO" in str(p) for p in repeat_extracted))
+
+        # 5. PreSettlementReview powinien zaraportować sekcję relokacji w Markdown
+        review = PreSettlementReview.build(self.profile, self.test_rok, self.test_miesiac)
+        self.assertEqual(len(review.relokacje), 1)
+        md = review.generate_markdown()
+        self.assertIn("Informacja o Automatycznej Relokacji Dokumentów Non-KSeF", md)
+        self.assertIn("misplaced_sales.json", md)
+        self.assertIn("koszty", md)
+        self.assertIn("sprzedaz", md)
+
+    def test_auto_routing_and_relocation_expense_in_sales(self):
+        """
+        Testuje fizyczną relokację faktury kosztowej omyłkowo umieszczonej w sprzedaz/non-ksef-raw/
+        do koszty/non-ksef-raw/ z pozostawieniem znacznika .PRZENIESIONO.txt.
+        """
+        # 1. Tworzymy fakturę kosztową w folderze SPRZEDAŻY (błąd użytkownika)
+        misplaced_expense = {
+            "invoice_number": "FV-EXPENSE-MISPLACED-02",
+            "issue_date": "2026-11-12",
+            "seller": {
+                "name": "Sklep Elektroniczny Komputery SA",
+                "nip": "9998887766",
+                "country": "PL"
+            },
+            "buyer": {
+                "name": self.profile.nazwa,
+                "nip": self.profile.nip,
+                "country": "PL"
+            },
+            "net_amount": "3000.00",
+            "vat_amount": "690.00",
+            "gross_amount": "3690.00",
+            "items": [
+                {
+                    "description": "Monitor 4K do stanowiska pracy",
+                    "net": "3000.00",
+                    "vat": "690.00",
+                    "gross": "3690.00",
+                    "vat_rate": "23"
+                }
+            ]
+        }
+        orig_sales_raw_path = self.sales_raw_dir / "misplaced_expense.json"
+        with open(orig_sales_raw_path, "w", encoding="utf-8") as f:
+            json.dump(misplaced_expense, f)
+
+        self.assertTrue(orig_sales_raw_path.exists())
+
+        # 2. Wywołujemy ekstrakcję
+        NonKSeFExtractor.extract_all(self.profile, self.test_rok, self.test_miesiac, force=True)
+
+        # 3. Weryfikacja fizycznej relokacji
+        # Plik w sprzedaz/non-ksef-raw/ NIE powinien istnieć (został przeniesiony)
+        self.assertFalse(orig_sales_raw_path.exists())
+
+        # Znacznik .PRZENIESIONO.txt w sprzedaz/non-ksef-raw/ POWINIEN istnieć
+        marker_path = self.sales_raw_dir / "misplaced_expense.json.PRZENIESIONO.txt"
+        self.assertTrue(marker_path.exists())
+        marker_content = marker_path.read_text(encoding="utf-8")
+        self.assertIn("INFORMACJA O AUTOMATYCZNEJ RELOKACJI DOKUMENTU NON-KSEF", marker_content)
+        self.assertIn("Wykryto faktyczny typ: KOSZTY", marker_content)
+
+        # Plik fizyczny w koszty/non-ksef-raw/ POWINIEN istnieć
+        target_raw_path = self.raw_dir / "misplaced_expense.json"
+        self.assertTrue(target_raw_path.exists())
+
+        # Plik JSON w koszty/non-ksef-extracted/ POWINIEN istnieć
+        target_extracted_path = self.extracted_dir / "misplaced_expense.json"
+        self.assertTrue(target_extracted_path.exists())
+
+        with open(target_extracted_path, "r", encoding="utf-8") as f:
+            ext_data = json.load(f)
+
+        self.assertEqual(ext_data["typ"], "koszty")
+        self.assertIsNotNone(ext_data.get("relokacja"))
+        self.assertEqual(ext_data["relokacja"]["pierwotny_typ"], "sprzedaz")
+        self.assertEqual(ext_data["relokacja"]["faktyczny_typ"], "koszty")
+
 
 if __name__ == "__main__":
     unittest.main()

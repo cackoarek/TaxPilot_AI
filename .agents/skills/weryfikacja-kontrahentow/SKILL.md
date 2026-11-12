@@ -101,7 +101,23 @@ Agent analizuje wygenerowaną kartę i komunikuje przedsiębiorcy:
 | Poziom ryzyka | Decyzja compliance | Znaczenie i zalecenia operacyjne |
 | :--- | :--- | :--- |
 | 🟢 **NISKIE** | `AKCEPTACJA` | Kontrahent w 100% bezpieczny. Aktywny w KRS/CEIDG, czynny VAT, rachunek na Białej Liście, brak sankcji. |
+| 🟡 **ŚREDNIE (Błąd sieci)** | `WYMAGA WYJAŚNIENIA` | **Brak połączenia z API Białej Listy MF (offline / timeout).** Raport jest niekompletny – zakaz bezkrytycznego zatwierdzania, wymagane ponowienie online (`--force`). |
 | 🟡 **ŚREDNIE** | `WYMAGA WYJAŚNIENIA` | Podmiot aktywny, ale rachunek bankowy nie figuruje na Białej Liście MF (ryzyko podatkowe dla kwot pow. 15 tys. zł) LUB podmiot ma status PEP. |
 | 🟠 **WYSOKIE** | `WYMAGA WYJAŚNIENIA` | Podmiot wykreślony / zawieszony w rejestrze lub brak rejestracji VAT. |
 | 🔴 **KRYTYCZNE (STOP)** | `ODMOWA WSPÓŁPRACY` | **BEZWZGLĘDNY ZAKAZ TRANSAKCJI.** Wykryto wpis na liście sankcyjnej MSWiA lub UE. Zablokuj płatność i zrezygnuj ze współpracy. |
+
+---
+
+## 6. Procedura w Przypadku Braku Sieci (Tryb Offline / Błąd API MF)
+
+Gdy podczas badania kontrahenta wystąpi błąd sieciowy (`ConnectionError`, `Timeout`, brak wyjścia do Internetu w sandboxie):
+1. **Jawne Oznaczenie w Raporcie:**
+   Zarówno w karcie kontrahenta (`karty/{NIP}-karta.md`), jak i w raporcie zbiorczym (`raport-weryfikacji.md`) pojawia się alert o niekompletności weryfikacji i przyczynie błędu sieciowego. Status VAT przyjmuje postać `⚠️ Brak połączenia z API MF (błąd sieci / offline)`.
+2. **Zakaz Zatwierdzania Niekompletnych Danych:**
+   Agentowi **bezwzględnie zabrania się** zatwierdzania rozliczenia miesiąca lub uznawania procedury AML za zakończoną sukcesem, gdy pozycje mają status błędu połączenia.
+3. **Aktywne Ostrzeżenie i Propozycja Agenta:**
+   Agent w konwersacji z przedsiębiorcą wyraźnie akcentuje problem:
+   > *"Wykryto brak połączenia z API Białej Listy Ministerstwa Finansów dla [N] kontrahentów. Raport jest niekompletny. Przed ostatecznym rozliczeniem należy uruchomić ponowną weryfikację w środowisku z dostępem do Internetu poleceniem: `python -m src.cli weryfikuj-miesiac --nip {NIP} --rok {ROK} --miesiac {MIESIAC} --force`"*.
+4. **Ochrona Cache'a Przed Zatruciem:**
+   Wpisy z błędem sieciowym nie są traktowane jako poprawny cache – po przywróceniu dostępu do Internetu system automatycznie odpyta rejestr państwowy bez konieczności czyszczenia plików.
 

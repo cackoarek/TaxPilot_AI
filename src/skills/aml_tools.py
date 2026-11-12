@@ -275,6 +275,8 @@ class KartaWeryfikacjiKontrahenta:
     decyzja: DecyzjaWspolpracy = DecyzjaWspolpracy.AKCEPTACJA
     uzasadnienie_decyzji: str = ""
     uwagi_dodatkowe: Optional[str] = None
+    blad_polaczenia: bool = False
+    komunikat_bledu: Optional[str] = None
     sha256_hash: str = ""
 
     def __post_init__(self):
@@ -308,7 +310,10 @@ class KartaWeryfikacjiKontrahenta:
         mswia_badge = "🚨 FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)" if self.sankcje_mswia else "✅ Brak na polskiej liście sankcyjnej MSWiA"
         ue_badge = "🚨 FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)" if self.sankcje_ue else "✅ Brak na unijnej liście sankcyjnej (EU Sanctions)"
 
-        vat_badge = "✅ Czynny podatnik VAT" if self.platnik_vat_czynny else f"⚠️ {self.status_vat or 'Zwolniony / Niezarejestrowany'}"
+        if self.blad_polaczenia:
+            vat_badge = "⚠️ Brak połączenia z API MF (błąd sieci / tryb offline)"
+        else:
+            vat_badge = "✅ Czynny podatnik VAT" if self.platnik_vat_czynny else f"⚠️ {self.status_vat or 'Zwolniony / Niezarejestrowany'}"
 
         rachunek_badge = {
             StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: "✅ Potwierdzony na Białej Liście Podatników VAT (MF)",
@@ -318,20 +323,39 @@ class KartaWeryfikacjiKontrahenta:
 
         ryzyko_badge = {
             PoziomRyzykaAML.NISKIE: "🟢 NISKIE (Brak ryzyk, kontrahent bezpieczny)",
-            PoziomRyzykaAML.SREDNIE: "🟡 ŚREDNIE (Wymaga uwagi / weryfikacji rachunku)",
+            PoziomRyzykaAML.SREDNIE: "🟡 ŚREDNIE (Weryfikacja niekompletna lub wymaga uwagi)",
             PoziomRyzykaAML.WYSOKIE: "🟠 WYSOKIE (Podmiot nieaktywny lub niezarejestrowany)",
             PoziomRyzykaAML.KRYTYCZNE_STOP: "🔴 KRYTYCZNE – SANKCJE (Bezwzględny zakaz współpracy)",
         }.get(self.poziom_ryzyka, self.poziom_ryzyka.value)
 
-        decyzja_badge = {
-            DecyzjaWspolpracy.AKCEPTACJA: "✅ AKCEPTACJA WSPÓŁPRACY I PŁATNOŚCI",
-            DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: "⚠️ WYMAGA WYJAŚNIENIA / ZGODY ZARZĄDZAJĄCEGO",
-            DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: "🛑 ODMOWA WSPÓŁPRACY – BLOKADA TRANSAKCJI",
-        }.get(self.decyzja, self.decyzja.value)
+        if self.blad_polaczenia:
+            decyzja_badge = "⚠️ WERYFIKACJA NIEKOMPLETNA – WYMAGANE PONOWIENIE (BŁĄD SIECI)"
+        else:
+            decyzja_badge = {
+                DecyzjaWspolpracy.AKCEPTACJA: "✅ AKCEPTACJA WSPÓŁPRACY I PŁATNOŚCI",
+                DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: "⚠️ WYMAGA WYJAŚNIENIA / ZGODY ZARZĄDZAJĄCEGO",
+                DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: "🛑 ODMOWA WSPÓŁPRACY – BLOKADA TRANSAKCJI",
+            }.get(self.decyzja, self.decyzja.value)
 
         linie = [
             "# KARTA WERYFIKACJI KONTRAHENTA (AML / SANKCJE / BIAŁA LISTA)",
             f"*Sporządzono w ramach procedury należytej staranności TaxPilot AI (zgodnie z ustawą AML i ustawą sankcyjną)*",
+        ]
+
+        if self.blad_polaczenia:
+            linie.extend([
+                "",
+                "> [!WARNING]",
+                "> ### ⚠️ WERYFIKACJA NIEKOMPLETNA – BRAK DOSTĘPU DO REJESTRÓW MF (BŁĄD SIECI / OFFLINE)",
+                f"> Podczas badania podmiotu wystąpił brak połączenia z API Białej Listy Ministerstwa Finansów ({self.komunikat_bledu or 'brak sieci'}).",
+                "> **Status podatnika VAT, REGON oraz rachunki bankowe NIE ZOSTAŁY zweryfikowane.**",
+                "> ",
+                "> ⛔ **Karta nie stanowi ostatecznego dowodu należytej staranności i nie powinna być zatwierdzana w tym stanie.**",
+                "> 👉 **Zalecenie:** Po przywróceniu połączenia internetowego ponów weryfikację poleceniem:",
+                f"> `python -m src.cli weryfikuj --kontrahent-nip {self.nip} --force`",
+            ])
+
+        linie.extend([
             "",
             "---",
             "## 1. Dane podstawowe",
@@ -346,7 +370,7 @@ class KartaWeryfikacjiKontrahenta:
             "---",
             "## 2. Wyniki sprawdzenia w rejestrach publicznych",
             f"* **Rejestr podstawowy ({self.zrodlo_rejestru}):** {rejestr_badge}",
-        ]
+        ])
 
         if self.reprezentacja:
             linie.append(f"  * **Osoby uprawnione do reprezentacji:** {', '.join(self.reprezentacja)}")
@@ -480,16 +504,38 @@ class KartaWeryfikacjiKontrahenta:
         # 2. Meta bar
         ryzyko_text = {
             PoziomRyzykaAML.NISKIE: '<font color="#15803D"><b>[NISKIE]</b></font> (Brak ryzyk, kontrahent bezpieczny)',
-            PoziomRyzykaAML.SREDNIE: '<font color="#D97706"><b>[ŚREDNIE]</b></font> (Wymaga uwagi / weryfikacji rachunku)',
+            PoziomRyzykaAML.SREDNIE: '<font color="#D97706"><b>[ŚREDNIE]</b></font> (Wymaga uwagi / weryfikacji)',
             PoziomRyzykaAML.WYSOKIE: '<font color="#EA580C"><b>[WYSOKIE]</b></font> (Podmiot nieaktywny lub niezarejestrowany)',
             PoziomRyzykaAML.KRYTYCZNE_STOP: '<font color="#DC2626"><b>[KRYTYCZNE – SANKCJE]</b></font> (ZAKAZ WSPÓŁPRACY)',
         }.get(self.poziom_ryzyka, self.poziom_ryzyka.value)
 
-        decyzja_text = {
-            DecyzjaWspolpracy.AKCEPTACJA: '<font color="#15803D"><b>✓ AKCEPTACJA WSPÓŁPRACY I PŁATNOŚCI</b></font>',
-            DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: '<font color="#D97706"><b>[!] WYMAGA WYJAŚNIENIA / ZGODY ZARZĄDZAJĄCEGO</b></font>',
-            DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: '<font color="#DC2626"><b>[✗] BEZWZGLĘDNA BLOKADA TRANSAKCJI</b></font>',
-        }.get(self.decyzja, self.decyzja.value)
+        if self.blad_polaczenia:
+            decyzja_text = '<font color="#DC2626"><b>[!] WYMAGA PONOWIENIA (BŁĄD SIECI)</b></font>'
+        else:
+            decyzja_text = {
+                DecyzjaWspolpracy.AKCEPTACJA: '<font color="#15803D"><b>✓ AKCEPTACJA WSPÓŁPRACY I PŁATNOŚCI</b></font>',
+                DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: '<font color="#D97706"><b>[!] WYMAGA WYJAŚNIENIA / ZGODY ZARZĄDZAJĄCEGO</b></font>',
+                DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: '<font color="#DC2626"><b>[✗] BEZWZGLĘDNA BLOKADA TRANSAKCJI</b></font>',
+            }.get(self.decyzja, self.decyzja.value)
+
+        if self.blad_polaczenia:
+            warn_p = Paragraph(
+                f'<font color="#DC2626"><b>[!] OSTRZEŻENIE: WERYFIKACJA NIEKOMPLETNA – BRAK DOSTĘPU DO REJESTRÓW MF (BŁĄD SIECI).</b></font><br/>'
+                f'<font color="#7F1D1D" size="7.5">Nie zweryfikowano statusu podatnika VAT, REGON ani rachunków bankowych ({self.komunikat_bledu or "offline"}). '
+                f'Wymagane ponowne uruchomienie online poleceniem: python -m src.cli weryfikuj --kontrahent-nip {self.nip} --force</font>',
+                cell_norm
+            )
+            t_warn = Table([[warn_p]], colWidths=[525])
+            t_warn.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEF2F2')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#DC2626')),
+                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('LEFTPADDING', (0,0), (-1,-1), 8),
+                ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ]))
+            elements.append(t_warn)
+            elements.append(Spacer(1, 6))
 
         meta_data = [
             [
@@ -553,7 +599,10 @@ class KartaWeryfikacjiKontrahenta:
 
         mswia_badge = '<font color="#DC2626"><b>[✗] FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)</b></font>' if self.sankcje_mswia else '<font color="#15803D"><b>✓ Brak na polskiej liście sankcyjnej MSWiA</b></font>'
         ue_badge = '<font color="#DC2626"><b>[✗] FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)</b></font>' if self.sankcje_ue else '<font color="#15803D"><b>✓ Brak na unijnej liście sankcyjnej (EU Sanctions)</b></font>'
-        vat_badge = '<font color="#15803D"><b>✓ Czynny podatnik VAT</b></font>' if self.platnik_vat_czynny else f'<font color="#D97706"><b>[!] {self.status_vat or "Zwolniony / Niezarejestrowany"}</b></font>'
+        if self.blad_polaczenia:
+            vat_badge = '<font color="#DC2626"><b>[!] BŁĄD SIECI / BRAK POŁĄCZENIA Z API MF</b></font>'
+        else:
+            vat_badge = '<font color="#15803D"><b>✓ Czynny podatnik VAT</b></font>' if self.platnik_vat_czynny else f'<font color="#D97706"><b>[!] {self.status_vat or "Zwolniony / Niezarejestrowany"}</b></font>'
 
         rachunek_badge = {
             StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: '<font color="#15803D"><b>✓ Potwierdzony na Białej Liście Podatników VAT (MF)</b></font>',
@@ -662,7 +711,10 @@ class AMLVerificationEngine:
         clean_nip = cls.clean_nip(nip)
         # 1. Pamięć sesji
         if clean_nip in cls._session_cache:
-            return cls._session_cache[clean_nip]
+            cached = cls._session_cache[clean_nip]
+            # Nie zwracaj z cache niekompletnych wpisów z błędem połączenia / offline
+            if not cached.blad_polaczenia and "błąd" not in cached.status_vat.lower() and "offline" not in cached.status_vat.lower() and cached.status_vat != "Brak danych":
+                return cached
 
         # 2. Dysk (archiwum firmy)
         if profile and profile.katalog_firmy.exists():
@@ -674,6 +726,11 @@ class AMLVerificationEngine:
                     try:
                         with open(raw_files[0], "r", encoding="utf-8") as f:
                             data = json.load(f)
+
+                        # Pomijamy wpisy z błędem połączenia / brakiem danych z offline
+                        if data.get("blad_polaczenia") or "offline" in data.get("status_vat", "").lower() or "błąd" in data.get("status_vat", "").lower() or data.get("status_vat") == "Brak danych":
+                            return None
+
                         karta = KartaWeryfikacjiKontrahenta(
                             nip=data["nip"],
                             nazwa=data["nazwa"],
@@ -702,6 +759,8 @@ class AMLVerificationEngine:
                             decyzja=DecyzjaWspolpracy(data.get("decyzja", DecyzjaWspolpracy.AKCEPTACJA)),
                             uzasadnienie_decyzji=data.get("uzasadnienie_decyzji", ""),
                             uwagi_dodatkowe=data.get("uwagi_dodatkowe"),
+                            blad_polaczenia=data.get("blad_polaczenia", False),
+                            komunikat_bledu=data.get("komunikat_bledu"),
                             sha256_hash=data.get("sha256_hash", ""),
                         )
                         cls._session_cache[clean_nip] = karta
@@ -721,6 +780,7 @@ class AMLVerificationEngine:
         force: bool = False,
         regon: Optional[str] = None,
         adres: Optional[str] = None,
+        krs: Optional[str] = None,
     ) -> KartaWeryfikacjiKontrahenta:
         """
         Wykonuje pełną procedurę weryfikacji podmiotu po NIP z optymalizacją cache:
@@ -786,12 +846,27 @@ class AMLVerificationEngine:
         # 1. Odpytanie Białej Listy MF
         mf_data = CompanyFetcher.fetch_from_mf_biala_lista(clean_nip)
 
-        final_nazwa = (mf_data.get("nazwa") if mf_data else None) or nazwa or f"Podmiot NIP {clean_nip}"
-        final_adres = (mf_data.get("adres") if mf_data else None) or adres
-        final_regon = (mf_data.get("regon") if mf_data else None) or regon
-        status_vat = mf_data.get("status_vat", "Brak danych z API MF (offline)") if mf_data else "Brak danych z API MF (offline)"
-        platnik_vat_czynny = mf_data.get("platnik_vat", False) if mf_data else False
-        konta_mf = [cls.clean_iban(acc) for acc in (mf_data.get("rachunki_bankowe") or []) if acc] if mf_data else []
+        blad_polaczenia = False
+        komunikat_bledu = None
+        if mf_data and mf_data.get("blad_polaczenia"):
+            blad_polaczenia = True
+            komunikat_bledu = mf_data.get("komunikat_bledu")
+        elif mf_data is None:
+            blad_polaczenia = True
+            komunikat_bledu = "Brak odpowiedzi z API Białej Listy MF (błąd sieci / tryb offline)"
+
+        final_nazwa = (mf_data.get("nazwa") if mf_data and not blad_polaczenia else None) or nazwa or f"Podmiot NIP {clean_nip}"
+        final_adres = (mf_data.get("adres") if mf_data and not blad_polaczenia else None) or adres
+        final_regon = (mf_data.get("regon") if mf_data and not blad_polaczenia else None) or regon
+        final_krs = (mf_data.get("krs") if mf_data and not blad_polaczenia else None) or krs
+        if blad_polaczenia:
+            status_vat = "Brak połączenia z API MF (błąd sieci / offline)"
+            platnik_vat_czynny = False
+            konta_mf = []
+        else:
+            status_vat = mf_data.get("status_vat", "Niezarejestrowany w wykazie MF")
+            platnik_vat_czynny = mf_data.get("platnik_vat", False)
+            konta_mf = [cls.clean_iban(acc) for acc in (mf_data.get("rachunki_bankowe") or []) if acc]
 
         # 2. Rozpoznanie formy prawnej i rejestru
         # Jeśli w nazwie są słowa kluczowe spółek handlowych:
@@ -804,9 +879,9 @@ class AMLVerificationEngine:
         crbr_status = "ZGODNY" if is_spolka else "NIE_DOTYCZY"
 
         # Próba CEIDG dla JDG
-        status_rejestru = "AKTYWNY"
-        zrodlo_rejestru = "Biała Lista MF"
-        if not is_spolka:
+        status_rejestru = "BŁĄD POŁĄCZENIA" if blad_polaczenia else "AKTYWNY"
+        zrodlo_rejestru = "Biała Lista MF (błąd połączenia)" if blad_polaczenia else "Biała Lista MF"
+        if not is_spolka and not blad_polaczenia:
             ceidg_data = CompanyFetcher.fetch_from_ceidg(clean_nip)
             if ceidg_data:
                 zrodlo_rejestru = "CEIDG (dane.biznes.gov.pl)"
@@ -822,7 +897,7 @@ class AMLVerificationEngine:
 
         # Jeśli spółka, symulujemy/pobieramy reprezentację
         if is_spolka:
-            zrodlo_rejestru = "Krajowy Rejestr Sądowy (KRS) / MF"
+            zrodlo_rejestru = "Krajowy Rejestr Sądowy (KRS) / MF (błąd połączenia)" if blad_polaczenia else "Krajowy Rejestr Sądowy (KRS) / MF"
             crbr_status = "ZGODNY"
             # Gdy nazwa sugeruje zarząd, wyciągamy reprezentację z bazy
             reprezentacja = ["Zarząd zgodnie z odpisem KRS"]
@@ -858,6 +933,15 @@ class AMLVerificationEngine:
                 "Na mocy art. 2 ustawy z dnia 13 kwietnia 2022 r. o przeciwdziałaniu wspieraniu agresji na Ukrainę "
                 "obowiązuje BEZWZGLĘDNY ZAKAZ udostępniania jakichkolwiek środków finansowych i współpracy gospodarczej!"
             )
+        elif blad_polaczenia:
+            poziom_ryzyka = PoziomRyzykaAML.SREDNIE
+            decyzja = DecyzjaWspolpracy.WYMAGA_WYJASNIENIA
+            uzasadnienie = (
+                "⚠️ WERYFIKACJA NIEKOMPLETNA – BRAK DOSTĘPU DO REJESTRÓW MF (BŁĄD SIECI / TRYB OFFLINE). "
+                f"Podczas audytu nie udało się nawiązać połączenia z API Białej Listy Ministerstwa Finansów ({komunikat_bledu or 'brak dostępu do sieci'}). "
+                "Status podatnika VAT, REGON oraz rachunki bankowe NIE ZOSTAŁY zweryfikowane. Raport NIE MOŻE zostać zatwierdzony w tym stanie. "
+                "Wymagane ponowne uruchomienie analizy w środowisku z dostępem do Internetu (użyj parametru --force)."
+            )
         elif status_rejestru in ("WYKRESLONY", "NIEZNALEZIONY"):
             poziom_ryzyka = PoziomRyzykaAML.WYSOKIE
             decyzja = DecyzjaWspolpracy.WYMAGA_WYJASNIENIA
@@ -870,10 +954,6 @@ class AMLVerificationEngine:
                 "Płatność powyżej 15 000 zł na ten rachunek rodzi ryzyko wyłączenia z kosztów uzyskania przychodów (art. 22p PIT) "
                 "oraz solidarną odpowiedzialność za zaległości w VAT (art. 117ba Ordynacji podatkowej). Wymagane zgłoszenie ZAW-NR lub zmiana rachunku."
             )
-        elif mf_data is None:
-            poziom_ryzyka = PoziomRyzykaAML.SREDNIE
-            decyzja = DecyzjaWspolpracy.WYMAGA_WYJASNIENIA
-            uzasadnienie = "Brak połączenia z API Białej Listy MF (brak dostępu do sieci). Uruchom weryfikację z dostępem do Internetu, aby pobrać aktualny status VAT, REGON i rachunki bankowe."
         elif not platnik_vat_czynny and "zwolnion" not in status_vat.lower():
             poziom_ryzyka = PoziomRyzykaAML.SREDNIE
             decyzja = DecyzjaWspolpracy.WYMAGA_WYJASNIENIA
@@ -888,6 +968,7 @@ class AMLVerificationEngine:
             nazwa=final_nazwa,
             adres=final_adres,
             regon=final_regon,
+            krs=final_krs,
             forma_prawna=forma_prawna,
             status_rejestru=status_rejestru,
             zrodlo_rejestru=zrodlo_rejestru,
@@ -905,8 +986,11 @@ class AMLVerificationEngine:
             poziom_ryzyka=poziom_ryzyka,
             decyzja=decyzja,
             uzasadnienie_decyzji=uzasadnienie,
+            blad_polaczenia=blad_polaczenia,
+            komunikat_bledu=komunikat_bledu,
         )
-        cls._session_cache[clean_nip] = karta
+        if not blad_polaczenia:
+            cls._session_cache[clean_nip] = karta
         return karta
 
 
@@ -939,6 +1023,10 @@ class MiesiecznyRaportWeryfikacji:
     def liczba_krytyczna_stop(self) -> int:
         return sum(1 for k in self.karty if k.poziom_ryzyka == PoziomRyzykaAML.KRYTYCZNE_STOP)
 
+    @property
+    def liczba_bledow_sieci(self) -> int:
+        return sum(1 for k in self.karty if k.blad_polaczenia)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "firma_nip": self.profil.nip,
@@ -952,6 +1040,7 @@ class MiesiecznyRaportWeryfikacji:
                 "srednie_ryzyko_uwaga": self.liczba_srednia,
                 "wysokie_ryzyko_wyjasnienia": self.liczba_wysoka,
                 "krytyczne_stop_sankcje": self.liczba_krytyczna_stop,
+                "bledy_polaczenia_offline": self.liczba_bledow_sieci,
             },
             "kontrahenci": [k.to_dict() for k in self.karty],
         }
@@ -963,6 +1052,21 @@ class MiesiecznyRaportWeryfikacji:
             f"**Okres rozliczeniowy:** {self.rok}-{self.miesiac.zfill(2)}",
             f"**Firma audytująca:** {self.profil.nazwa} (NIP: `{self.profil.nip}`)",
             f"**Data audytu:** {datetime.now().strftime('%d.%m.%Y, %H:%M')} (UTC: `{self.data_generowania}`)",
+        ]
+
+        if self.liczba_bledow_sieci > 0:
+            linie.extend([
+                "",
+                "> [!WARNING]",
+                f"> ### ⚠️ UWAGA: RAPORT ZAWIERA POZYCJE NIEZWERYFIKOWANE Z POWODU BRAKU SIECI ({self.liczba_bledow_sieci} podmiotów)",
+                "> Dla części kontrahentów nie udało się pobrać danych z API Białej Listy Ministerstwa Finansów z powodu braku połączenia internetowego lub niedostępności usługi MF.",
+                "> **Raport jest NIEKOMPLETNY i nie może stanowić ostatecznego potwierdzenia procedury należytej staranności (AML / Biała Lista).**",
+                "> ",
+                "> 👉 **Wymagane działanie:** Upewnij się, że masz połączenie z Internetem i wykonaj ponowną weryfikację poleceniem:",
+                f"> `python -m src.cli weryfikuj-miesiac --nip {self.profil.nip} --rok {self.rok} --miesiac {self.miesiac} --force`",
+            ])
+
+        linie.extend([
             "",
             "---",
             "## 1. Podsumowanie Procedury Należytej Staranności",
@@ -975,35 +1079,47 @@ class MiesiecznyRaportWeryfikacji:
             f"| 🟡 **Średnie (Uwaga)** | **{self.liczba_srednia}** | Wymaga weryfikacji konta bankowego (Biała Lista) lub statusu PEP |",
             f"| 🟠 **Wysokie (Wyjaśnij)** | **{self.liczba_wysoka}** | Podmiot nieaktywny w KRS/CEIDG lub brak rejestracji VAT |",
             f"| 🔴 **KRYTYCZNE (STOP)** | **{self.liczba_krytyczna_stop}** | **BEZWZGLĘDNY ZAKAZ WSPÓŁPRACY I PŁATNOŚCI (Wpis na liście sankcyjnej)** |",
+        ])
+
+        if self.liczba_bledow_sieci > 0:
+            linie.append(
+                f"| ⚠️ **Błędy połączenia (Offline)** | **{self.liczba_bledow_sieci}** | **Weryfikacja niekompletna – wymagane ponowne sprawdzenie online (`--force`)** |"
+            )
+
+        linie.extend([
             "",
             "---",
             "## 2. Rejestr Zweryfikowanych Kontrahentów w Miesiącu",
             "",
             "| Lp. | Kontrahent | NIP | Rejestr | Status VAT | Rachunek bankowy | Sankcje MSWiA/UE | Ryzyko | Decyzja |",
             "| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
-        ]
+        ])
 
         for idx, k in enumerate(self.karty, start=1):
-            vat_txt = "Czynny" if k.platnik_vat_czynny else "Niezarejestrowany"
+            if k.blad_polaczenia:
+                vat_txt = "⚠️ Błąd sieci (Offline)"
+                ryzyko_txt = "🟡 Do ponowienia"
+                decyzja_txt = "⚠️ Ponów (Sieć)"
+            else:
+                vat_txt = "Czynny" if k.platnik_vat_czynny else "Niezarejestrowany"
+                ryzyko_txt = {
+                    PoziomRyzykaAML.NISKIE: "🟢 Niskie",
+                    PoziomRyzykaAML.SREDNIE: "🟡 Średnie",
+                    PoziomRyzykaAML.WYSOKIE: "🟠 Wysokie",
+                    PoziomRyzykaAML.KRYTYCZNE_STOP: "🔴 STOP",
+                }.get(k.poziom_ryzyka, k.poziom_ryzyka.value)
+                decyzja_txt = {
+                    DecyzjaWspolpracy.AKCEPTACJA: "Zaksięguj",
+                    DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: "Wyjaśnij",
+                    DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: "BLOKADA",
+                }.get(k.decyzja, k.decyzja.value)
+
             sankcje_txt = "🚨 STOP (Wpis)" if (k.sankcje_mswia or k.sankcje_ue) else "✅ Czysty"
             rachunek_txt = {
                 StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: "✅ Biała Lista",
                 StatusRachunkuBankowego.BRAK_NA_BIALEJ_LISCIE: "⚠️ Poza listą",
                 StatusRachunkuBankowego.NIE_PODANO: "Brak",
             }.get(k.status_rachunku, k.status_rachunku.value)
-
-            ryzyko_txt = {
-                PoziomRyzykaAML.NISKIE: "🟢 Niskie",
-                PoziomRyzykaAML.SREDNIE: "🟡 Średnie",
-                PoziomRyzykaAML.WYSOKIE: "🟠 Wysokie",
-                PoziomRyzykaAML.KRYTYCZNE_STOP: "🔴 STOP",
-            }.get(k.poziom_ryzyka, k.poziom_ryzyka.value)
-
-            decyzja_txt = {
-                DecyzjaWspolpracy.AKCEPTACJA: "Zaksięguj",
-                DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: "Wyjaśnij",
-                DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: "BLOKADA",
-            }.get(k.decyzja, k.decyzja.value)
 
             linie.append(
                 f"| {idx} | **{k.nazwa}** | `{k.nip}` | {k.status_rejestru} | {vat_txt} | {rachunek_txt} | {sankcje_txt} | {ryzyko_txt} | **{decyzja_txt}** |"
@@ -1064,6 +1180,25 @@ class MiesiecznyRaportWeryfikacji:
             HRFlowable(width='100%', thickness=1.5, color=colors.HexColor('#0F2942'), spaceAfter=7)
         ]
 
+        if self.liczba_bledow_sieci > 0:
+            warn_p = Paragraph(
+                f'<font color="#DC2626"><b>[!] OSTRZEŻENIE: RAPORT ZAWIERA {self.liczba_bledow_sieci} POZYCJI Z BŁĘDEM SIECI (OFFLINE).</b></font><br/>'
+                f'<font color="#7F1D1D" size="7.5">Dla części kontrahentów nie udało się pobrać danych z API Białej Listy MF. '
+                f'Raport jest niekompletny i wymaga ponowienia w trybie online: python -m src.cli weryfikuj-miesiac --nip {self.profil.nip} --rok {self.rok} --miesiac {self.miesiac} --force</font>',
+                cell_n
+            )
+            t_warn = Table([[warn_p]], colWidths=[780])
+            t_warn.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEF2F2')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#DC2626')),
+                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('LEFTPADDING', (0,0), (-1,-1), 8),
+                ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ]))
+            elements.append(t_warn)
+            elements.append(Spacer(1, 6))
+
         # Statystyki
         elements.append(Paragraph('1. Podsumowanie Procedury Należytej Staranności', sec_hdr_s))
         elements.append(Spacer(1, 3))
@@ -1075,6 +1210,13 @@ class MiesiecznyRaportWeryfikacji:
                 Paragraph(f'<b>[✗] KRYTYCZNE (STOP):</b> {self.liczba_krytyczna_stop}', cell_n),
             ]
         ]
+        if self.liczba_bledow_sieci > 0:
+            stats_data.append([
+                Paragraph(f'<font color="#DC2626"><b>[!] Błędy sieci (Offline):</b> {self.liczba_bledow_sieci}</font>', cell_n),
+                Paragraph('<font color="#DC2626">Weryfikacja niekompletna</font>', cell_n),
+                Paragraph('Wymagane ponowienie z --force', cell_n),
+                Paragraph('', cell_n),
+            ])
         t_stats = Table(stats_data, colWidths=[195, 195, 195, 195])
         t_stats.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
@@ -1105,7 +1247,6 @@ class MiesiecznyRaportWeryfikacji:
         ]
         rows = [headers]
         for idx, k in enumerate(self.karty, start=1):
-            vat_txt = '<font color="#15803D">✓ Czynny</font>' if k.platnik_vat_czynny else '<font color="#D97706">[!] Niezarejestrowany</font>'
             sankcje_txt = '<font color="#DC2626"><b>[✗] STOP (Wpis)</b></font>' if (k.sankcje_mswia or k.sankcje_ue) else '<font color="#15803D">✓ Czysty</font>'
             rachunek_txt = {
                 StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: '<font color="#15803D">✓ Biała Lista</font>',
@@ -1113,18 +1254,23 @@ class MiesiecznyRaportWeryfikacji:
                 StatusRachunkuBankowego.NIE_PODANO: '<font color="#64748B">Brak / Sprzedaż</font>',
             }.get(k.status_rachunku, k.status_rachunku.value)
 
-            ryzyko_txt = {
-                PoziomRyzykaAML.NISKIE: '<font color="#15803D">✓ Niskie</font>',
-                PoziomRyzykaAML.SREDNIE: '<font color="#D97706">[!] Średnie</font>',
-                PoziomRyzykaAML.WYSOKIE: '<font color="#EA580C">[!] Wysokie</font>',
-                PoziomRyzykaAML.KRYTYCZNE_STOP: '<font color="#DC2626"><b>[✗] STOP</b></font>',
-            }.get(k.poziom_ryzyka, k.poziom_ryzyka.value)
-
-            decyzja_txt = {
-                DecyzjaWspolpracy.AKCEPTACJA: '<font color="#15803D"><b>✓ Zaksięguj</b></font>',
-                DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: '<font color="#D97706"><b>[!] Wyjaśnij</b></font>',
-                DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: '<font color="#DC2626"><b>[✗] BLOKADA</b></font>',
-            }.get(k.decyzja, k.decyzja.value)
+            if k.blad_polaczenia:
+                vat_txt = '<font color="#DC2626"><b>[!] Błąd sieci</b></font>'
+                ryzyko_txt = '<font color="#D97706">[!] Do ponowienia</font>'
+                decyzja_txt = '<font color="#DC2626"><b>[!] Ponów (Sieć)</b></font>'
+            else:
+                vat_txt = '<font color="#15803D">✓ Czynny</font>' if k.platnik_vat_czynny else '<font color="#D97706">[!] Niezarejestrowany</font>'
+                ryzyko_txt = {
+                    PoziomRyzykaAML.NISKIE: '<font color="#15803D">✓ Niskie</font>',
+                    PoziomRyzykaAML.SREDNIE: '<font color="#D97706">[!] Średnie</font>',
+                    PoziomRyzykaAML.WYSOKIE: '<font color="#EA580C">[!] Wysokie</font>',
+                    PoziomRyzykaAML.KRYTYCZNE_STOP: '<font color="#DC2626"><b>[✗] STOP</b></font>',
+                }.get(k.poziom_ryzyka, k.poziom_ryzyka.value)
+                decyzja_txt = {
+                    DecyzjaWspolpracy.AKCEPTACJA: '<font color="#15803D"><b>✓ Zaksięguj</b></font>',
+                    DecyzjaWspolpracy.WYMAGA_WYJASNIENIA: '<font color="#D97706"><b>[!] Wyjaśnij</b></font>',
+                    DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: '<font color="#DC2626"><b>[✗] BLOKADA</b></font>',
+                }.get(k.decyzja, k.decyzja.value)
 
             rows.append([
                 Paragraph(str(idx), cell_n),

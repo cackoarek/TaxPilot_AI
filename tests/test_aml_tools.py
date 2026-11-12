@@ -212,6 +212,62 @@ class TestAMLVerification(unittest.TestCase):
             self.assertEqual(karta1.sha256_hash, karta2.sha256_hash)
             self.assertEqual(karta2.sha256_hash, karta3.sha256_hash)
 
+    def test_offline_network_failure_handling(self):
+        """Testuje, czy błąd sieciowy jest jawnie oznaczany i nie zatruwa cache."""
+        AMLVerificationEngine.clear_cache()
+        with patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.fetch_from_mf_biala_lista") as mock_mf:
+            mock_mf.return_value = {
+                "nip": "5252545285",
+                "status_vat": "Brak połączenia z API MF (błąd sieci / offline)",
+                "platnik_vat": False,
+                "blad_polaczenia": True,
+                "komunikat_bledu": "Connection refused",
+            }
+
+            karta = AMLVerificationEngine.verify_contractor(nip="5252545285", nazwa="KAFT SP. Z O.O.")
+            self.assertTrue(karta.blad_polaczenia)
+            self.assertEqual(karta.poziom_ryzyka, PoziomRyzykaAML.SREDNIE)
+            self.assertEqual(karta.decyzja, DecyzjaWspolpracy.WYMAGA_WYJASNIENIA)
+            self.assertIn("BRAK DOSTĘPU DO REJESTRÓW MF", karta.uzasadnienie_decyzji)
+
+            md = karta.generate_markdown_card()
+            self.assertIn("WERYFIKACJA NIEKOMPLETNA", md)
+            self.assertIn("python -m src.cli weryfikuj", md)
+
+            # Sprawdzenie, czy nie zatruło cache - kolejna próba powinna ponownie odpytać API
+            _ = AMLVerificationEngine.verify_contractor(nip="5252545285")
+            self.assertEqual(mock_mf.call_count, 2)
+
+    def test_monthly_report_offline_warning(self):
+        """Testuje, czy zbiorczy raport miesięczny zawiera ostrzeżenie o pozycjach offline."""
+        from src.skills.aml_tools import KartaWeryfikacjiKontrahenta, MiesiecznyRaportWeryfikacji
+        from tests.fixtures import setup_test_company
+
+        profile = setup_test_company()
+        karta_offline = KartaWeryfikacjiKontrahenta(
+            nip="5252545285",
+            nazwa="KAFT SP. Z O.O.",
+            adres=None,
+            blad_polaczenia=True,
+            komunikat_bledu="Offline test",
+            status_vat="Brak połączenia z API MF (błąd sieci / offline)",
+            platnik_vat_czynny=False,
+            poziom_ryzyka=PoziomRyzykaAML.SREDNIE,
+            decyzja=DecyzjaWspolpracy.WYMAGA_WYJASNIENIA,
+            uzasadnienie_decyzji="Błąd sieci",
+        )
+        raport = MiesiecznyRaportWeryfikacji(
+            profil=profile,
+            rok="2026",
+            miesiac="01",
+            karty=[karta_offline],
+        )
+
+        self.assertEqual(raport.liczba_bledow_sieci, 1)
+        md = raport.generate_markdown_report()
+        self.assertIn("RAPORT ZAWIERA POZYCJE NIEZWERYFIKOWANE Z POWODU BRAKU SIECI", md)
+        self.assertIn("--force", md)
+
 
 if __name__ == "__main__":
     unittest.main()

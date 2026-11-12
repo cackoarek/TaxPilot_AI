@@ -24,7 +24,7 @@ from src.skills.cost_classifier import (
     KwalifikacjaKosztu,
     PozycjaKwalifikacjaResult,
 )
-from src.skills.aml_tools import check_sanctions
+from src.skills.aml_tools import check_sanctions, AMLVerificationEngine
 
 
 @dataclass
@@ -136,12 +136,14 @@ class PreSettlementReview:
     koszty: List[ExpenseItemReview] = field(default_factory=list)
     do_wyjasnienia: List[ClarificationItemReview] = field(default_factory=list)
     duplikaty: List[DuplicateAnomaly] = field(default_factory=list)
+    relokacje: List[Dict[str, Any]] = field(default_factory=list)
     laczna_sprzedaz_netto: Decimal = Decimal("0.00")
     laczna_sprzedaz_vat: Decimal = Decimal("0.00")
     laczna_sprzedaz_brutto: Decimal = Decimal("0.00")
     laczny_koszt_netto: Decimal = Decimal("0.00")
     laczny_koszt_vat: Decimal = Decimal("0.00")
     laczny_koszt_brutto: Decimal = Decimal("0.00")
+    ostrzezenie_sieci_aml: bool = False
 
     @classmethod
     def build(cls, profile: CompanyProfile, rok: str, miesiac: str) -> "PreSettlementReview":
@@ -169,13 +171,30 @@ class PreSettlementReview:
 
         # Pamięć podręczna weryfikacji sankcyjnej w ramach przeglądu (jeden kontrahent sprawdzany dokładnie 1 raz)
         kontrahent_aml_cache: Dict[str, str] = {}
+        wykryto_blad_sieci_aml = False
 
         def get_contractor_aml_status(c_nip: str, c_nazwa: str) -> str:
+            nonlocal wykryto_blad_sieci_aml
             clean = re.sub(r"[^0-9]", "", c_nip)
             if clean in kontrahent_aml_cache:
                 return kontrahent_aml_cache[clean]
-            mswia, ue, _ = check_sanctions(clean, c_nazwa)
-            res = "🚨 STOP (Sankcje)" if (mswia or ue) else "🟢 Czysty"
+
+            # Sprawdzenie w trwałym cache AML firmy
+            cached = AMLVerificationEngine.get_cached_contractor(clean, profile=profile)
+            if cached:
+                if cached.sankcje_mswia or cached.sankcje_ue:
+                    res = "🚨 STOP (Sankcje)"
+                elif cached.blad_polaczenia:
+                    res = "⚠️ Błąd sieci (Offline)"
+                    wykryto_blad_sieci_aml = True
+                elif not cached.platnik_vat_czynny:
+                    res = "⚠️ Sprawdź VAT"
+                else:
+                    res = "🟢 Czysty"
+            else:
+                mswia, ue, _ = check_sanctions(clean, c_nazwa)
+                res = "🚨 STOP (Sankcje)" if (mswia or ue) else "🟢 Czysty"
+
             kontrahent_aml_cache[clean] = res
             return res
 
@@ -318,6 +337,12 @@ class PreSettlementReview:
                     )
                     clarification_idx += 1
 
+        # Wykrycie faktur zrelokowanych (Auto-Routing)
+        relokacje_list: List[Dict[str, Any]] = []
+        for inv in faktury_sprzedaz + faktury_koszt:
+            if getattr(inv, "relokacja", None):
+                relokacje_list.append(inv.relokacja)
+
         return cls(
             profil=profile,
             rok=rok_str,
@@ -326,12 +351,14 @@ class PreSettlementReview:
             koszty=expense_items,
             do_wyjasnienia=clarification_items,
             duplikaty=duplikaty,
+            relokacje=relokacje_list,
             laczna_sprzedaz_netto=suma_sprzedaz_netto,
             laczna_sprzedaz_vat=suma_sprzedaz_vat,
             laczna_sprzedaz_brutto=suma_sprzedaz_brutto,
             laczny_koszt_netto=suma_koszt_netto,
             laczny_koszt_vat=suma_koszt_vat,
             laczny_koszt_brutto=suma_koszt_brutto,
+            ostrzezenie_sieci_aml=wykryto_blad_sieci_aml,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -350,6 +377,7 @@ class PreSettlementReview:
             "koszty": [k.to_dict() for k in self.koszty],
             "do_wyjasnienia": [c.to_dict() for c in self.do_wyjasnienia],
             "duplikaty": [d.to_dict() for d in self.duplikaty],
+            "relokacje": self.relokacje,
         }
 
     def generate_markdown(self) -> str:
@@ -363,6 +391,35 @@ class PreSettlementReview:
             "**Status weryfikacji:** ⏳ Oczekiwanie na zapoznanie i akceptację przedsiębiorcy",
             "",
         ]
+
+        if self.ostrzezenie_sieci_aml:
+            linie.extend([
+                "> [!WARNING]",
+                "> ### ⚠️ UWAGA: NIEKOMPLETNA WERYFIKACJA AML (BŁĄD SIECI / TRYB OFFLINE)",
+                "> Dla części kontrahentów nie udało się pobrać aktualnego statusu z API Białej Listy MF z powodu braku połączenia internetowego.",
+                "> **Nie zamykaj rozliczenia bez uprzedniej weryfikacji online!**",
+                "> ",
+                "> 👉 **Zalecenie:** Upewnij się, że masz połączenie z Internetem i uruchom ponowną weryfikację:",
+                f"> `python -m src.cli weryfikuj-miesiac --nip {self.profil.nip} --rok {self.rok} --miesiac {self.miesiac} --force`",
+                "",
+            ])
+
+        # Sekcja relokacji dokumentów Non-KSeF (jeśli wystąpiły)
+        if self.relokacje:
+            linie.extend([
+                "---",
+                "## 🔄 Informacja o Automatycznej Relokacji Dokumentów Non-KSeF",
+                "Wykryto dokumenty umieszczone w niewłaściwym folderze. Zostały one automatycznie przeniesione do właściwego katalogu,",
+                "a w pierwotnym katalogu utworzono plik-znacznik `.PRZENIESIONO.txt` ze szczegółami operacji:",
+                "",
+                "| Lp. | Dokument | Relokacja | Powód kwalifikacji |",
+                "| :---: | :--- | :--- | :--- |",
+            ])
+            for idx, r in enumerate(self.relokacje, start=1):
+                linie.append(
+                    f"| {idx} | `{r.get('oryginalny_plik')}` | `{r.get('pierwotny_typ')}` ➔ **`{r.get('faktyczny_typ')}`** | {r.get('powod')} |"
+                )
+            linie.append("")
 
         # Sekcja 0: Wykryte duplikaty dokumentów (jeśli występują)
         if self.duplikaty:

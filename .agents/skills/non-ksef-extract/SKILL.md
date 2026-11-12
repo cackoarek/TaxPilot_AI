@@ -40,7 +40,7 @@ Użytkownik umieszcza pliki źródłowe w odpowiednim folderze:
 * Dla kosztów: `firmy/{NIP-Nazwa}/faktury/{ROK}/{MIESIAC}/koszty/non-ksef-raw/`
 * Dla sprzedaży: `firmy/{NIP-Nazwa}/faktury/{ROK}/{MIESIAC}/sprzedaz/non-ksef-raw/`
 
-### Krok 2: Uruchomienie Ekstrakcji
+### Krok 2: Uruchomienie Ekstrakcji i Auto-Routing
 Agent uruchamia deterministyczny moduł ekstrakcji:
 
 ```bash
@@ -53,18 +53,27 @@ Moduł automatycznie:
    * **Pliki JSON:** mapuje strukturę zewnętrzną na znormalizowany model `Invoice` (`typ=InvoiceType.KOSZT` lub `InvoiceType.SPRZEDAZ`, `zrodlo="NON_KSEF"`).
    * **Pliki PDF:** wyciąga tekst za pomocą `pdftotext` i parsuje kluczowe encje (NIP, numer, daty, kwoty netto/VAT/brutto, pozycje).
    * **Pliki TXT / MD:** analizuje treść za pomocą reguł i wyrażeń regularnych.
-2. Zapisuje znormalizowany plik do:
+2. **Auto-Routing i Relokacja Dokumentów (Opcja 2 z Plikiem Informacyjnym):**
+   Jeśli użytkownik omyłkowo wrzucił fakturę sprzedaży do `koszty/non-ksef-raw/` (lub fakturę kosztową do `sprzedaz/non-ksef-raw/`):
+   * System automatycznie rozpoznaje faktyczny typ transakcji (porównanie NIP sprzedawcy i nabywcy z NIP-em profilu firmy).
+   * **Fizyczne przeniesienie oryginału:** Plik surowy jest przenoszony do właściwego katalogu docelowego (`sprzedaz/non-ksef-raw/` lub `koszty/non-ksef-raw/`), zachowując idealną symetrię 1:1 między folderem surowym a folderem wyekstrahowanym.
+   * **Plik informacyjny `.PRZENIESIONO.txt`:** W pierwotnym katalogu tworzony jest czytelny plik audytowy `{oryginalna_nazwa}.PRZENIESIONO.txt` zawierający dokładną datę relokacji, powód kwalifikacji, ścieżkę docelową oraz podstawowe dane faktury (numer, kwoty, kontrahent).
+   * **Metadane audytowe:** Do wyekstrahowanego pliku JSON dodawany jest obiekt `relokacja` ze szczegółami transferu.
+3. Zapisuje znormalizowany plik do:
    * `faktury/{ROK}/{MIESIAC}/koszty/non-ksef-extracted/{stem}.json`
    * `faktury/{ROK}/{MIESIAC}/sprzedaz/non-ksef-extracted/{stem}.json`
 
-### Krok 3: Weryfikacja Wyekstrahowanych Danych (Human-in-the-Loop)
-Jeśli dokument zawierał nietypowy układ graficzny lub brakowało niektórych danych:
-* Agent weryfikuje poprawność kwot netto, VAT i brutto oraz dane nabywcy/sprzedawcy.
-* W razie wątpliwości dopytuje użytkownika o poprawność odczytanych wartości.
+### Krok 3: Weryfikacja Wyekstrahowanych Danych i Relokacji (Human-in-the-Loop)
+* W raporcie wstępnym `przeglad` (Pre-Settlement Review) wygenerowana zostaje dedykowana sekcja:
+  **"🔄 Informacja o Automatycznej Relokacji Dokumentów Non-KSeF"**, w której przedsiębiorca widzi wszystkie przeniesione pliki i uzasadnienia.
+* Jeśli dokument zawierał nietypowy układ graficzny lub brakowało niektórych danych:
+  * Agent weryfikuje poprawność kwot netto, VAT i brutto oraz dane nabywcy/sprzedawcy.
+  * W razie wątpliwości dopytuje użytkownika o poprawność odczytanych wartości.
 
 ### Krok 4: Automatyczne Uwzględnienie w Księgowaniu
 Narzędzia księgowe (`InvoiceStorage.list_invoices`, `PreSettlementReview`, `BookkeepingService`) **automatycznie** łączą faktury z KSeF oraz faktury z `non-ksef-extracted/`:
 * W zestawieniu wstępnym `przeglad` faktury spoza KSeF są oznaczone symbolem `📁 Non-KSeF` (zarówno w tabeli sprzedaży, jak i zakupów).
 * Faktury kosztowe zostają poddane audytowi kwalifikacji podatkowej (odliczenie 100% / 50% dla samochodów / wykluczenie prywatne).
 * Faktury przychodowe wchodzą do ewidencji przychodów i bilansu VAT-7.
+* Pliki znaczników `.PRZENIESIONO.txt` są automatycznie ignorowane przez silnik księgowy i służą wyłącznie człowiekowi oraz audytorowi.
 
