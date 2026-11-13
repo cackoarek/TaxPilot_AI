@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Ustawienia Firmy & KSeF & AI – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-5xl">
+
+  <!-- Nagłówek Ustawień -->
+  <div class="border-b border-slate-200 pb-4">
+    <div class="flex items-center space-x-2">
+      <span class="px-2 py-0.5 bg-slate-100 text-slate-800 text-xs font-bold rounded">KONFIGURACJA</span>
+      <h1 class="text-xl font-bold text-slate-900">
+        Ustawienia Firmy & Integracje
+      </h1>
+    </div>
+    <p class="text-xs text-slate-500 mt-1">
+      Profil podatnika, token Krajowego Systemu e-Faktur oraz wybór silnika sztucznej inteligencji (Multi-Provider).
+    </p>
+  </div>
+
+  <!-- 1. Karta Profilu Podatnika -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🏢 Profil Podatnika (JDG)</span>
+        </h2>
+        <p class="text-xs text-slate-500">Dane odczytywane z pliku profil.json i rejestrów CEIDG/GUS.</p>
+      </div>
+      <span class="text-xs font-mono text-slate-400">firmy/{{ profile.nip }}/profil.json</span>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Pełna Nazwa Firmy:</span>
+        <span class="font-bold text-slate-900 text-sm mt-0.5 block">{{ profile.nazwa }}</span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Numer NIP:</span>
+        <span class="font-mono font-bold text-slate-900 text-sm mt-0.5 block">{{ profile.nip }}</span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Forma Opodatkowania:</span>
+        <span class="font-bold text-indigo-700 text-sm mt-0.5 block">
+          {{ profile.forma_opodatkowania.value }} ({{ (profile.domyslna_stawka_ryczaltu * 100)|int }}%)
+        </span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Status Płatnika VAT:</span>
+        <span class="font-semibold text-slate-800 mt-0.5 block">
+          {% if profile.platnik_vat %}🟢 Płatnik Czynny (VAT-7){% else %}⚪ Zwolniony z VAT{% endif %}
+        </span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Pakiet Składek ZUS:</span>
+        <span class="font-semibold text-slate-800 mt-0.5 block">{{ profile.zus.typ.value }}</span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Kody PKD:</span>
+        <span class="font-mono text-slate-700 mt-0.5 block">
+          {{ profile.kody_pkd|join(', ') if profile.kody_pkd else '62.01.Z' }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Karta Integracji KSeF 2.0 -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🏛️ Bramka Krajowego Systemu e-Faktur (KSeF 2.0)</span>
+        </h2>
+        <p class="text-xs text-slate-500">Bezpośrednie połączenie szyfrowane z API Ministerstwa Finansów.</p>
+      </div>
+      <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                   {% if profile.ksef.srodowisko == 'PROD' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+        Aktualnie: {{ profile.ksef.srodowisko }}
+      </span>
+    </div>
+
+    <form hx-post="/ustawienia/ksef" 
+          hx-target="#ksef-settings-result" 
+          class="space-y-4 text-xs">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <div class="sm:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">
+            Token Autoryzacyjny Podatnika KSeF <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="token" value="{{ profile.ksef.token }}" required
+                 placeholder="Wklej token wygenerowany w Aplikacji Podatnika KSeF"
+                 class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-1 block">
+            Token generowany w Aplikacji Podatnika KSeF z uprawnieniami do odczytu i zapisu faktur.
+          </span>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Środowisko KSeF:</label>
+          <select name="srodowisko" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+            <option value="PROD" {% if profile.ksef.srodowisko == 'PROD' %}selected{% endif %}>🟢 Produkcyjne (PROD)</option>
+            <option value="TEST" {% if profile.ksef.srodowisko == 'TEST' %}selected{% endif %}>🟡 Testowe / Przedprodukcyjne (TEST)</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button type="submit" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+          💾 Zapisz Konfigurację KSeF
+        </button>
+
+        <span class="text-[11px] text-slate-400">
+          Szyfrowanie certyfikatem MF RSA-OAEP SHA-256
+        </span>
+      </div>
+
+      <div id="ksef-settings-result"></div>
+    </form>
+  </div>
+
+  <!-- 3. Karta Silnika AI (Multi-Provider: Gemini, OpenAI, Claude, Zero-LLM) -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🤖 Silnik Sztucznej Inteligencji (Multi-Provider LLM)</span>
+        </h2>
+        <p class="text-xs text-slate-500">
+          Wspólny interfejs Pythona obsługujący dowolnego dostawcę modeli bez narzędzi CLI (Zero-CLI).
+        </p>
+      </div>
+      <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+        {{ llm.label }}
+      </span>
+    </div>
+
+    <form hx-post="/ustawienia/llm" 
+          hx-target="#llm-settings-result" 
+          class="space-y-4 text-xs">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Dostawca Modeli (Provider):</label>
+          <select name="provider" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+            <option value="auto" {% if llm_saved.provider == 'auto' or not llm_saved.provider %}selected{% endif %}>
+              ✨ Automatyczny (wg dostępnych kluczy)
+            </option>
+            <option value="gemini" {% if llm_saved.provider == 'gemini' %}selected{% endif %}>
+              🟢 Google Gemini (2.5 Flash / 1.5 Pro)
+            </option>
+            <option value="claude" {% if llm_saved.provider == 'claude' %}selected{% endif %}>
+              🟣 Anthropic Claude (3.5 Sonnet / Haiku)
+            </option>
+            <option value="openai" {% if llm_saved.provider == 'openai' %}selected{% endif %}>
+              🟢 OpenAI / Ollama (GPT-4o)
+            </option>
+            <option value="null" {% if llm_saved.provider == 'null' %}selected{% endif %}>
+              ⚙️ Deterministyczny Zero-LLM (Bez AI)
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Klucz API (opcjonalny jeśli w .env):</label>
+          <input type="password" name="api_key" placeholder="Wklej klucz API dostawcy..."
+                 class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-1 block">
+            Klucz jest bezpiecznie przetwarzany w pamięci procesu Pythona.
+          </span>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nazwa Modelu (opcjonalnie):</label>
+          <input type="text" name="model" value="{{ llm_saved.model if llm_saved and llm_saved.model else '' }}"
+                 placeholder="np. gemini-2.5-flash, claude-3-5-sonnet"
+                 class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+          💾 Zapisz Wybór Silnika AI
+        </button>
+
+        <span class="text-[11px] text-slate-400">
+          Wspiera strumieniowanie SSE i dymki czatu
+        </span>
+      </div>
+
+      <div id="llm-settings-result"></div>
+    </form>
+  </div>
+
+  <!-- 4. Karta Wdrożenia Zero-CLI & Docker -->
+  <div class="bg-slate-900 rounded-2xl p-6 text-white space-y-3 shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div class="flex items-center space-x-2">
+        <span class="text-xl">🐳</span>
+        <h3 class="text-sm font-bold">Wdrożenie Hostingowe & Konteneryzacja (Zero-CLI)</h3>
+      </div>
+      <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+        In-Process Python
+      </span>
+    </div>
+
+    <p class="text-xs text-slate-300 leading-relaxed">
+      Aplikacja TaxPilot AI nie wymaga instalacji żadnych narzędzi deweloperskich ani binariów CLI na serwerze.
+      Wszystkie moduły księgowe, kryptografia KSeF oraz adaptery LLM działają w czystym procesie Pythona (FastAPI + Uvicorn).
+    </p>
+
+    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300 flex items-center justify-between">
+      <span>docker compose up -d</span>
+      <span class="text-slate-500 font-sans text-xs">Port 8000 • Trwały wolumen: ./firmy</span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

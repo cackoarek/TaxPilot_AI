@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Magazyn Faktur & KSeF 2.0 – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Nagłówek Magazynu Dokumentów -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-xs font-bold rounded">KROK 1</span>
+        <h1 class="text-xl font-bold text-slate-900">
+          Magazyn Dokumentów & Synchronizacja KSeF 2.0
+        </h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">
+        Okres: <strong class="text-slate-800">{{ rok }}-{{ miesiac }}</strong> • Firma: <strong class="text-slate-800">{{ profile.nazwa if profile else '' }}</strong> (NIP: {{ profile.nip if profile else '' }})
+      </p>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <a href="/przeglad" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1">
+        <span>Przejdź do Wstępnego Przeglądu &rarr;</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Górna Sekcja: Upload Drag&Drop oraz Synchronizacja KSeF 2.0 -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- 1. Strefa Drag & Drop (Non-KSeF) -->
+    <div x-data="{ isDropping: false, fileName: '' }" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>📁 Dodaj Faktury Spoza KSeF</span>
+          <span class="text-[10px] bg-slate-100 text-slate-600 font-normal px-2 py-0.5 rounded">PDF, Skany, JSON</span>
+        </h2>
+        <span class="text-[11px] text-slate-400">Dwuetapowa Ekstrakcja</span>
+      </div>
+
+      <form hx-post="/faktury/upload" 
+            hx-target="#invoices-table-container" 
+            hx-swap="outerHTML"
+            hx-indicator="#upload-indicator"
+            enctype="multipart/form-data" 
+            class="space-y-3">
+        
+        <!-- Drag & Drop Dropzone -->
+        <div @dragover.prevent="isDropping = true"
+             @dragleave.prevent="isDropping = false"
+             @drop.prevent="isDropping = false; $refs.fileInput.files = $event.dataTransfer.files; fileName = $refs.fileInput.files[0] ? $refs.fileInput.files[0].name : ''"
+             :class="isDropping ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-slate-400 bg-slate-50/50'"
+             class="border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer relative">
+          
+          <input type="file" name="file" x-ref="fileInput" required
+                 @change="fileName = $refs.fileInput.files[0] ? $refs.fileInput.files[0].name : ''"
+                 accept=".pdf,.json,.txt,.md,.jpg,.jpeg,.png"
+                 class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+
+          <div class="space-y-1">
+            <span class="text-2xl block">📄</span>
+            <div class="text-xs text-slate-700 font-semibold" x-text="fileName ? 'Wybrano: ' + fileName : 'Przeciągnij plik tutaj lub kliknij, aby wybrać'"></div>
+            <p class="text-[11px] text-slate-400">PDF, zdjęcia faktur (JPG/PNG), JSON (np. Google Cloud, AWS, GitHub)</p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 text-xs">
+          <div class="flex items-center space-x-3">
+            <span class="text-slate-500 font-medium">Kategoria:</span>
+            <label class="flex items-center space-x-1 cursor-pointer">
+              <input type="radio" name="kategoria" value="koszt" checked class="text-blue-600 focus:ring-blue-500">
+              <span class="text-slate-700">Zakup (Koszt)</span>
+            </label>
+            <label class="flex items-center space-x-1 cursor-pointer">
+              <input type="radio" name="kategoria" value="sprzedaz" class="text-blue-600 focus:ring-blue-500">
+              <span class="text-slate-700">Sprzedaż</span>
+            </label>
+          </div>
+
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+            <span>Wgraj i Ekstrahuj</span>
+          </button>
+        </div>
+
+        <!-- Wskaźnik ładowania -->
+        <div id="upload-indicator" class="htmx-indicator flex items-center justify-center space-x-2 py-2 text-xs text-blue-600 font-semibold">
+          <span class="animate-spin">🔄</span>
+          <span>Przetwarzanie dokumentu i deterministyczna ekstrakcja...</span>
+        </div>
+
+        <p class="text-[10px] text-slate-400">
+          💡 <strong>Wbudowany Auto-Routing:</strong> Jeśli faktura sprzedaży zostanie omyłkowo wgrana jako koszt, system automatycznie rozpozna NIP i przeniesie plik do przychodów.
+        </p>
+      </form>
+    </div>
+
+    <!-- 2. Panel Synchronizacji KSeF 2.0 -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4 flex flex-col justify-between">
+      <div class="space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+            <span>🏛️ Krajowy System e-Faktur (KSeF 2.0)</span>
+          </h2>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                       {% if profile and profile.ksef.srodowisko == 'PROD' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+            Środowisko: {{ profile.ksef.srodowisko if profile else 'TEST' }}
+          </span>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-2">
+          <p>
+            TaxPilot AI łączy się bezpośrednio z bramką Ministerstwa Finansów KSeF 2.0 z wykorzystaniem szyfrowania 
+            <strong>RSA-OAEP SHA-256</strong>.
+          </p>
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+            <div class="flex justify-between items-center text-[11px]">
+              <span class="text-slate-500">Status Tokena Autoryzacyjnego:</span>
+              {% if profile and profile.ksef.token and profile.ksef.token != 'twoj_tajny_token_ksef_tutaj' %}
+                <span class="text-emerald-700 font-bold flex items-center space-x-1">
+                  <span>●</span> <span>Skonfigurowany</span>
+                </span>
+              {% else %}
+                <span class="text-amber-700 font-bold flex items-center space-x-1">
+                  <span>●</span> <span>Brak tokenu (Wymaga konfiguracji)</span>
+                </span>
+              {% endif %}
+            </div>
+            <div class="text-[10px] text-slate-400 font-mono truncate">
+              Token: {{ profile.ksef.token[:25] if profile and profile.ksef.token else 'Brak' }}...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <form hx-post="/faktury/ksef-sync" 
+              hx-target="#invoices-table-container" 
+              hx-swap="outerHTML" 
+              hx-indicator="#ksef-indicator">
+          <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors cursor-pointer">
+            <span>🏛️ Synchronizuj Faktury z KSeF 2.0 za {{ rok }}-{{ miesiac }}</span>
+          </button>
+        </form>
+
+        <div id="ksef-indicator" class="htmx-indicator flex items-center justify-center space-x-2 py-2 text-xs text-slate-700 font-semibold">
+          <span class="animate-spin">🔄</span>
+          <span>Nawiązywanie bezpiecznej sesji KSeF z certyfikatem MF...</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Baner Informacyjny Relokacji Auto-Routing -->
+  {% if summary and summary.relokacje %}
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-xs text-xs space-y-2">
+      <div class="flex items-center space-x-2 font-bold text-blue-900">
+        <span>📁</span>
+        <span>AUTOMATYCZNY ROUTING DOKUMENTÓW (ZRELOKOWANE PLIKI)</span>
+      </div>
+      <p class="text-blue-800">
+        Wykryto <strong>{{ summary.relokacje|length }}</strong> dokumentów, których treść wskazywała na inną kategorię niż pierwotny katalog wrzucenia. Pliki zostały bezpiecznie przeniesione:
+      </p>
+      <ul class="list-disc pl-5 space-y-1 text-blue-900 font-mono text-[11px]">
+        {% for r in summary.relokacje %}
+          <li><strong>{{ r.plik }}</strong> &rarr; zrelokowano do właściwego folderu</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <!-- Tabela Dokumentów (Fragment) -->
+  {% include "partials/invoices_table.html" %}
+
+</div>
+{% endblock %}

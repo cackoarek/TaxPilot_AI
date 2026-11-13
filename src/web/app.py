@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from src.web.config import STATIC_DIR, DEFAULT_HOST, DEFAULT_PORT, DEBUG
-from src.web.routers import dashboard, companies, aml, settlement, copilot
+from src.web.routers import dashboard, companies, aml, settlement, copilot, invoices, advisor, settings
 
 app = FastAPI(
     title="TaxPilot AI",
@@ -27,6 +27,9 @@ app.include_router(companies.router)
 app.include_router(aml.router)
 app.include_router(settlement.router)
 app.include_router(copilot.router)
+app.include_router(invoices.router)
+app.include_router(advisor.router)
+app.include_router(settings.router)
 
 
 @app.get("/health")

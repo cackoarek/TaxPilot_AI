@@ -1,0 +1,235 @@
+<!-- Wynik symulacji doradcy: partials/advisor_simulation_result.html -->
+<div id="simulation-result" class="space-y-6 fade-in">
+  
+  <!-- Baner Rekomendacji i Zwycięzcy -->
+  <div class="bg-gradient-to-r from-emerald-900 to-teal-900 rounded-2xl p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="space-y-1">
+      <div class="flex items-center space-x-2">
+        <span class="px-2.5 py-0.5 bg-emerald-500 text-white text-xs font-black rounded-full uppercase tracking-wider">
+          🏆 Najkorzystniejsza Forma
+        </span>
+        <h3 class="text-lg font-black tracking-tight">
+          {{ comparison.najkorzystniejsza_forma }}
+        </h3>
+      </div>
+      <p class="text-xs text-emerald-200 max-w-xl leading-relaxed">
+        Forma <strong>{{ comparison.najkorzystniejsza_forma }}</strong> zapewnia najwyższy dochód netto na rękę po uwzględnieniu składek społecznych, zdrowotnych oraz podatku dochodowego.
+      </p>
+    </div>
+
+    <div class="text-right sm:border-l sm:border-emerald-800/80 sm:pl-6">
+      <span class="text-[11px] text-emerald-300 block uppercase font-medium">Szacowana roczna oszczędność:</span>
+      <span class="text-2xl font-black text-white font-mono">
+        +{{ "%.2f"|format(comparison.roczna_oszczednosc_wzgledem_drugiej|float) }} zł
+      </span>
+      <span class="block text-[10px] text-emerald-300/80">względem kolejnej alternatywnej formy</span>
+    </div>
+  </div>
+
+  <!-- 3 Karty Porównawcze Form Opodatkowania -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    
+    <!-- 1. Ryczałt Ewidencjonowany -->
+    {% set r = comparison.ryczalt %}
+    <div class="bg-white rounded-2xl p-5 border-2 {% if comparison.najkorzystniejsza_forma == r.nazwa_formy %}border-emerald-500 shadow-md ring-2 ring-emerald-500/20{% else %}border-slate-200 shadow-xs{% endif %} flex flex-col justify-between relative overflow-hidden">
+      {% if comparison.najkorzystniejsza_forma == r.nazwa_formy %}
+        <span class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+          Optimum
+        </span>
+      {% endif %}
+      
+      <div class="space-y-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">{{ r.nazwa_formy }}</h4>
+          <span class="text-[11px] text-slate-500">Stawka przychodowa: {{ (stawka_ryczaltu|float * 100)|int }}%</span>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-[10px] text-slate-400 uppercase font-bold block">Dochód na rękę rocznie:</span>
+          <span class="text-2xl font-black text-slate-900 font-mono">
+            {{ "%.2f"|format(r.dochod_netto_na_reke|float) }} zł
+          </span>
+          <span class="block text-xs font-semibold text-emerald-700 mt-0.5">
+            Miesięcznie: ~{{ "%.2f"|format((r.dochod_netto_na_reke|float) / 12) }} zł
+          </span>
+        </div>
+
+        <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600 font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Podatek rocznie:</span>
+            <span>{{ "%.2f"|format(r.podatek_dochodowy|float) }} zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składki ZUS społeczne:</span>
+            <span>{{ "%.2f"|format(r.skladki_spoleczne_zus|float) }} zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składka zdrowotna:</span>
+            <span>{{ "%.2f"|format(r.skladka_zdrowotna_zus|float) }} zł</span>
+          </div>
+          <div class="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+            <span class="font-sans">Łączne obciążenia:</span>
+            <span>{{ "%.2f"|format(r.laczne_obciazenia|float) }} zł</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Efektywne obciążenie:</span>
+        <span class="font-bold text-slate-800 font-mono">{{ "%.1f"|format((r.efektywna_stopa_opodatkowania|float) * 100) }}%</span>
+      </div>
+    </div>
+
+    <!-- 2. Podatek Liniowy 19% -->
+    {% set l = comparison.liniowy %}
+    <div class="bg-white rounded-2xl p-5 border-2 {% if comparison.najkorzystniejsza_forma == l.nazwa_formy %}border-emerald-500 shadow-md ring-2 ring-emerald-500/20{% else %}border-slate-200 shadow-xs{% endif %} flex flex-col justify-between relative overflow-hidden">
+      {% if comparison.najkorzystniejsza_forma == l.nazwa_formy %}
+        <span class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+          Optimum
+        </span>
+      {% endif %}
+
+      <div class="space-y-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">{{ l.nazwa_formy }}</h4>
+          <span class="text-[11px] text-slate-500">Stała stawka dochodowa: 19%</span>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-[10px] text-slate-400 uppercase font-bold block">Dochód na rękę rocznie:</span>
+          <span class="text-2xl font-black text-slate-900 font-mono">
+            {{ "%.2f"|format(l.dochod_netto_na_reke|float) }} zł
+          </span>
+          <span class="block text-xs font-semibold text-emerald-700 mt-0.5">
+            Miesięcznie: ~{{ "%.2f"|format((l.dochod_netto_na_reke|float) / 12) }} zł
+          </span>
+        </div>
+
+        <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600 font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Podatek dochodowy:</span>
+            <span>{{ "%.2f"|format(l.podatek_dochodowy|float) }} zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składki ZUS społeczne:</span>
+            <span>{{ "%.2f"|format(l.skladki_spoleczne_zus|float) }} zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składka zdrowotna (4.9%):</span>
+            <span>{{ "%.2f"|format(l.skladka_zdrowotna_zus|float) }} zł</span>
+          </div>
+          <div class="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+            <span class="font-sans">Łączne obciążenia:</span>
+            <span>{{ "%.2f"|format(l.laczne_obciazenia|float) }} zł</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Efektywne obciążenie:</span>
+        <span class="font-bold text-slate-800 font-mono">{{ "%.1f"|format((l.efektywna_stopa_opodatkowania|float) * 100) }}%</span>
+      </div>
+    </div>
+
+    <!-- 3. Skala Podatkowa (12% / 32%) -->
+    {% set s = comparison.skala %}
+    <div class="bg-white rounded-2xl p-5 border-2 {% if comparison.najkorzystniejsza_forma == s.nazwa_formy %}border-emerald-500 shadow-md ring-2 ring-emerald-500/20{% else %}border-slate-200 shadow-xs{% endif %} flex flex-col justify-between relative overflow-hidden">
+      {% if comparison.najkorzystniejsza_forma == s.nazwa_formy %}
+        <span class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+          Optimum
+        </span>
+      {% endif %}
+
+      <div class="space-y-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">{{ s.nazwa_formy }}</h4>
+          <span class="text-[11px] text-slate-500">Progi: 12% do 120 tys., 32% pow.</span>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-[10px] text-slate-400 uppercase font-bold block">Dochód na rękę rocznie:</span>
+          <span class="text-2xl font-black text-slate-900 font-mono">
+            {{ "%.2f"|format(s.dochod_netto_na_reke|float) }} zł
+          </span>
+          <span class="block text-xs font-semibold text-emerald-700 mt-0.5">
+            Miesięcznie: ~{{ "%.2f"|format((s.dochod_netto_na_reke|float) / 12) }} zł
+          </span>
+        </div>
+
+        <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600 font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Podatek dochodowy:</span>
+            <span>{{ "%.2f"|format(s.podatek_dochodowy|float) }} zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składki ZUS społeczne:</span>
+            <span>{{ "%.2f"|format(s.skladki_spoleczne_zus|float) }} zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składka zdrowotna (9%):</span>
+            <span>{{ "%.2f"|format(s.skladka_zdrowotna_zus|float) }} zł</span>
+          </div>
+          <div class="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+            <span class="font-sans">Łączne obciążenia:</span>
+            <span>{{ "%.2f"|format(s.laczne_obciazenia|float) }} zł</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Efektywne obciążenie:</span>
+        <span class="font-bold text-slate-800 font-mono">{{ "%.1f"|format((s.efektywna_stopa_opodatkowania|float) * 100) }}%</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Wizualny Wykres Słupkowy (Natywny Responsive CSS Grid) -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+        <span>📊 Porównanie Łącznych Obciążeń (Podatki + ZUS)</span>
+      </h4>
+      <span class="text-[11px] text-slate-400">Im mniej, tym więcej zostaje w kieszeni</span>
+    </div>
+
+    <div class="space-y-4 pt-2">
+      <!-- Ryczałt -->
+      <div>
+        <div class="flex justify-between text-xs font-bold mb-1">
+          <span class="text-slate-700">Ryczałt ({{ (stawka_ryczaltu|float * 100)|int }}%)</span>
+          <span class="font-mono text-slate-900">{{ "%.2f"|format(r.laczne_obciazenia|float) }} zł</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div class="bg-emerald-500 h-3.5 rounded-full transition-all duration-500" 
+               style="width: {{ [100, ((r.laczne_obciazenia|float) / (przychod|float or 1) * 100) * 2]|min }}%;"></div>
+        </div>
+      </div>
+
+      <!-- Podatek Liniowy -->
+      <div>
+        <div class="flex justify-between text-xs font-bold mb-1">
+          <span class="text-slate-700">Podatek Liniowy 19%</span>
+          <span class="font-mono text-slate-900">{{ "%.2f"|format(l.laczne_obciazenia|float) }} zł</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div class="bg-blue-500 h-3.5 rounded-full transition-all duration-500" 
+               style="width: {{ [100, ((l.laczne_obciazenia|float) / (przychod|float or 1) * 100) * 2]|min }}%;"></div>
+        </div>
+      </div>
+
+      <!-- Skala Podatkowa -->
+      <div>
+        <div class="flex justify-between text-xs font-bold mb-1">
+          <span class="text-slate-700">Skala Podatkowa (12%/32%)</span>
+          <span class="font-mono text-slate-900">{{ "%.2f"|format(s.laczne_obciazenia|float) }} zł</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div class="bg-indigo-500 h-3.5 rounded-full transition-all duration-500" 
+               style="width: {{ [100, ((s.laczne_obciazenia|float) / (przychod|float or 1) * 100) * 2]|min }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
