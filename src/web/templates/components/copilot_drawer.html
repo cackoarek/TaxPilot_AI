@@ -40,7 +40,7 @@
                 </p>
               </div>
             </div>
-            <button @click="copilotOpen = false" class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none">
+            <button @click="copilotOpen = false" class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
               ✕
             </button>
           </div>
@@ -50,29 +50,46 @@
             
             <!-- Powitanie -->
             <div class="flex space-x-3">
-              <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
+              <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
                 TP
               </div>
               <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
                 <p class="font-semibold text-slate-900">Cześć!</p>
-                <p>Jestem inteligentnym asystentem TaxPilot AI dla firmy <strong class="text-blue-700">{{ profile.nazwa if profile else 'TaxPilot' }}</strong>.</p>
-                <p>Mogę orkiestrować rozliczenie za okres <strong class="text-slate-900">{{ rok }}-{{ miesiac }}</strong>, sprawdzić status faktur z KSeF, zweryfikować kontrahentów na Białej Liście lub odpowiedzieć na pytania podatkowe.</p>
+                <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">{{ profile.nazwa if profile else 'TaxPilot' }}</strong>.</p>
+                <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">{{ rok }}-{{ miesiac }}</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
               </div>
             </div>
 
+            <!-- Kontener dynamicznych wiadomości -->
+            <div id="copilot-chat-container" class="space-y-4"></div>
+
             <!-- Sugerowane szybkie akcje -->
             <div class="pt-2">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Szybkie polecenia:</p>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Szybkie pytania:</p>
               <div class="flex flex-wrap gap-1.5">
-                <button class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:border-blue-400 rounded-lg text-slate-700 shadow-xs transition-colors">
-                  🚀 Rozlicz miesiąc {{ rok }}-{{ miesiac }}
-                </button>
-                <button class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:border-blue-400 rounded-lg text-slate-700 shadow-xs transition-colors">
-                  🛡️ Sprawdź kontrahentów AML
-                </button>
-                <button class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:border-blue-400 rounded-lg text-slate-700 shadow-xs transition-colors">
-                  💡 Czy mam brakujące koszty?
-                </button>
+                <form hx-post="/api/copilot/chat" hx-target="#copilot-chat-container" hx-swap="beforeend"
+                      hx-on::after-request="document.getElementById('copilot-messages').scrollTop = document.getElementById('copilot-messages').scrollHeight;">
+                  <input type="hidden" name="message" value="Jak rozliczyć miesiąc {{ rok }}-{{ miesiac }}?">
+                  <button type="submit" class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:border-blue-400 rounded-lg text-slate-700 shadow-xs transition-colors cursor-pointer">
+                    🚀 Jak rozliczyć miesiąc?
+                  </button>
+                </form>
+
+                <form hx-post="/api/copilot/chat" hx-target="#copilot-chat-container" hx-swap="beforeend"
+                      hx-on::after-request="document.getElementById('copilot-messages').scrollTop = document.getElementById('copilot-messages').scrollHeight;">
+                  <input type="hidden" name="message" value="Jak zweryfikować kontrahentów AML i Białą Listę?">
+                  <button type="submit" class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:border-blue-400 rounded-lg text-slate-700 shadow-xs transition-colors cursor-pointer">
+                    🛡️ Sprawdź kontrahentów AML
+                  </button>
+                </form>
+
+                <form hx-post="/api/copilot/chat" hx-target="#copilot-chat-container" hx-swap="beforeend"
+                      hx-on::after-request="document.getElementById('copilot-messages').scrollTop = document.getElementById('copilot-messages').scrollHeight;">
+                  <input type="hidden" name="message" value="Gdzie znajdę kody QR do opłacenia podatków i ZUS?">
+                  <button type="submit" class="px-2.5 py-1 text-xs bg-white border border-slate-200 hover:border-blue-400 rounded-lg text-slate-700 shadow-xs transition-colors cursor-pointer">
+                    📱 Kody QR przelewów
+                  </button>
+                </form>
               </div>
             </div>
 
@@ -80,19 +97,29 @@
 
           <!-- Drawer Footer / Input -->
           <div class="p-3 bg-white border-t border-slate-200">
-            {% if llm_available %}
-              <form class="flex items-center space-x-2">
-                <input type="text" placeholder="Zadaj pytanie lub wydaj polecenie..." 
-                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                <button type="submit" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow transition-colors">
-                  Wyślij
-                </button>
-              </form>
-            {% else %}
-              <div class="p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-center text-xs text-slate-600">
-                ⚙️ Silnik AI nie jest aktywny. Skonfiguruj klucz API w <a href="/ustawienia" class="text-blue-600 underline font-medium">Ustawieniach</a>, aby odblokować konwersacyjnego asystenta.
-              </div>
-            {% endif %}
+            <form hx-post="/api/copilot/chat" 
+                  hx-target="#copilot-chat-container" 
+                  hx-swap="beforeend"
+                  hx-indicator="#copilot-indicator"
+                  hx-on::after-request="this.reset(); document.getElementById('copilot-messages').scrollTop = document.getElementById('copilot-messages').scrollHeight;"
+                  class="flex items-center space-x-2">
+              <input type="text" name="message" required placeholder="Zadaj pytanie asystentowi..." 
+                     class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>Wyślij</span>
+              </button>
+            </form>
+            <div id="copilot-indicator" class="htmx-indicator flex items-center justify-center space-x-2 py-1 text-[11px] text-blue-600 font-semibold">
+              <span class="animate-spin">🔄</span>
+              <span>Generowanie odpowiedzi...</span>
+            </div>
+            <div class="mt-1 text-center text-[10px] text-slate-400">
+              {% if llm_available %}
+                Silnik: <strong class="text-slate-600">{{ llm.label }}</strong> • Zero-Hallucination Policy
+              {% else %}
+                Tryb Deterministyczny (Zero-LLM) • Zero-Hallucination
+              {% endif %}
+            </div>
           </div>
 
         </div>

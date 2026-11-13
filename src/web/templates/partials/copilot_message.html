@@ -1,0 +1,22 @@
+<!-- Fragment odpowiedzi Copilota dla HTMX -->
+<!-- Wiadomość Użytkownika -->
+<div class="flex space-x-3 justify-end fade-in">
+  <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none shadow-sm text-xs max-w-[85%] break-words">
+    {{ user_message }}
+  </div>
+  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold">
+    Ty
+  </div>
+</div>
+
+<!-- Odpowiedź Asystenta AI -->
+<div class="flex space-x-3 fade-in">
+  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-xs">
+    🤖
+  </div>
+  <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-800 space-y-1.5 max-w-[85%] break-words leading-relaxed">
+    <div class="prose prose-xs max-w-none">
+      {{ assistant_message|safe }}
+    </div>
+  </div>
+</div>
