@@ -10,5 +10,18 @@
       }
     ]
   },
-  "reguly_globalne": []
+  "reguly_globalne": [
+    {
+      "wzorzec": "paliwo",
+      "kwalifikacja": "SAMOCHOD_50",
+      "uzasadnienie": "Paliwo do samochodu osobowego",
+      "data_utworzenia": "2026-01-01 00:00:00"
+    },
+    {
+      "wzorzec": "efecta",
+      "kwalifikacja": "SAMOCHOD_50",
+      "uzasadnienie": "Paliwo Orlen",
+      "data_utworzenia": "2026-01-01 00:00:00"
+    }
+  ]
 }

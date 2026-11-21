@@ -256,6 +256,8 @@ async def approve_single_item(
     numer: str = Query(...),
     item_idx: int = Query(...),
     lp: int = Query(...),
+    rok: Optional[str] = Query(None),
+    miesiac: Optional[str] = Query(None),
     kwalifikacja: Optional[str] = Form(None),
     opis: Optional[str] = Form(None),
     sprzedawca_nip: Optional[str] = Form(None),
@@ -265,8 +267,12 @@ async def approve_single_item(
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
-    rok = ctx["rok"]
-    miesiac = ctx["miesiac"]
+    effective_rok = rok or request.query_params.get("rok") or ctx["rok"]
+    effective_miesiac = miesiac or request.query_params.get("miesiac") or ctx["miesiac"]
+    if len(effective_miesiac) == 1:
+        effective_miesiac = f"0{effective_miesiac}"
+    rok = effective_rok
+    miesiac = effective_miesiac
 
     if not profile:
         raise HTTPException(status_code=400, detail="Brak profilu firmy")

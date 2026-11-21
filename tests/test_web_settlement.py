@@ -17,13 +17,10 @@ class TestWebSettlement(unittest.TestCase):
     def setUpClass(cls):
         from src.core.company import CompanyProfile
         from tests.fixtures import setup_test_company
-        profile = CompanyProfile.load_by_nip("7770001122")
-        if not profile:
-            profile = setup_test_company()
-        cls.profile = profile
+        cls.profile = setup_test_company()
 
         # Kopia zapasowa reguł kosztowych firmy domyślnej
-        cls.rules_path = profile.katalog_firmy / "reguly_kosztowe.json"
+        cls.rules_path = cls.profile.katalog_firmy / "reguly_kosztowe.json"
         cls.rules_backup = None
         if cls.rules_path.exists():
             cls.rules_backup = cls.rules_path.read_text(encoding="utf-8")
@@ -36,6 +33,10 @@ class TestWebSettlement(unittest.TestCase):
 
     def setUp(self):
         AMLVerificationEngine.clear_cache()
+        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        if not p_path.exists() or not (p_path / "faktury" / "2026" / "10").exists():
+            from tests.fixtures import setup_test_company
+            setup_test_company()
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
@@ -278,7 +279,7 @@ class TestWebSettlement(unittest.TestCase):
 
         # Zatwierdzenie pozycji (odpowiada kliknięciu 'Zatwierdź' przy sugestii PRYWATNY_0)
         res = self.client.post(
-            f"/api/costs/approve-item?numer={test_num}&item_idx=0&lp=1&opis={test_opis}&kwalifikacja=PRYWATNY_0"
+            f"/api/costs/approve-item?numer={test_num}&item_idx=0&lp=1&opis={test_opis}&kwalifikacja=PRYWATNY_0&rok=2026&miesiac=10"
         )
         self.assertEqual(res.status_code, 200)
 
