@@ -253,12 +253,13 @@ Każde narzędzie obliczeniowe implementowane jest jako deterministyczna funkcja
 from decimal import Decimal
 from typing import Dict, Any
 
+
 def calculate_pit28_advance(
     sumy_przychodow_wg_stawek: Dict[Decimal, Decimal],
     skladki_spoleczne_do_odliczenia: Decimal,
     skladka_zdrowotna_zaplacona: Decimal,
     rok: str = "2026",
-    miesiac: str = "01"
+    miesiac: str = "01",
 ) -> Dict[str, Any]:
     """
     Deterministyczne obliczenie zaliczki na podatek ryczałtowy (PIT-28).

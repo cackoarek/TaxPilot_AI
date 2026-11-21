@@ -3,11 +3,12 @@ src/web/services/qr_generator.py
 Deterministyczny generator kodów QR dla polskich przelewów bankowych (Standard ZBP / Elixir).
 Umożliwia błyskawiczne opłacenie podatków i ZUS aplikacją bankową na smartfonie.
 """
+
+import base64
 import io
 import re
-import base64
 from decimal import Decimal
-from typing import Dict, Any, Union
+from typing import Any, Dict, Union
 
 import qrcode
 from qrcode.constants import ERROR_CORRECT_M
@@ -33,7 +34,7 @@ def format_zbp_payload(
     ||{rachunek_26_cyfr}|{kwota_w_groszach_min_6_cyfr}|{nazwa_odbiorcy}|{tytul_przelewu}|||
     """
     clean_acc = clean_account_number(rachunek)
-    
+
     # Przeliczenie kwoty na grosze
     if not isinstance(kwota, Decimal):
         kwota_dec = Decimal(str(kwota).replace(" ", "").replace(",", "."))
@@ -88,7 +89,7 @@ def get_transfer_qr_package(
     """
     clean_acc = clean_account_number(rachunek)
     okres = f"{rok}-{miesiac}"
-    
+
     if typ.upper() == "PIT-28":
         odbiorca = "Urząd Skarbowy (Mikrorachunek Podatkowy)"
         tytul = f"PIT-28 za {okres} NIP {nip}"
@@ -114,7 +115,7 @@ def get_transfer_qr_package(
         "typ": typ,
         "odbiorca": odbiorca,
         "rachunek": clean_acc,
-        "rachunek_sformatowany": " ".join([clean_acc[i:i+4] for i in range(0, len(clean_acc), 4)]),
+        "rachunek_sformatowany": " ".join([clean_acc[i : i + 4] for i in range(0, len(clean_acc), 4)]),
         "kwota": kwota,
         "tytul": tytul,
         "payload": payload,

@@ -7,26 +7,24 @@ Działa w tle z możliwością swobodnej nawigacji użytkownika między zakładk
 
 import asyncio
 import json
-import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.logging_config import get_logger
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceType
-from src.skills.cost_classifier import (
-    RegulyKosztoweFirmy,
-    KwalifikacjaKosztu,
-    CostClassifier,
-    audit_invoice_expense,
-)
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.web.services.llm.factory import LLMProviderFactory
+from src.logging_config import get_logger
+from src.skills.cost_classifier import (
+    CostClassifier,
+    KwalifikacjaKosztu,
+    RegulyKosztoweFirmy,
+)
 from src.web.services.llm.base import ChatMessage
+from src.web.services.llm.factory import LLMProviderFactory
 
 logger = get_logger("taxpilot.ai_qualifier")
 
@@ -107,7 +105,9 @@ class AICostQualifierService:
             return {}
 
     @classmethod
-    def save_suggestions(cls, profile: CompanyProfile, rok: str, miesiac: str, suggestions: Dict[str, AIQualificationItem]):
+    def save_suggestions(
+        cls, profile: CompanyProfile, rok: str, miesiac: str, suggestions: Dict[str, AIQualificationItem]
+    ):
         """Zapisuje sugestie AI na dysku."""
         path = cls._storage_path(profile, rok, miesiac)
         try:
@@ -127,7 +127,17 @@ class AICostQualifierService:
         return state
 
     @classmethod
-    def set_status(cls, nip: str, rok: str, miesiac: str, status: str, message: str, current: int = 0, total: int = 0, error: Optional[str] = None):
+    def set_status(
+        cls,
+        nip: str,
+        rok: str,
+        miesiac: str,
+        status: str,
+        message: str,
+        current: int = 0,
+        total: int = 0,
+        error: Optional[str] = None,
+    ):
         key = cls._get_key(nip, rok, miesiac)
         pct = int((current / total * 100)) if total > 0 else 0
         cls._task_states[key] = {
@@ -158,7 +168,7 @@ class AICostQualifierService:
         """
         suggestions = cls.load_suggestions(profile, rok, miesiac)
         item_key = f"{numer_faktury.strip()}::{pozycja_opis.strip().lower()}"
-        
+
         # Pobierz dane kontrahenta
         faktury = InvoiceStorage.list_invoices(profile, rok, miesiac, typ=InvoiceType.KOSZT)
         inv = next((i for i in faktury if i.numer == numer_faktury or i.numer.strip() == numer_faktury.strip()), None)
@@ -170,11 +180,13 @@ class AICostQualifierService:
                 profile=profile,
                 wzorzec=pozycja_opis.strip(),
                 kwalifikacja=KwalifikacjaKosztu(kwalifikacja),
-                uzasadnienie=f"Zatwierdzono przez przedsiębiorcę w UI (Sugestia AI)",
+                uzasadnienie="Zatwierdzono przez przedsiębiorcę w UI (Sugestia AI)",
                 nip_kontrahenta=seller_nip,
             )
             reguly.save(profile)
-            logger.info("Utrwalono regułę po zatwierdzeniu AI: '%s' -> %s (NIP: %s)", pozycja_opis, kwalifikacja, seller_nip)
+            logger.info(
+                "Utrwalono regułę po zatwierdzeniu AI: '%s' -> %s (NIP: %s)", pozycja_opis, kwalifikacja, seller_nip
+            )
 
         # Oznacz w pamięci sugestii
         if item_key in suggestions:
@@ -260,7 +272,9 @@ class AICostQualifierService:
         """Pętla wykonawcza kwalifikacji AI."""
         nip = profile.nip
         try:
-            logger.info("Rozpoczęto analizę AI pozycji faktur kosztowych dla firmy %s (%s-%s)", profile.nazwa, rok, miesiac)
+            logger.info(
+                "Rozpoczęto analizę AI pozycji faktur kosztowych dla firmy %s (%s-%s)", profile.nazwa, rok, miesiac
+            )
             faktury = InvoiceStorage.list_invoices(profile, rok, miesiac, typ=InvoiceType.KOSZT)
             reguly_firmy = RegulyKosztoweFirmy.load(profile)
             existing_suggestions = cls.load_suggestions(profile, rok, miesiac)
@@ -270,11 +284,13 @@ class AICostQualifierService:
             for inv in faktury:
                 seller_nip = re.sub(r"[^0-9]", "", inv.sprzedawca.nip) if inv.sprzedawca else ""
                 for p in inv.pozycje:
-                    desc_clean = p.opis.strip().lower()
+                    p.opis.strip().lower()
                     # Sprawdź, czy pozycja ma już stałą regułę kontrahenta
                     has_rule = False
                     if seller_nip in reguly_firmy.reguly_kontrahentow:
-                        matched = CostClassifier._find_best_matching_rule(reguly_firmy.reguly_kontrahentow[seller_nip], p.opis)
+                        matched = CostClassifier._find_best_matching_rule(
+                            reguly_firmy.reguly_kontrahentow[seller_nip], p.opis
+                        )
                         if matched:
                             has_rule = True
                     if not has_rule:
@@ -286,26 +302,44 @@ class AICostQualifierService:
 
             total = len(pozycje_do_analizy)
             if total == 0:
-                cls.set_status(nip, rok, miesiac, "completed", "Wszystkie pozycje posiadają już zapamiętane reguły podatkowe.", 1, 1)
+                cls.set_status(
+                    nip,
+                    rok,
+                    miesiac,
+                    "completed",
+                    "Wszystkie pozycje posiadają już zapamiętane reguły podatkowe.",
+                    1,
+                    1,
+                )
                 return
 
-            cls.set_status(nip, rok, miesiac, "running", f"Przygotowano {total} pozycji do kwalifikacji AI...", 0, total)
+            cls.set_status(
+                nip, rok, miesiac, "running", f"Przygotowano {total} pozycji do kwalifikacji AI...", 0, total
+            )
 
             # Pobierz providera LLM
             llm_provider = LLMProviderFactory.get_provider(profile=profile, rok=rok, miesiac=miesiac)
-            kody_pkd_str = ", ".join(profile.kody_pkd) if profile.kody_pkd else "62.01.Z, 62.02.Z (Działalność programistyczna i IT)"
+            kody_pkd_str = (
+                ", ".join(profile.kody_pkd)
+                if profile.kody_pkd
+                else "62.01.Z, 62.02.Z (Działalność programistyczna i IT)"
+            )
 
             for idx, (inv, pos) in enumerate(pozycje_do_analizy, start=1):
                 item_key = f"{inv.numer.strip()}::{pos.opis.strip().lower()}"
-                
+
                 # Jeśli pozycja została już wcześniej zatwierdzona przez użytkownika w tym miesiącu, pomiń
                 if item_key in existing_suggestions and existing_suggestions[item_key].zatwierdzony:
                     continue
 
                 cls.set_status(
-                    nip, rok, miesiac, "running",
+                    nip,
+                    rok,
+                    miesiac,
+                    "running",
                     f"Kwalifikacja AI [{idx}/{total}]: {pos.opis[:35]}... ({inv.sprzedawca.nazwa[:25] if inv.sprzedawca else ''})",
-                    idx - 1, total
+                    idx - 1,
+                    total,
                 )
 
                 kwalifikacja, porada = await cls._classify_single_item(
@@ -331,15 +365,21 @@ class AICostQualifierService:
                 cls.save_suggestions(profile, rok, miesiac, existing_suggestions)
 
             cls.set_status(
-                nip, rok, miesiac, "completed",
+                nip,
+                rok,
+                miesiac,
+                "completed",
                 f"Zakończono kwalifikację AI. Przeanalizowano {total} pozycji faktur. Sprawdź porady księgowe i zatwierdź pozycje.",
-                total, total
+                total,
+                total,
             )
             logger.info("Ukończono pomyślnie kwalifikację AI dla %s (%s-%s)", profile.nazwa, rok, miesiac)
 
         except Exception as e:
             logger.exception("Błąd w procesie kwalifikacji AI: %s", e)
-            cls.set_status(nip, rok, miesiac, "error", f"Wystąpił błąd podczas analizy AI: {str(e)}", 0, 0, error=str(e))
+            cls.set_status(
+                nip, rok, miesiac, "error", f"Wystąpił błąd podczas analizy AI: {str(e)}", 0, 0, error=str(e)
+            )
 
     @classmethod
     async def _classify_single_item(
@@ -385,7 +425,7 @@ class AICostQualifierService:
                         system_prompt=system_prompt,
                         temperature=0.1,
                     ),
-                    timeout=20.0
+                    timeout=20.0,
                 )
                 # Parsowanie JSON z odpowiedzi
                 m = re.search(r"\{.*\}", raw_response, flags=re.DOTALL)
@@ -398,20 +438,81 @@ class AICostQualifierService:
                     if porada:
                         return kwal, porada
             except Exception as ex:
-                logger.warning("Wywołanie LLM dla pozycji '%s' nie powiodło się (%s), przejście na reguły eksperckie.", desc, ex)
+                logger.warning(
+                    "Wywołanie LLM dla pozycji '%s' nie powiodło się (%s), przejście na reguły eksperckie.", desc, ex
+                )
 
         # 2. Heurystyka ekspercka (Fallback wysokiej jakości)
         desc_l = desc.lower()
-        if any(w in desc_l for w in ["paliwo", "benzyn", "diesel", "lpg", "efecta", "myjnia", "wulkanizacj", "opon", "serwis auta", "parking", "autostrad"]):
-            return "SAMOCHOD_50", "Eksploatacja pojazdu osobowego w trybie mieszanym. Zgodnie z art. 86a ustawy o VAT przysługuje 50% odliczenia VAT, a w podatku dochodowym 75% zaliczenia do KUP."
-        
-        if any(w in desc_l for w in ["tv", "telewizj", "pakiet tv", "vod", "netflix", "rodzinn", "zabawk", "lego", "kosmetyk", "fryzjer"]):
-            return "PRYWATNY_0", "Wydatek ma charakter osobisty (art. 23 ust. 1 ustawy o PIT). Organy podatkowe kwestionują zaliczenie do kosztów firmy – rekomendowane 0% VAT i wyłączenie z KUP."
+        if any(
+            w in desc_l
+            for w in [
+                "paliwo",
+                "benzyn",
+                "diesel",
+                "lpg",
+                "efecta",
+                "myjnia",
+                "wulkanizacj",
+                "opon",
+                "serwis auta",
+                "parking",
+                "autostrad",
+            ]
+        ):
+            return (
+                "SAMOCHOD_50",
+                "Eksploatacja pojazdu osobowego w trybie mieszanym. Zgodnie z art. 86a ustawy o VAT przysługuje 50% odliczenia VAT, a w podatku dochodowym 75% zaliczenia do KUP.",
+            )
+
+        if any(
+            w in desc_l
+            for w in [
+                "tv",
+                "telewizj",
+                "pakiet tv",
+                "vod",
+                "netflix",
+                "rodzinn",
+                "zabawk",
+                "lego",
+                "kosmetyk",
+                "fryzjer",
+            ]
+        ):
+            return (
+                "PRYWATNY_0",
+                "Wydatek ma charakter osobisty (art. 23 ust. 1 ustawy o PIT). Organy podatkowe kwestionują zaliczenie do kosztów firmy – rekomendowane 0% VAT i wyłączenie z KUP.",
+            )
 
         if any(w in desc_l for w in ["stół", "biurk", "krzesł", "catering", "fotele", "mebl"]):
-            return "FIRMOWY_100", "Wyposażenie stanowiska pracy / biura. Wydatek ma bezpośredni związek z organizacją i funkcjonowaniem przedsiębiorstwa (art. 22 ust. 1 PIT) – pełne 100% VAT."
+            return (
+                "FIRMOWY_100",
+                "Wyposażenie stanowiska pracy / biura. Wydatek ma bezpośredni związek z organizacją i funkcjonowaniem przedsiębiorstwa (art. 22 ust. 1 PIT) – pełne 100% VAT.",
+            )
 
-        if any(w in desc_l for w in ["komputer", "laptop", "monitor", "kamera", "klawiatur", "mysz", "serwer", "hosting", "cloud", "internet", "telefon"]):
-            return "FIRMOWY_100", f"Sprzęt i usługi IT bezpośrednio wspierające profil działalności ({kody_pkd_str[:15]}). Zgodnie z art. 86 ust. 1 VAT przysługuje pełne prawo do odliczenia 100% podatku."
+        if any(
+            w in desc_l
+            for w in [
+                "komputer",
+                "laptop",
+                "monitor",
+                "kamera",
+                "klawiatur",
+                "mysz",
+                "serwer",
+                "hosting",
+                "cloud",
+                "internet",
+                "telefon",
+            ]
+        ):
+            return (
+                "FIRMOWY_100",
+                f"Sprzęt i usługi IT bezpośrednio wspierające profil działalności ({kody_pkd_str[:15]}). Zgodnie z art. 86 ust. 1 VAT przysługuje pełne prawo do odliczenia 100% podatku.",
+            )
 
-        return "FIRMOWY_100", "Standardowy wydatek operacyjny na cele prowadzonej działalności gospodarczej (art. 22 ust. 1 ustawy o PIT). Przysługuje pełne 100% odliczenia VAT."
+        return (
+            "FIRMOWY_100",
+            "Standardowy wydatek operacyjny na cele prowadzonej działalności gospodarczej (art. 22 ust. 1 ustawy o PIT). Przysługuje pełne 100% odliczenia VAT.",
+        )

@@ -2,24 +2,21 @@
 src/web/routers/aml.py
 Kontroler modułu AML, Białej Listy VAT i Należytej Staranności.
 """
+
 import json
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Request, Form, Query, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.web.config import TEMPLATES_DIR
-from src.web.dependencies import get_global_context
 from src.skills.aml_tools import (
     AMLVerificationEngine,
     VerificationService,
-    KartaWeryfikacjiKontrahenta,
-    PoziomRyzykaAML,
-    DecyzjaWspolpracy,
 )
+from src.web.config import TEMPLATES_DIR
+from src.web.dependencies import get_global_context
 
 router = APIRouter(prefix="/aml", tags=["Compliance AML"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))

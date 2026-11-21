@@ -6,27 +6,28 @@ Chroni system przed:
 3. Wielokrotnym wgraniem tego samego pliku w tym samym miesiącu.
 """
 
-from dataclasses import dataclass, field
+import json
+import re
+from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
-import re
-from typing import Dict, List, Optional, Tuple, Set, Any
-import json
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceType
 
 
 class DuplicateType(str, Enum):
-    KSEF_COLLISION = "KSEF_COLLISION"               # Faktura pobrana z KSeF i wgrana jako plik Non-KSeF
-    CROSS_MONTH_DUPLICATE = "CROSS_MONTH_DUPLICATE" # Faktura wgrana powtórnie w innym miesiącu
-    SAME_PERIOD_DUPLICATE = "SAME_PERIOD_DUPLICATE" # Zdublowany plik w tym samym miesiącu
+    KSEF_COLLISION = "KSEF_COLLISION"  # Faktura pobrana z KSeF i wgrana jako plik Non-KSeF
+    CROSS_MONTH_DUPLICATE = "CROSS_MONTH_DUPLICATE"  # Faktura wgrana powtórnie w innym miesiącu
+    SAME_PERIOD_DUPLICATE = "SAME_PERIOD_DUPLICATE"  # Zdublowany plik w tym samym miesiącu
 
 
 @dataclass
 class DuplicateAnomaly:
     """Informacja o wykrytym duplikacie faktury."""
+
     faktura_odrzucona: Invoice
     faktura_pierwotna: Invoice
     typ_duplikatu: DuplicateType
@@ -130,13 +131,16 @@ class InvoiceDeduplicator:
         num1_core = extract_core_number(inv1.numer)
         num2_core = extract_core_number(inv2.numer)
 
-        num_exact_match = (bool(num1_norm) and num1_norm == num2_norm)
-        num_core_match = (bool(num1_core) and bool(num2_core) and num1_core == num2_core)
+        num_exact_match = bool(num1_norm) and num1_norm == num2_norm
+        num_core_match = bool(num1_core) and bool(num2_core) and num1_core == num2_core
 
         # Jeśli kontrahent i numer faktury pasują -> 100% dopasowanie
         if contractor_match and (num_exact_match or num_core_match):
             kontrahent_info = f"NIP: {nip1}" if nip1 != "0000000000" else f"Nazwa: {name1}"
-            return True, f"Identyczny numer faktury ('{inv1.numer}' ~ '{inv2.numer}') oraz kontrahent ({kontrahent_info})"
+            return (
+                True,
+                f"Identyczny numer faktury ('{inv1.numer}' ~ '{inv2.numer}') oraz kontrahent ({kontrahent_info})",
+            )
 
         # 4. Dopasowanie po zawartości (kwota brutto + netto + data wystawienia + kontrahent)
         # Przydatne w przypadku paragonów / plików bez numeru lub z inną konwencją numeracji
@@ -211,6 +215,7 @@ class InvoiceDeduplicator:
                                     with open(xml_file, "r", encoding="utf-8") as xf:
                                         xml_content = xf.read()
                                     from src.level_1_ingestion.ksef_parser import KSeFParser
+
                                     parsed_xml_inv = KSeFParser.parse_xml(xml_content, target_company_nip=profile.nip)
                                     if parsed_xml_inv.rachunek_bankowy and not inv.rachunek_bankowy:
                                         inv.rachunek_bankowy = parsed_xml_inv.rachunek_bankowy
@@ -289,7 +294,7 @@ class InvoiceDeduplicator:
     ) -> Tuple[List[Invoice], List[DuplicateAnomaly]]:
         """
         Przeprowadza pełną deduplikację faktur za wskazany miesiąc.
-        
+
         Zwraca:
         - clean_invoices: lista poprawnych, unikalnych faktur do zaksięgowania.
         - anomalies: lista wykrytych duplikatów z pełnym uzasadnieniem (do przedstawienia użytkownikowi).
@@ -329,9 +334,7 @@ class InvoiceDeduplicator:
             rejected = False
             odrzucony_plik = non_ksef_inv.plik_zrodlowy or non_ksef_path.name
             kontrahent = (
-                non_ksef_inv.sprzedawca.nazwa
-                if non_ksef_inv.typ == InvoiceType.KOSZT
-                else non_ksef_inv.nabywca.nazwa
+                non_ksef_inv.sprzedawca.nazwa if non_ksef_inv.typ == InvoiceType.KOSZT else non_ksef_inv.nabywca.nazwa
             )
 
             # --- Reguła 1: Kolizja z KSeF w bieżącym miesiącu ---

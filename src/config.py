@@ -2,8 +2,9 @@
 Konfiguracja globalna i ścieżki projektu TaxPilot AI.
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Załaduj zmienne z pliku .env, jeśli istnieje

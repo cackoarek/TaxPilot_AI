@@ -4,11 +4,13 @@ Wysokiej jakości konwerter Markdown -> HTML dla widoków panelu TaxPilot AI.
 Formatuje raporty księgowe, sumy roczne YTD, audyty podatkowe oraz sprawozdania
 w czysty, responsywny kod HTML zgodny z Tailwind CSS.
 """
+
 import html
 import re
 import urllib.parse
 import uuid
-from typing import List, Tuple
+from typing import List
+
 from markupsafe import Markup
 
 
@@ -66,17 +68,19 @@ def render_markdown(text: str) -> Markup:
 
     # 1. Zabezpieczenie bloków kodu ``` ... ```
     code_blocks: List[str] = []
+
     def save_code_block(match):
         code_blocks.append(match.group(1))
-        return f"\n{cb_token_prefix}{len(code_blocks)-1}__\n"
+        return f"\n{cb_token_prefix}{len(code_blocks) - 1}__\n"
 
     text = re.sub(r"```(?:\w+)?\n?(.*?)```", save_code_block, text, flags=re.DOTALL)
 
     # 2. Zabezpieczenie inline code `kod`
     inline_codes: List[str] = []
+
     def save_inline_code(match):
         inline_codes.append(match.group(1))
-        return f"{ic_token_prefix}{len(inline_codes)-1}__"
+        return f"{ic_token_prefix}{len(inline_codes) - 1}__"
 
     text = re.sub(r"`([^`]+)`", save_inline_code, text)
 
@@ -124,7 +128,7 @@ def render_markdown(text: str) -> Markup:
         # Sprawdzenie znacznika bloku kodu
         if line_stripped.startswith(cb_token_prefix) and line_stripped.endswith("__"):
             try:
-                idx = int(line_stripped[len(cb_token_prefix):-2])
+                idx = int(line_stripped[len(cb_token_prefix) : -2])
                 code_content = code_blocks[idx]
                 escaped_code = html.escape(code_content, quote=False)
                 output_html.append(
@@ -166,48 +170,60 @@ def render_markdown(text: str) -> Markup:
                         '<div class="overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-2xs">',
                         '  <table class="w-full text-xs text-left divide-y divide-slate-200 bg-white border-collapse">',
                         '    <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider">',
-                        '      <tr>'
+                        "      <tr>",
                     ]
                     for idx, h in enumerate(header_cells):
                         align = alignments[idx] if idx < len(alignments) else "text-left"
                         tbl_html.append(f'        <th class="p-3 {align} whitespace-nowrap">{h}</th>')
-                    tbl_html.append('      </tr>')
-                    tbl_html.append('    </thead>')
+                    tbl_html.append("      </tr>")
+                    tbl_html.append("    </thead>")
                     tbl_html.append('    <tbody class="divide-y divide-slate-100 font-mono text-xs">')
 
                     for row in table_rows:
                         # Wyróżnienie wiersza sumy rocznej / YTD
                         row_text = " ".join(row).upper()
                         is_sum_row = "SUMA" in row_text or "RAZEM" in row_text or "TOTAL" in row_text
-                        tr_cls = "bg-slate-50/90 font-bold border-t-2 border-slate-300 text-slate-900" if is_sum_row else "hover:bg-slate-50/80 transition-colors text-slate-700"
+                        tr_cls = (
+                            "bg-slate-50/90 font-bold border-t-2 border-slate-300 text-slate-900"
+                            if is_sum_row
+                            else "hover:bg-slate-50/80 transition-colors text-slate-700"
+                        )
 
                         tbl_html.append(f'      <tr class="{tr_cls}">')
                         for idx, cell in enumerate(row):
                             align = alignments[idx] if idx < len(alignments) else "text-left"
                             tbl_html.append(f'        <td class="p-3 {align} whitespace-nowrap">{cell}</td>')
-                        tbl_html.append('      </tr>')
+                        tbl_html.append("      </tr>")
 
-                    tbl_html.append('    </tbody>')
-                    tbl_html.append('  </table>')
-                    tbl_html.append('</div>')
+                    tbl_html.append("    </tbody>")
+                    tbl_html.append("  </table>")
+                    tbl_html.append("</div>")
                     output_html.append("\n".join(tbl_html))
                     continue
 
         # Sprawdzenie nagłówków Markdown (####, ###, ##, #)
         if line_stripped.startswith("#### "):
-            output_html.append(f'<h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider mt-4 mb-2">{line_stripped[5:]}</h4>')
+            output_html.append(
+                f'<h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider mt-4 mb-2">{line_stripped[5:]}</h4>'
+            )
             i += 1
             continue
         elif line_stripped.startswith("### "):
-            output_html.append(f'<h3 class="font-bold text-slate-900 text-sm mt-5 mb-2 pb-1 border-b border-slate-100">{line_stripped[4:]}</h3>')
+            output_html.append(
+                f'<h3 class="font-bold text-slate-900 text-sm mt-5 mb-2 pb-1 border-b border-slate-100">{line_stripped[4:]}</h3>'
+            )
             i += 1
             continue
         elif line_stripped.startswith("## "):
-            output_html.append(f'<h2 class="font-black text-slate-900 text-base mt-6 mb-3 flex items-center space-x-2">{line_stripped[3:]}</h2>')
+            output_html.append(
+                f'<h2 class="font-black text-slate-900 text-base mt-6 mb-3 flex items-center space-x-2">{line_stripped[3:]}</h2>'
+            )
             i += 1
             continue
         elif line_stripped.startswith("# "):
-            output_html.append(f'<h1 class="font-black text-slate-900 text-lg mb-3 pb-2 border-b-2 border-slate-200">{line_stripped[2:]}</h1>')
+            output_html.append(
+                f'<h1 class="font-black text-slate-900 text-lg mb-3 pb-2 border-b-2 border-slate-200">{line_stripped[2:]}</h1>'
+            )
             i += 1
             continue
 
@@ -236,7 +252,9 @@ def render_markdown(text: str) -> Markup:
                 item_content = lines[i].strip()[2:]
                 list_items.append(f'<li class="pl-1 text-slate-700">{item_content}</li>')
                 i += 1
-            output_html.append(f'<ul class="list-disc pl-5 space-y-1.5 my-2.5 text-xs text-slate-700 leading-relaxed">{"".join(list_items)}</ul>')
+            output_html.append(
+                f'<ul class="list-disc pl-5 space-y-1.5 my-2.5 text-xs text-slate-700 leading-relaxed">{"".join(list_items)}</ul>'
+            )
             continue
 
         # Sprawdzenie listy numerowanej (1. , 2. )
@@ -249,7 +267,9 @@ def render_markdown(text: str) -> Markup:
                     break
                 num_items.append(f'<li class="pl-1 text-slate-700">{m.group(1)}</li>')
                 i += 1
-            output_html.append(f'<ol class="list-decimal pl-5 space-y-1.5 my-2.5 text-xs text-slate-700 leading-relaxed">{"".join(num_items)}</ol>')
+            output_html.append(
+                f'<ol class="list-decimal pl-5 space-y-1.5 my-2.5 text-xs text-slate-700 leading-relaxed">{"".join(num_items)}</ol>'
+            )
             continue
 
         # Zwykły akapit

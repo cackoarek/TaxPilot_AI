@@ -4,18 +4,18 @@ Serwis zarządzania ekstrakcją i odczytywaniem nieprzetworzonych faktur (AI Vis
 Wykrywa faktury, których nie udało się odczytać automatycznie (kwoty 0.00 zł, brak NIP),
 zarządza asynchronicznym zadaniem w tle oraz raportuje status procesu.
 """
+
 import asyncio
+import json
 from datetime import datetime
 from decimal import Decimal
-import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
-from src.logging_config import get_logger
 from src.core.company import CompanyProfile
 from src.core.invoice import InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
+from src.logging_config import get_logger
 
 logger = get_logger("taxpilot.extraction_service")
 
@@ -91,14 +91,16 @@ class ExtractionService:
 
             if is_unprocessed:
                 typ_label = "Koszty" if inv.typ == InvoiceType.KOSZT else "Sprzedaż"
-                unprocessed.append({
-                    "numer": inv.numer,
-                    "plik": inv.plik_zrodlowy or inv.numer,
-                    "sprzedawca": inv.sprzedawca.nazwa,
-                    "typ": typ_label,
-                    "reasons": reasons,
-                    "powod_skrot": ", ".join(reasons),
-                })
+                unprocessed.append(
+                    {
+                        "numer": inv.numer,
+                        "plik": inv.plik_zrodlowy or inv.numer,
+                        "sprzedawca": inv.sprzedawca.nazwa,
+                        "typ": typ_label,
+                        "reasons": reasons,
+                        "powod_skrot": ", ".join(reasons),
+                    }
+                )
 
         # Sprawdzenie czy w folderach non-ksef-raw są pliki, które nie zostały wyekstrahowane w ogóle
         for typ_enum, typ_label in [(InvoiceType.KOSZT, "Koszty"), (InvoiceType.SPRZEDAZ, "Sprzedaż")]:
@@ -111,14 +113,16 @@ class ExtractionService:
                         if not json_counterpart.exists():
                             # Sprawdź czy już nie ma na liście
                             if not any(u["plik"] == f.name for u in unprocessed):
-                                unprocessed.append({
-                                    "numer": f.stem,
-                                    "plik": f.name,
-                                    "sprzedawca": "Nieznany",
-                                    "typ": typ_label,
-                                    "reasons": ["brak przetworzenia JSON"],
-                                    "powod_skrot": "brak przetworzenia JSON",
-                                })
+                                unprocessed.append(
+                                    {
+                                        "numer": f.stem,
+                                        "plik": f.name,
+                                        "sprzedawca": "Nieznany",
+                                        "typ": typ_label,
+                                        "reasons": ["brak przetworzenia JSON"],
+                                        "powod_skrot": "brak przetworzenia JSON",
+                                    }
+                                )
 
         return unprocessed
 
@@ -265,14 +269,20 @@ class ExtractionService:
                 try:
                     logger.info("Ekstrakcja dokumentu (%d/%d): %s (niezależny timeout=100s)", idx, total, fn)
                     inv = await asyncio.wait_for(
-                        AIDocumentExtractor.extract_file_async(
-                            file_path, profile, rok, miesiac, invoice_type=inv_type
-                        ),
+                        AIDocumentExtractor.extract_file_async(file_path, profile, rok, miesiac, invoice_type=inv_type),
                         timeout=100.0,
                     )
-                    if (inv.suma_brutto > Decimal("0.00") or inv.suma_netto > Decimal("0.00")) and inv.sprzedawca.nip not in ("0000000000", "", None):
+                    if (
+                        inv.suma_brutto > Decimal("0.00") or inv.suma_netto > Decimal("0.00")
+                    ) and inv.sprzedawca.nip not in ("0000000000", "", None):
                         processed_names.append(fn)
-                        logger.info("Pomyślnie wyekstrahowano dokument (%d/%d): %s (brutto=%s zł)", idx, total, fn, inv.suma_brutto)
+                        logger.info(
+                            "Pomyślnie wyekstrahowano dokument (%d/%d): %s (brutto=%s zł)",
+                            idx,
+                            total,
+                            fn,
+                            inv.suma_brutto,
+                        )
                     else:
                         failed_names.append(fn)
                         logger.warning("Niepełne dane dla dokumentu (%d/%d): %s", idx, total, fn)
@@ -367,7 +377,9 @@ class ExtractionService:
             rok,
             miesiac,
             status="running",
-            message=f"Rozpoczynanie analizy AI dla {total_count} dokumentów..." if total_count > 0 else "Inicjalizacja analizy AI...",
+            message=f"Rozpoczynanie analizy AI dla {total_count} dokumentów..."
+            if total_count > 0
+            else "Inicjalizacja analizy AI...",
             current=0,
             total=total_count,
             percent=0,

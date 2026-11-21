@@ -2,18 +2,19 @@
 tests/test_web_aml.py
 Testy integracyjne modułu AML i Białej Listy VAT (Kamień Milowy M2).
 """
+
 import unittest
 from unittest.mock import patch
-from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.skills.aml_tools import (
     AMLVerificationEngine,
+    DecyzjaWspolpracy,
     KartaWeryfikacjiKontrahenta,
     PoziomRyzykaAML,
-    DecyzjaWspolpracy,
 )
+from src.web.app import app
 
 
 class TestWebAML(unittest.TestCase):
@@ -21,9 +22,11 @@ class TestWebAML(unittest.TestCase):
         AMLVerificationEngine.clear_cache()
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
+
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         from src.core.company import CompanyProfile
         from tests.fixtures import setup_test_company
+
         if not CompanyProfile.load_by_nip("7770001122"):
             setup_test_company()
 

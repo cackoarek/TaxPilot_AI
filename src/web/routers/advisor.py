@@ -3,23 +3,22 @@ src/web/routers/advisor.py
 Kontroler Doradcy Podatkowego: symulacja form opodatkowania (Ryczałt vs Liniowy vs Skala)
 oraz audyt brakujących powtarzalnych kosztów (Expense Leak Audit).
 """
-from decimal import Decimal
-from typing import Optional, Dict, Any
 
-from fastapi import APIRouter, Request, Form, Query, HTTPException
+from decimal import Decimal
+from typing import Any, Optional
+
+from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.web.config import TEMPLATES_DIR
-from src.web.dependencies import get_global_context
 from src.skills.tax_advisor_tools import (
-    simulate_tax_regimes,
+    ExpenseAuditResult,
     audit_expense_leaks,
     get_annual_financial_summary,
-    TaxRegimeComparison,
-    ExpenseAuditResult,
+    simulate_tax_regimes,
 )
-from src.web.routers.dashboard import load_settlement_data
+from src.web.config import TEMPLATES_DIR
+from src.web.dependencies import get_global_context
 
 router = APIRouter(tags=["Doradca Podatkowy"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -48,7 +47,7 @@ async def advisor_dashboard(
     # Pobierz deterministyczne podsumowanie za cały rok podatkowy (lub poprzedni rok w razie stycznia/braku danych)
     annual_summary = get_annual_financial_summary(profile, rok, miesiac)
 
-    czy_symuluj_pelny = (symuluj in ["1", "true", "True"])
+    czy_symuluj_pelny = symuluj in ["1", "true", "True"]
     if czy_symuluj_pelny and annual_summary["can_extrapolate"]:
         roczny_przychod = annual_summary["extrapolated_przychod"]
         roczny_koszt = annual_summary["extrapolated_koszt"]
@@ -115,4 +114,6 @@ async def simulate_regimes_endpoint(
         "koszt": koszt_dec,
         "stawka_ryczaltu": stawka_dec,
     }
-    return templates.TemplateResponse(request=request, name="partials/advisor_simulation_result.html", context=result_ctx)
+    return templates.TemplateResponse(
+        request=request, name="partials/advisor_simulation_result.html", context=result_ctx
+    )

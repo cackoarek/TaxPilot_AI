@@ -3,8 +3,10 @@ tests/test_xss_prevention.py
 Testy bezpieczeństwa weryfikujące odporność na ataki Cross-Site Scripting (XSS / CWE-79)
 w konwerterze markdown_to_html (Copilot chat) oraz render_markdown (panele raportowe).
 """
+
 import unittest
-from src.web.routers.copilot import markdown_to_html, is_safe_url
+
+from src.web.routers.copilot import is_safe_url, markdown_to_html
 from src.web.utils.markdown import render_markdown
 
 
@@ -21,7 +23,7 @@ class TestXSSPrevention(unittest.TestCase):
 
     def test_img_onerror_tag_is_neutralized(self):
         """Weryfikuje neutralizację taga <img> z handlerem onerror."""
-        payload = '<img src=x onerror=alert(1)>'
+        payload = "<img src=x onerror=alert(1)>"
         html = markdown_to_html(payload)
         self.assertNotIn("<img", html)
         self.assertNotIn("onerror", html.lower().replace("&lt;", "<").replace("&gt;", ">") if "<img" in html else "")
@@ -29,7 +31,7 @@ class TestXSSPrevention(unittest.TestCase):
 
     def test_svg_onload_tag_is_neutralized(self):
         """Weryfikuje neutralizację wektora SVG z handlerem onload."""
-        payload = '<svg/onload=alert(document.cookie)>'
+        payload = "<svg/onload=alert(document.cookie)>"
         html = markdown_to_html(payload)
         self.assertNotIn("<svg", html)
         self.assertIn("&lt;svg/onload=alert(document.cookie)&gt;", html)
@@ -70,7 +72,7 @@ class TestXSSPrevention(unittest.TestCase):
         payload = '[evil](https://example.com" onmouseover="alert(1))'
         html = markdown_to_html(payload)
         self.assertNotIn('onmouseover="alert(1)"', html)
-        self.assertNotIn('onmouseover=alert(1)', html)
+        self.assertNotIn("onmouseover=alert(1)", html)
 
     def test_xss_in_markdown_table(self):
         """Weryfikuje neutralizację payloadów XSS w komórkach i nagłówkach tabeli."""
@@ -98,13 +100,7 @@ class TestXSSPrevention(unittest.TestCase):
 
     def test_xss_in_code_blocks_and_inline_code(self):
         """Weryfikuje, że w blokach kodu i inline code tagi są escapowane, a nie wykonywane."""
-        md = (
-            "Oto kod:\n"
-            "```html\n"
-            "<script>alert('code')</script>\n"
-            "```\n"
-            "Oraz inline `<img src=x onerror=alert(1)>`."
-        )
+        md = "Oto kod:\n```html\n<script>alert('code')</script>\n```\nOraz inline `<img src=x onerror=alert(1)>`."
         html = markdown_to_html(md)
         self.assertIn("<pre", html)
         self.assertIn("<code", html)

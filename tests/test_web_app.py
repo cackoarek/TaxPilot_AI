@@ -2,10 +2,13 @@
 tests/test_web_app.py
 Testy integracyjne warstwy webowej FastAPI (Kamień Milowy M1).
 """
+
 import unittest
+
 from fastapi.testclient import TestClient
+
 from src.web.app import app
-from src.web.config import COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, COOKIE_ACTIVE_MONTH
+from src.web.config import COOKIE_ACTIVE_MONTH, COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR
 
 
 class TestWebApp(unittest.TestCase):
@@ -14,6 +17,7 @@ class TestWebApp(unittest.TestCase):
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         from src.core.company import CompanyProfile
         from tests.fixtures import setup_test_company
+
         if not CompanyProfile.load_by_nip("7770001122"):
             setup_test_company()
 
@@ -71,7 +75,9 @@ class TestWebApp(unittest.TestCase):
     def test_token_auth_middleware(self):
         """Test opcjonalnej autoryzacji tokenem (NET-1)."""
         import os
+
         from src.web.config import COOKIE_AUTH_TOKEN
+
         token_secret = "tajny-token-12345"
         os.environ["TAXPILOT_ACCESS_TOKEN"] = token_secret
 

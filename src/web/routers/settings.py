@@ -3,18 +3,18 @@ src/web/routers/settings.py
 Kontroler Ustawień Firmy: konfiguracja profilu podatnika, środowiska i tokenu KSeF 2.0
 oraz wyboru silnika AI (Multi-Provider LLM: Gemini, OpenAI, Claude, Zero-LLM).
 """
-import os
+
 import json
-import logging
+import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Request, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.logging_config import get_logger
 from src.core.company import TypZUS
+from src.logging_config import get_logger
 from src.web.config import TEMPLATES_DIR, get_llm_status
 from src.web.dependencies import get_global_context
 
@@ -145,7 +145,9 @@ async def update_tax_settings(
         metoda_zdrowotna or profile.zus.metoda_zdrowotna,
     )
 
-    stawka_procent = int(stawka_ryczaltu * 100) if (stawka_ryczaltu * 100).is_integer() else f"{stawka_ryczaltu * 100:.1f}"
+    stawka_procent = (
+        int(stawka_ryczaltu * 100) if (stawka_ryczaltu * 100).is_integer() else f"{stawka_ryczaltu * 100:.1f}"
+    )
 
     return HTMLResponse(
         content=f"""
@@ -154,7 +156,7 @@ async def update_tax_settings(
                 <span>✅</span>
                 <span>Parametry podatkowo-składkowe zostały pomyślnie zaktualizowane</span>
             </div>
-            <p>Zapisano w <code>profil.json</code>: Domyślna stawka ryczałtu: <strong>{stawka_procent}%</strong> • Pakiet ZUS: <strong>{typ_zus_enum.value}</strong> • Dobrowolne chorobowe: <strong>{'TAK' if is_chorobowe else 'NIE'}</strong> • Płatnik VAT: <strong>{'TAK (Czynny)' if is_vat else 'NIE (Zwolniony)'}</strong>.</p>
+            <p>Zapisano w <code>profil.json</code>: Domyślna stawka ryczałtu: <strong>{stawka_procent}%</strong> • Pakiet ZUS: <strong>{typ_zus_enum.value}</strong> • Dobrowolne chorobowe: <strong>{"TAK" if is_chorobowe else "NIE"}</strong> • Płatnik VAT: <strong>{"TAK (Czynny)" if is_vat else "NIE (Zwolniony)"}</strong>.</p>
             <p class="text-[11px] text-emerald-700 font-medium mt-1">Zmiany będą automatycznie uwzględniane w kolejnych kalkulacjach księgowych i rozliczeniach ZUS/PIT-28/VAT-7.</p>
         </div>
         """
@@ -259,7 +261,7 @@ async def update_llm_settings(
                 <span>🤖</span>
                 <span>Konfiguracja silnika AI została zapisana</span>
             </div>
-            <p>Aktywny silnik: <strong>{status['label']}</strong>. Zmiana jest widoczna natychmiast w asystencie Copilot.</p>
+            <p>Aktywny silnik: <strong>{status["label"]}</strong>. Zmiana jest widoczna natychmiast w asystencie Copilot.</p>
         </div>
         """
     )

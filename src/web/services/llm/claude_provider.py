@@ -3,9 +3,10 @@ src/web/services/llm/claude_provider.py
 Adapter dla modeli Anthropic Claude (Claude 3.5 Sonnet, Claude 3.5 Haiku).
 Działa w procesie Pythona (Zero-CLI) z wykorzystaniem klienta httpx.
 """
-import os
+
 import json
-from typing import List, Optional, AsyncGenerator
+import os
+from typing import AsyncGenerator, List, Optional
 
 import httpx
 

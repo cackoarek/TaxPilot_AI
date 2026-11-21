@@ -3,12 +3,12 @@ Moduł agregacji odliczeń VAT wg kategorii podatkowych i branżowych.
 Deterministyczne obliczenia w oparciu o typ Decimal zgodnie z zasadami TaxPilot AI.
 """
 
-from dataclasses import dataclass, field
-from decimal import Decimal
 import glob
 import json
+from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 @dataclass
@@ -78,7 +78,9 @@ class VATAggregationReport:
         lines.append(f"**Łączny odliczony VAT:** **{self.laczny_vat_odliczony:,.2f} zł**  \n")
 
         lines.append("## 1. Zestawienie wg Zasad Prawa Podatkowego")
-        lines.append("| Kategoria podatkowa | Zasada | Netto | VAT z faktur | VAT odliczony | VAT nieodliczony | Udział |")
+        lines.append(
+            "| Kategoria podatkowa | Zasada | Netto | VAT z faktur | VAT odliczony | VAT nieodliczony | Udział |"
+        )
         lines.append("|:---|:---:|:---:|:---:|:---:|:---:|:---:|")
         for kat in self.kategorie_podatkowe.values():
             lines.append(
@@ -98,7 +100,9 @@ class VATAggregationReport:
         lines.append("| Miesiąc | VAT należny (sprzedaż) | VAT odliczony (koszty) | Do zapłaty US |")
         lines.append("|:---|:---:|:---:|:---:|")
         for m in self.zestawienie_miesieczne:
-            lines.append(f"| {m['miesiac']} | {Decimal(m['vat_nalezny']):,.2f} zł | **{Decimal(m['vat_odliczony']):,.2f} zł** | {m['do_zaplaty_zaokr']} zł |")
+            lines.append(
+                f"| {m['miesiac']} | {Decimal(m['vat_nalezny']):,.2f} zł | **{Decimal(m['vat_odliczony']):,.2f} zł** | {m['do_zaplaty_zaokr']} zł |"
+            )
 
         return "\n".join(lines)
 
@@ -113,10 +117,41 @@ class VATAggregator:
         nazwa = sprzedawca_nazwa.upper()
         opis = opis_pozycji.upper()
 
-        if any(k in nazwa for k in ["ORLEN", "VOLCER", "M&M", "CIRCLE K", "ANWIM", "MOYA", "MOL", "INTER CARS", "BP EUROPA", "ACME", "SHELL"]):
+        if any(
+            k in nazwa
+            for k in [
+                "ORLEN",
+                "VOLCER",
+                "M&M",
+                "CIRCLE K",
+                "ANWIM",
+                "MOYA",
+                "MOL",
+                "INTER CARS",
+                "BP EUROPA",
+                "ACME",
+                "SHELL",
+            ]
+        ):
             return ("SAMOCHOD", "🚗 Samochód (paliwo, serwis, myjnie - art. 86a VAT 50%)", "50%")
 
-        if any(k in nazwa for k in ["ACTION", "AMAZON", "EURO-NET", "ELMAK", "GMM GROUP", "HUGO", "TRADING AUTOMOTIVE", "AMPQ", "SKY SCAFF", "X-KOM", "KOMPUTRONIK", "MORELE"]):
+        if any(
+            k in nazwa
+            for k in [
+                "ACTION",
+                "AMAZON",
+                "EURO-NET",
+                "ELMAK",
+                "GMM GROUP",
+                "HUGO",
+                "TRADING AUTOMOTIVE",
+                "AMPQ",
+                "SKY SCAFF",
+                "X-KOM",
+                "KOMPUTRONIK",
+                "MORELE",
+            ]
+        ):
             return ("SPRZET_IT", "🖥️ Sprzęt komputerowy, monitory i elektronika (100% VAT)", "100%")
 
         if "WIŚNIEWSKI" in nazwa or "SOFTWARE" in nazwa or "DEVELOPMENT" in nazwa or "PROGRAMISTA" in opis:
@@ -128,7 +163,10 @@ class VATAggregator:
         if any(k in nazwa for k in ["P4", "PLAY", "VIKING", "ORANGE", "T-MOBILE", "PLUS"]):
             return ("TELEKOMUNIKACJA", "📱 Telekomunikacja i Internet mobilny", "MIX")
 
-        if any(k in nazwa for k in ["INFAKT", "ADMIN.NET.PL", "OVH", "CYBERFOLKS", "HETZNER", "AWS", "GOOGLE CLOUD", "AZURE"]):
+        if any(
+            k in nazwa
+            for k in ["INFAKT", "ADMIN.NET.PL", "OVH", "CYBERFOLKS", "HETZNER", "AWS", "GOOGLE CLOUD", "AZURE"]
+        ):
             return ("HOSTING_SAAS", "☁️ Narzędzia IT, hosting, chmura i księgowość", "100%")
 
         if any(k in nazwa for k in ["SECURITUM", "SZKOLENI", "COURSERA", "UDEMY"]):
@@ -138,11 +176,7 @@ class VATAggregator:
 
     @classmethod
     def aggregate(
-        cls,
-        base_dir: Union[str, Path],
-        nip_or_folder: str,
-        rok: str = "2026",
-        miesiace: Optional[List[str]] = None
+        cls, base_dir: Union[str, Path], nip_or_folder: str, rok: str = "2026", miesiace: Optional[List[str]] = None
     ) -> VATAggregationReport:
         base_path = Path(base_dir)
         target_dir = None
@@ -206,12 +240,14 @@ class VATAggregator:
             laczny_vat_nalezy += vat_nal
             laczny_vat_zaplacony_us += vat_zap
 
-            zestawienie_miesieczne.append({
-                "miesiac": f"{rok}/{m_code}",
-                "vat_nalezny": str(vat_nal),
-                "vat_odliczony": str(vat_odl),
-                "do_zaplaty_zaokr": int(vat_zap),
-            })
+            zestawienie_miesieczne.append(
+                {
+                    "miesiac": f"{rok}/{m_code}",
+                    "vat_nalezny": str(vat_nal),
+                    "vat_odliczony": str(vat_odl),
+                    "do_zaplaty_zaokr": int(vat_zap),
+                }
+            )
 
             # Analiza rejestru zakupów VAT
             zakupy = data.get("ewidencja", {}).get("rejestr_vat", {}).get("zakupy", {})

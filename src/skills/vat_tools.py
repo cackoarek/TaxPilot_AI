@@ -5,34 +5,45 @@ Wszystkie operacje matematyczne oparte są wyłącznie na typie Decimal.
 """
 
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
-from typing import Dict, List, Optional, Any
-import re
+from typing import Any, Dict, List, Optional
 
-from src.core.invoice import Invoice, InvoiceItem
+from src.core.invoice import Invoice
 
 
 class ProporcjaOdliczeniaVAT(Decimal, Enum):
-    PELNE = Decimal("1.00")         # 100% - wydatki firmowe bieżące (serwery, sprzęt, biuro)
-    SAMOCHOD_MIESZANY = Decimal("0.50") # 50% - pojazdy osobowe w trybie mieszanym (art. 86a ustawy o VAT)
-    BRAK = Decimal("0.00")          # 0% - brak prawa do odliczenia (np. usługi gastronomiczne, noclegowe)
+    PELNE = Decimal("1.00")  # 100% - wydatki firmowe bieżące (serwery, sprzęt, biuro)
+    SAMOCHOD_MIESZANY = Decimal("0.50")  # 50% - pojazdy osobowe w trybie mieszanym (art. 86a ustawy o VAT)
+    BRAK = Decimal("0.00")  # 0% - brak prawa do odliczenia (np. usługi gastronomiczne, noclegowe)
 
 
 # Słowa kluczowe dla autodetekcji wydatków samochodowych (50% VAT)
 KEYWORDS_SAMOCHOD_50 = [
-    "paliwo", "benzyn", "diesel", "lpg", "olej napędow", "stacja paliw",
-    "myjnia", "serwis auta", "naprawa pojazdu", "opon", "wulkanizacj",
-    "leasing auta", "leasing operacyjny samochodu", "parking", "autostrad"
+    "paliwo",
+    "benzyn",
+    "diesel",
+    "lpg",
+    "olej napędow",
+    "stacja paliw",
+    "myjnia",
+    "serwis auta",
+    "naprawa pojazdu",
+    "opon",
+    "wulkanizacj",
+    "leasing auta",
+    "leasing operacyjny samochodu",
+    "parking",
+    "autostrad",
 ]
 
 # Słowa kluczowe dla braku prawa do odliczenia (art. 88 ustawy o VAT)
-KEYWORDS_BRAK_ODLICZENIA_0 = [
-    "usługa noclegowa", "nocleg", "hotel", "gastronomi", "restauracj"
-]
+KEYWORDS_BRAK_ODLICZENIA_0 = ["usługa noclegowa", "nocleg", "hotel", "gastronomi", "restauracj"]
 
 
-def classify_vat_deduction_ratio(item_desc: str, default_ratio: ProporcjaOdliczeniaVAT = ProporcjaOdliczeniaVAT.PELNE) -> ProporcjaOdliczeniaVAT:
+def classify_vat_deduction_ratio(
+    item_desc: str, default_ratio: ProporcjaOdliczeniaVAT = ProporcjaOdliczeniaVAT.PELNE
+) -> ProporcjaOdliczeniaVAT:
     """
     Automatycznie klasyfikuje współczynnik odliczenia VAT na podstawie opisu wydatku.
     """
@@ -175,7 +186,7 @@ class RejestrVATMiesiaca:
         self,
         invoice: Invoice,
         forced_ratio: Optional[ProporcjaOdliczeniaVAT] = None,
-        audit_report: Optional[Any] = None
+        audit_report: Optional[Any] = None,
     ) -> RejestrZakupowWpis:
         """Księguje fakturę kosztową w rejestrze zakupów VAT z kwalifikacją odliczenia (w tym per-pozycja)."""
         if audit_report is not None:
@@ -185,7 +196,11 @@ class RejestrVATMiesiaca:
             netto_do_rejestru = audit_report.kwalifikowane_netto
             odrzucone_netto = audit_report.odrzucone_netto_prywatne
             odrzucony_vat = audit_report.odrzucony_vat_prywatny
-            ratio = ProporcjaOdliczeniaVAT.PELNE if vat_odliczenie == invoice.suma_vat else ProporcjaOdliczeniaVAT.SAMOCHOD_MIESZANY
+            ratio = (
+                ProporcjaOdliczeniaVAT.PELNE
+                if vat_odliczenie == invoice.suma_vat
+                else ProporcjaOdliczeniaVAT.SAMOCHOD_MIESZANY
+            )
         else:
             # Klasyfikacja globalna faktury
             if forced_ratio is not None:
@@ -251,13 +266,14 @@ class RejestrVATMiesiaca:
                 "suma_odrzucony_vat_prywatny": str(self.suma_zakupy_odrzucony_vat_prywatny),
                 "suma_brutto": str(self.suma_zakupy_brutto),
                 "wpisy": [w.to_dict() for w in self.wpisy_zakupow],
-            }
+            },
         }
 
 
 @dataclass
 class VATBalanceResult:
     """Rozliczenie bilansu VAT za dany miesiąc (odpowiednik deklaracji JPK_V7)."""
+
     rok: str
     miesiac: str
     vat_nalezy: Decimal
@@ -284,12 +300,11 @@ class VATBalanceResult:
 
 
 def calculate_vat_settlement(
-    rejestr: RejestrVATMiesiaca,
-    nadwyzka_z_poprzedniego_miesiaca: Decimal = Decimal("0.00")
+    rejestr: RejestrVATMiesiaca, nadwyzka_z_poprzedniego_miesiaca: Decimal = Decimal("0.00")
 ) -> VATBalanceResult:
     """
     Oblicza ostateczny bilans VAT za dany miesiąc.
-    
+
     1. VAT należny (ze sprzedaży) pomniejsza się o VAT naliczony do odliczenia (z zakupów).
     2. Uwzględnia się ewentualną nadwyżkę VAT z poprzedniego miesiąca.
     3. Jeśli bilans > 0: kwota podlega wpłacie do Urzędu Skarbowego (zaokrąglona do pełnych zł).
@@ -330,4 +345,3 @@ def calculate_vat_settlement(
         termin_platnosci=termin_platnosci,
         nadwyzka_z_poprzedniego_miesiaca=nadwyzka_z_poprzedniego_miesiaca,
     )
-

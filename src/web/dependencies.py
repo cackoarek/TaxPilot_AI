@@ -2,16 +2,19 @@
 src/web/dependencies.py
 Wstrzykiwanie zależności dla tras FastAPI (aktywna firma, okres, kontekst).
 """
+
 from typing import List, Optional, Tuple
+
 from fastapi import Request
-from src.core.company import CompanyProfile
+
 from src.config import FIRMY_DIR
+from src.core.company import CompanyProfile
 from src.web.config import (
+    COOKIE_ACTIVE_MONTH,
     COOKIE_ACTIVE_NIP,
     COOKIE_ACTIVE_YEAR,
-    COOKIE_ACTIVE_MONTH,
-    DEFAULT_YEAR,
     DEFAULT_MONTH,
+    DEFAULT_YEAR,
     get_llm_status,
 )
 
@@ -75,6 +78,7 @@ def get_global_context(request: Request) -> dict:
     extraction_status = {"status": "idle", "message": ""}
     if profile:
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         unprocessed_invoices = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
         extraction_status = ExtractionService.get_task_status(profile, rok, miesiac)
 

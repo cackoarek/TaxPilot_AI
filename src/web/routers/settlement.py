@@ -2,29 +2,30 @@
 src/web/routers/settlement.py
 Kontroler Wstępnego Przeglądu Dokumentów (Pre-settlement Review) i zamykania miesiąca.
 """
+
 import json
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional
 
-from fastapi import APIRouter, Request, Form, Query, HTTPException, Response
+from fastapi import APIRouter, Form, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.logging_config import get_logger
-from src.core.invoice import InvoiceType, Invoice
+from src.core.invoice import InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
+from src.level_3_tax_settlement.settlement_service import SettlementService
+from src.logging_config import get_logger
+from src.skills.cost_classifier import (
+    CostClassifier,
+    KwalifikacjaKosztu,
+    ReczneKwalifikacjeService,
+    RegulyKosztoweFirmy,
+)
+from src.skills.pre_settlement_review import PreSettlementReview
 from src.web.config import TEMPLATES_DIR
 from src.web.dependencies import get_global_context
-from src.skills.pre_settlement_review import PreSettlementReview, ExpenseItemReview
-from src.skills.cost_classifier import (
-    RegulyKosztoweFirmy,
-    ReczneKwalifikacjeService,
-    KwalifikacjaKosztu,
-    CostClassifier,
-)
-from src.level_3_tax_settlement.settlement_service import SettlementService
 
 logger = get_logger("taxpilot.settlement")
 router = APIRouter(tags=["Rozliczenie & Przegląd"])
@@ -44,6 +45,7 @@ async def review_dashboard(request: Request):
     liczba_regul = 0
     if profile:
         from src.web.services.ai_cost_qualifier import AICostQualifierService
+
         review = PreSettlementReview.build(profile, rok, miesiac)
         ai_status = AICostQualifierService.get_status(profile.nip, rok, miesiac)
         reguly = RegulyKosztoweFirmy.load(profile)
@@ -72,6 +74,7 @@ async def run_ai_cost_qualification(request: Request):
         raise HTTPException(status_code=400, detail="Brak profilu firmy")
 
     from src.web.services.ai_cost_qualifier import AICostQualifierService
+
     await AICostQualifierService.start_ai_qualification(profile, rok, miesiac)
 
     status_info = AICostQualifierService.get_status(profile.nip, rok, miesiac)
@@ -96,6 +99,7 @@ async def get_ai_cost_qualification_status(request: Request):
         return HTMLResponse("")
 
     from src.web.services.ai_cost_qualifier import AICostQualifierService
+
     status_info = AICostQualifierService.get_status(profile.nip, rok, miesiac)
 
     headers = {}
@@ -130,6 +134,7 @@ async def approve_cost_invoice(
     - Odświeża wiersz tabeli z normalnym tłem (przycisk 'Zatwierdź' znika)
     """
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -143,6 +148,7 @@ async def approve_cost_invoice(
     effective_kwal = kwalifikacja or request.query_params.get("kwalifikacja")
 
     from src.web.services.ai_cost_qualifier import AICostQualifierService
+
     faktury = InvoiceStorage.list_invoices(profile, rok, miesiac, typ=InvoiceType.KOSZT)
     inv = next((i for i in faktury if i.numer in (numer, cleaned_numer) or i.numer.strip() == cleaned_numer), None)
 
@@ -155,7 +161,9 @@ async def approve_cost_invoice(
             key_norm = f"{inv.numer.strip()}::{norm_desc}"
             key_lower = f"{inv.numer.strip()}::{p.opis.strip().lower()}"
 
-            item_ov = reczne_overrides.get(key_norm) or reczne_overrides.get(key_lower) or reczne_overrides.get(cleaned_numer)
+            item_ov = (
+                reczne_overrides.get(key_norm) or reczne_overrides.get(key_lower) or reczne_overrides.get(cleaned_numer)
+            )
             sug = sugestie.get(key_lower) or sugestie.get(key_norm)
 
             target_kwal = (
@@ -221,7 +229,10 @@ async def approve_cost_invoice(
         )
 
     review = PreSettlementReview.build(profile, rok, miesiac)
-    target_item = next((item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer), None)
+    target_item = next(
+        (item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer),
+        None,
+    )
     if not target_item:
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
@@ -264,6 +275,7 @@ async def approve_single_item(
 ):
     """Zatwierdza pojedynczą pozycję w fakturze wielopozycyjnej."""
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -281,6 +293,7 @@ async def approve_single_item(
     effective_opis = opis or request.query_params.get("opis")
 
     from src.web.services.ai_cost_qualifier import AICostQualifierService
+
     faktury = InvoiceStorage.list_invoices(profile, rok, miesiac, typ=InvoiceType.KOSZT)
     inv = next((i for i in faktury if i.numer in (numer, cleaned_numer) or i.numer.strip() == cleaned_numer), None)
 
@@ -297,7 +310,9 @@ async def approve_single_item(
         key_norm = f"{cleaned_numer}::{norm_desc}"
         key_lower = f"{cleaned_numer}::{pos_opis.strip().lower()}"
 
-        item_ov = reczne_overrides.get(key_norm) or reczne_overrides.get(key_lower) or reczne_overrides.get(cleaned_numer)
+        item_ov = (
+            reczne_overrides.get(key_norm) or reczne_overrides.get(key_lower) or reczne_overrides.get(cleaned_numer)
+        )
         sug = sugestie.get(key_lower) or sugestie.get(key_norm)
 
         if item_ov and item_ov.get("kwalifikacja"):
@@ -311,7 +326,7 @@ async def approve_single_item(
             inv.pozycje[item_idx],
             inv.sprzedawca.nip if inv.sprzedawca else None,
             reguly_firmy,
-            kody_pkd=profile.kody_pkd
+            kody_pkd=profile.kody_pkd,
         )
         if res_audit.kwalifikacja != KwalifikacjaKosztu.DO_WYJASNIENIA:
             target_kwal = res_audit.kwalifikacja.value
@@ -342,7 +357,10 @@ async def approve_single_item(
         )
 
     review = PreSettlementReview.build(profile, rok, miesiac)
-    target_item = next((item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer), None)
+    target_item = next(
+        (item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer),
+        None,
+    )
     if not target_item:
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
@@ -402,19 +420,23 @@ async def run_intelligent_audit(request: Request):
     for k in review.koszty:
         for p in k.pozycje:
             if p.get("kwalifikacja") == "PRYWATNY_0":
-                wykluczone_pozycje.append({
-                    "faktura": k.numer,
-                    "sprzedawca": k.sprzedawca_nazwa,
-                    "opis": p.get("opis"),
-                    "netto": p.get("wartosc_netto"),
-                    "uzasadnienie": p.get("uzasadnienie"),
-                })
+                wykluczone_pozycje.append(
+                    {
+                        "faktura": k.numer,
+                        "sprzedawca": k.sprzedawca_nazwa,
+                        "opis": p.get("opis"),
+                        "netto": p.get("wartosc_netto"),
+                        "uzasadnienie": p.get("uzasadnienie"),
+                    }
+                )
             elif p.get("kwalifikacja") == "DO_WYJASNIENIA":
-                wymagajace_decyzji.append({
-                    "faktura": k.numer,
-                    "sprzedawca": k.sprzedawca_nazwa,
-                    "opis": p.get("opis"),
-                })
+                wymagajace_decyzji.append(
+                    {
+                        "faktura": k.numer,
+                        "sprzedawca": k.sprzedawca_nazwa,
+                        "opis": p.get("opis"),
+                    }
+                )
 
     banner_ctx = {
         "request": request,
@@ -452,6 +474,7 @@ async def qualify_single_position(
     dla bieżącego okresu. Reguła trwała dodawana jest tylko gdy zapisz_regule=True.
     """
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -482,6 +505,7 @@ async def qualify_single_position(
     # 1b. Aktualizacja w pamięci sugestii AI bez tworzenia trwałej reguły
     if opis:
         from src.web.services.ai_cost_qualifier import AICostQualifierService
+
         AICostQualifierService.approve_item(
             profile=profile,
             rok=rok,
@@ -511,7 +535,10 @@ async def qualify_single_position(
 
     # Przebudowanie przeglądu
     review = PreSettlementReview.build(profile, rok, miesiac)
-    target_item = next((item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer), None)
+    target_item = next(
+        (item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer),
+        None,
+    )
     if not target_item:
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
@@ -553,6 +580,7 @@ async def qualify_all_positions_bulk(
     100% Firmowy, 50% Samochód lub 0% Prywatny dla wszystkich pozycji.
     """
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -563,7 +591,12 @@ async def qualify_all_positions_bulk(
         raise HTTPException(status_code=400, detail="Brak aktywnego profilu firmy")
 
     content_type = request.headers.get("content-type", "")
-    form_data = await request.form() if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data") else {}
+    form_data = (
+        await request.form()
+        if content_type.startswith("application/x-www-form-urlencoded")
+        or content_type.startswith("multipart/form-data")
+        else {}
+    )
     effective_kwal = kwalifikacja or form_data.get("kwalifikacja") or request.query_params.get("kwalifikacja")
 
     if effective_kwal not in ("FIRMOWY_100", "SAMOCHOD_50", "PRYWATNY_0"):
@@ -596,6 +629,7 @@ async def qualify_all_positions_bulk(
     # 3. Zaktualizuj sugestie AI w pamięci
     if opisy:
         from src.web.services.ai_cost_qualifier import AICostQualifierService
+
         AICostQualifierService.approve_bulk_items(
             profile=profile,
             rok=rok,
@@ -607,7 +641,10 @@ async def qualify_all_positions_bulk(
 
     # 4. Przebudowanie przeglądu i ponowne wyrenderowanie wiersza
     review = PreSettlementReview.build(profile, rok, miesiac)
-    target_item = next((item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer), None)
+    target_item = next(
+        (item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer),
+        None,
+    )
     if not target_item:
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
@@ -658,14 +695,24 @@ async def invoice_preview_modal(
     invoices = InvoiceStorage.list_invoices(profile, rok, miesiac, typ=inv_type)
 
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
-    target_invoice = next((inv for inv in invoices if inv.numer in (numer, cleaned_numer) or inv.numer.strip() == cleaned_numer), None)
+    target_invoice = next(
+        (inv for inv in invoices if inv.numer in (numer, cleaned_numer) or inv.numer.strip() == cleaned_numer), None
+    )
 
     # Fallback na wypadek gdyby typ nie został precyzyjnie przekazany
     if not target_invoice:
         other_type = InvoiceType.KOSZT if inv_type == InvoiceType.SPRZEDAZ else InvoiceType.SPRZEDAZ
         other_invoices = InvoiceStorage.list_invoices(profile, rok, miesiac, typ=other_type)
-        target_invoice = next((inv for inv in other_invoices if inv.numer in (numer, cleaned_numer) or inv.numer.strip() == cleaned_numer), None)
+        target_invoice = next(
+            (
+                inv
+                for inv in other_invoices
+                if inv.numer in (numer, cleaned_numer) or inv.numer.strip() == cleaned_numer
+            ),
+            None,
+        )
         if target_invoice:
             inv_type = other_type
 
@@ -741,6 +788,7 @@ async def qualify_expense_item(
     dla bieżącego okresu. Reguła trwała dodawana jest tylko gdy zapisz_regule=True.
     """
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -781,6 +829,7 @@ async def qualify_expense_item(
 
     # 1b. Aktualizacja w pamięci sugestii AI bez tworzenia trwałej reguły
     from src.web.services.ai_cost_qualifier import AICostQualifierService
+
     if inv and inv.pozycje:
         for p in inv.pozycje:
             AICostQualifierService.approve_item(
@@ -838,7 +887,10 @@ async def qualify_expense_item(
     review = PreSettlementReview.build(profile, rok, miesiac)
 
     # Znalezienie konkretnego wydatku po numerze (dokładnym lub odkodowanym)
-    target_item = next((item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer), None)
+    target_item = next(
+        (item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer),
+        None,
+    )
     if not target_item:
         target_item = next((item for item in review.koszty if item.lp == lp), None)
 
@@ -899,6 +951,7 @@ async def save_rule_from_item(
     Utrwala regułę w reguly_kosztowe.json oraz odświeża wiersz tabeli.
     """
     import urllib.parse
+
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -932,7 +985,10 @@ async def save_rule_from_item(
     )
 
     review = PreSettlementReview.build(profile, rok, miesiac)
-    target_item = next((item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer), None)
+    target_item = next(
+        (item for item in review.koszty if item.numer in (numer, cleaned_numer) or item.numer.strip() == cleaned_numer),
+        None,
+    )
     if not target_item:
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:

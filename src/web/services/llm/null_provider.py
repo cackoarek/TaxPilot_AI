@@ -4,8 +4,9 @@ Fallback dla trybu Deterministycznego Zero-LLM (Graceful Degradation).
 Zapewnia pomocne, regułowe odpowiedzi bez generowania halucynacji,
 gdy aplikacja działa w środowisku bez skonfigurowanych kluczy LLM API.
 """
+
 import asyncio
-from typing import List, Optional, AsyncGenerator
+from typing import AsyncGenerator, List, Optional
 
 from src.web.services.llm.base import BaseLLMProvider, ChatMessage
 

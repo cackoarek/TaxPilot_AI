@@ -5,12 +5,11 @@ Arytmetyka oparta wyłącznie na typie Decimal.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, Any, Optional
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Dict, Optional
 
-from src.core.company import TypZUS, FormaOpodatkowania
-from src.skills.zus_indicators import get_zus_indicators, ZUSMacroParams
-
+from src.core.company import FormaOpodatkowania, TypZUS
+from src.skills.zus_indicators import get_zus_indicators
 
 # Domyślne wskaźniki makroekonomiczne
 # 2026: Prognozowane przeciętne wynagrodzenie (9 420 zł) -> podstawa 60% = 5 652.00 zł, zdrowotna IV kw. = 9 228.64 zł
@@ -24,16 +23,16 @@ DEFAULT_ZUS_PARAMS = {
         "podstawa_pelny_zus": Decimal("5203.80"),  # 60% z 8673 zł
         "podstawa_preferencyjny_zus": Decimal("1399.80"),  # 30% z płacy minimalnej 4666 zł
         "przecietne_wynagrodzenie_zdrowotna": Decimal("8549.18"),
-    }
+    },
 }
 
 # Stopy procentowe składek społecznych
 STOPA_EMERYTALNA = Decimal("0.1952")  # 19.52%
-STOPA_RENTOWA = Decimal("0.0800")     # 8.00%
-STOPA_CHOROBOWA = Decimal("0.0245")   # 2.45% (dobrowolna)
-STOPA_WYPADKOWA = Decimal("0.0167")   # 1.67% (standardowa dla małych firm do 9 ubezpieczonych)
-STOPA_FP = Decimal("0.0245")          # 2.45% (Fundusz Pracy i Fundusz Solidarnościowy)
-STOPA_ZDROWOTNA = Decimal("0.0900")   # 9.00%
+STOPA_RENTOWA = Decimal("0.0800")  # 8.00%
+STOPA_CHOROBOWA = Decimal("0.0245")  # 2.45% (dobrowolna)
+STOPA_WYPADKOWA = Decimal("0.0167")  # 1.67% (standardowa dla małych firm do 9 ubezpieczonych)
+STOPA_FP = Decimal("0.0245")  # 2.45% (Fundusz Pracy i Fundusz Solidarnościowy)
+STOPA_ZDROWOTNA = Decimal("0.0900")  # 9.00%
 
 
 def _round_money(value: Decimal) -> Decimal:
@@ -48,7 +47,7 @@ class ZUSCalculationResult:
     typ_zus: TypZUS
     chorobowe_dobrowolne: bool
     forma_opodatkowania: FormaOpodatkowania
-    
+
     # Składki społeczne
     podstawa_spoleczne: Decimal
     emerytalna: Decimal
@@ -116,7 +115,7 @@ def calculate_zus(
 ) -> ZUSCalculationResult:
     """
     Deterministycznie oblicza komplet składek ZUS (społeczne + zdrowotna) dla danego miesiąca.
-    
+
     Args:
         rok: Rok podatkowy (np. "2026")
         miesiac: Miesiąc rozliczeniowy ("01" do "12")
@@ -236,4 +235,3 @@ def calculate_zus(
         zrodlo_wskaznikow=macro.zrodlo,
         ostrzezenie_wskaznikow=macro.ostrzezenie,
     )
-

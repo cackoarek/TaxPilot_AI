@@ -5,15 +5,13 @@ Testy jednostkowe modułu weryfikacji i przeglądu dokumentów przed rozliczenie
 import unittest
 from decimal import Decimal
 
-from src.core.company import CompanyProfile
 from src.skills.pre_settlement_review import PreSettlementReview
-from tests.fixtures import setup_test_company, cleanup_test_company
+from tests.fixtures import cleanup_test_company, setup_isolated_test_company
 
 
 class TestPreSettlementReview(unittest.TestCase):
-
     def setUp(self):
-        self.profile = setup_test_company()
+        self.profile = setup_isolated_test_company()
         self.assertIsNotNone(self.profile)
 
     def tearDown(self):

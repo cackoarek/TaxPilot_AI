@@ -2,26 +2,28 @@
 tests/test_web_copilot.py
 Testy integracyjne architektury Multi-Provider LLM oraz asystenta AI Copilot (Kamień Milowy M4).
 """
-import unittest
+
 import os
+import unittest
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.core.company import CompanyProfile
-from src.web.services.llm.base import ChatMessage
-from src.web.services.llm.null_provider import NullProvider
-from src.web.services.llm.gemini_provider import GeminiProvider
-from src.web.services.llm.openai_provider import OpenAIProvider
+from src.web.app import app
+from src.web.services.copilot_service import CopilotService
 from src.web.services.llm.claude_provider import ClaudeProvider
 from src.web.services.llm.factory import LLMProviderFactory
-from src.web.services.copilot_service import CopilotService
+from src.web.services.llm.gemini_provider import GeminiProvider
+from src.web.services.llm.null_provider import NullProvider
+from src.web.services.llm.openai_provider import OpenAIProvider
 
 
 class TestWebCopilot(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
+
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
 
     def test_factory_returns_null_provider_when_no_keys(self):
@@ -68,10 +70,11 @@ class TestWebCopilot(unittest.TestCase):
         profile = CompanyProfile.load_by_nip("7770001122")
         if not profile:
             from tests.fixtures import setup_test_company
+
             profile = setup_test_company()
         self.assertIsNotNone(profile)
         prompt = CopilotService.build_system_prompt(profile, "2026", "01")
-        
+
         self.assertIn(profile.nazwa, prompt)
         self.assertIn(profile.nip, prompt)
         self.assertIn("Zero-Hallucination", prompt)
@@ -130,6 +133,7 @@ class TestWebCopilot(unittest.TestCase):
     def test_markdown_to_html_table_rendering(self):
         """Weryfikuje, czy tabele Markdown są poprawnie renderowane do kodu HTML table."""
         from src.web.routers.copilot import markdown_to_html
+
         md = (
             "Oto zestawienie:\n\n"
             "| Pozycja | Kwota | Termin |\n"
@@ -148,14 +152,8 @@ class TestWebCopilot(unittest.TestCase):
     def test_markdown_to_html_code_and_formatting(self):
         """Weryfikuje obsługę bloków kodu, nagłówków i list w markdown_to_html."""
         from src.web.routers.copilot import markdown_to_html
-        md = (
-            "### Tytuł sekcji\n\n"
-            "- Punkt pierwszy\n"
-            "- Punkt drugi\n\n"
-            "```python\n"
-            "print('hello')\n"
-            "```\n"
-        )
+
+        md = "### Tytuł sekcji\n\n- Punkt pierwszy\n- Punkt drugi\n\n```python\nprint('hello')\n```\n"
         html = markdown_to_html(md)
         self.assertIn("<h4", html)
         self.assertIn("Tytuł sekcji", html)
@@ -167,9 +165,10 @@ class TestWebCopilot(unittest.TestCase):
     def test_message_status_endpoint_pending_and_done(self):
         """Test endpointu GET /api/copilot/message-status dla statusu pending oraz done."""
         from src.web.routers.copilot import CopilotSessionHistory
+
         session_id = "company_7770001122"
         record = CopilotSessionHistory.add_message(session_id, "Testowe pytanie?")
-        
+
         # 1. Sprawdzenie stanu pending (powinien zwracać polling na samego siebie bez migania całego kontenera)
         res_pending = self.client.get(f"/api/copilot/message-status?id={record.id}")
         self.assertEqual(res_pending.status_code, 200)
@@ -187,28 +186,32 @@ class TestWebCopilot(unittest.TestCase):
 
     def test_copilot_history_no_container_flickering(self):
         """Test weryfikujący, że historia czatu nie narzuca globalnego przeładowania całego kontenera."""
-        from src.web.routers.copilot import CopilotSessionHistory
-        from src.web.dependencies import get_global_context
         from unittest.mock import MagicMock
+
+        from src.web.dependencies import get_global_context
+        from src.web.routers.copilot import CopilotSessionHistory
+
         ctx = get_global_context(MagicMock(query_params={}, cookies=self.client.cookies))
         profile = ctx.get("profile")
         nip = profile.nip if profile else "default"
         session_id = f"company_{nip}"
         CopilotSessionHistory.clear(session_id)
         CopilotSessionHistory.add_message(session_id, "Pytanie 1")
-        
+
         res = self.client.get("/api/copilot/history")
         self.assertEqual(res.status_code, 200)
         # Nie powinno być container-level innerHTML wipe ani every 1.5s
         self.assertNotIn('hx-swap="innerHTML"', res.text)
-        self.assertNotIn('every 1.5s', res.text)
+        self.assertNotIn("every 1.5s", res.text)
 
     def test_chat_sessions_manager_crud(self):
         """Test operacji CRUD na trwałych sesjach czatu w ChatSessionManager."""
         from src.web.services.chat_session_service import ChatSessionManager
+
         profile = CompanyProfile.load_by_nip("7770001122")
         if not profile:
             from tests.fixtures import setup_test_company
+
             profile = setup_test_company()
         self.assertIsNotNone(profile)
 
@@ -218,7 +221,7 @@ class TestWebCopilot(unittest.TestCase):
         self.assertEqual(session.title, "Nowa rozmowa")
 
         # 2. Dodawanie pytań i automatyczna aktualizacja tytułu
-        record = session.add_user_message("Jakie mam koszty paliwa w październiku?")
+        session.add_user_message("Jakie mam koszty paliwa w październiku?")
         self.assertIn("Jakie mam koszty", session.title)
         ChatSessionManager.save_session(profile, session)
 
@@ -264,16 +267,17 @@ class TestWebCopilot(unittest.TestCase):
 
         # 4. Zmiana nazwy sesji przez POST /api/copilot/session-rename
         from src.web.services.chat_session_service import ChatSessionManager
+
         profile = CompanyProfile.load_by_nip("7770001122")
         if not profile:
             from tests.fixtures import setup_test_company
+
             profile = setup_test_company()
         active_sess = ChatSessionManager.get_active_session(profile)
         self.assertIsNotNone(active_sess)
 
         res_rename = self.client.post(
-            "/api/copilot/session-rename",
-            data={"session_id": active_sess.id, "title": "Moja Ważna Rozmowa Podatkowa"}
+            "/api/copilot/session-rename", data={"session_id": active_sess.id, "title": "Moja Ważna Rozmowa Podatkowa"}
         )
         self.assertEqual(res_rename.status_code, 200)
         self.assertIn("Moja Ważna Rozmowa Podatkowa", res_rename.text)

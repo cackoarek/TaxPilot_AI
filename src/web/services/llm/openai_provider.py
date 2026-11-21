@@ -3,9 +3,10 @@ src/web/services/llm/openai_provider.py
 Adapter dla OpenAI (GPT-4o, GPT-4o-mini) oraz lokalnych modeli Ollama/vLLM.
 Działa w procesie Pythona (Zero-CLI) z wykorzystaniem klienta httpx.
 """
-import os
+
 import json
-from typing import List, Optional, AsyncGenerator
+import os
+from typing import AsyncGenerator, List, Optional
 
 import httpx
 

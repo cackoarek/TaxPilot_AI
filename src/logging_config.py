@@ -3,8 +3,9 @@ src/logging_config.py
 Centralna konfiguracja rejestrowania zdarzeń (logging) dla aplikacji TaxPilot AI.
 Loguje zdarzenia do konsoli oraz do trwałego pliku taxpilot.log w katalogu projektu.
 """
-import sys
+
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -44,8 +45,7 @@ def setup_logging(level=logging.INFO) -> logging.Logger:
 
     # 2. Obsługa konsoli (stdout)
     has_stream = any(
-        isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler)
-        for h in root_logger.handlers
+        isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler) for h in root_logger.handlers
     )
     if not has_stream:
         stream_handler = logging.StreamHandler(sys.stdout)

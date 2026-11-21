@@ -4,44 +4,73 @@ Zgodne z ustawą o zryczałtowanym podatku dochodowym od niektórych przychodów
 Wszystkie operacje matematyczne oparte są wyłącznie na typie Decimal.
 """
 
-from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List, Optional, Any
-from pathlib import Path
 import json
-import re
+from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from src.core.invoice import Invoice, InvoiceItem
-
+from src.core.invoice import Invoice
+from src.core.io import atomic_write_json
 
 # Standardowe stawki ryczałtu w Polsce (jako Decimal)
-STAWKA_17 = Decimal("0.17")    # Wolne zawody
-STAWKA_15 = Decimal("0.15")    # Usługi pośrednictwa, doradztwa itp.
-STAWKA_14 = Decimal("0.14")    # Usługi architektoniczne, inżynierskie, zdrowotne
-STAWKA_12 = Decimal("0.12")    # Usługi IT, programowanie, analiza systemów, doradztwo IT, infrastruktura (art. 12 ust. 1 pkt 2b)
-STAWKA_10 = Decimal("0.10")    # Kupno i sprzedaż nieruchomości na własny rachunek
+STAWKA_17 = Decimal("0.17")  # Wolne zawody
+STAWKA_15 = Decimal("0.15")  # Usługi pośrednictwa, doradztwa itp.
+STAWKA_14 = Decimal("0.14")  # Usługi architektoniczne, inżynierskie, zdrowotne
+STAWKA_12 = Decimal(
+    "0.12"
+)  # Usługi IT, programowanie, analiza systemów, doradztwo IT, infrastruktura (art. 12 ust. 1 pkt 2b)
+STAWKA_10 = Decimal("0.10")  # Kupno i sprzedaż nieruchomości na własny rachunek
 STAWKA_8_5 = Decimal("0.085")  # Działalność usługowa ogólna
 STAWKA_5_5 = Decimal("0.055")  # Roboty budowlane, działalność wytwórcza
-STAWKA_3 = Decimal("0.03")     # Działalność gastronomiczna, handel
+STAWKA_3 = Decimal("0.03")  # Działalność gastronomiczna, handel
 
 
 # Słowa kluczowe dla automatycznej klasyfikacji stawek ryczałtu (gdy brak w XML)
 KEYWORDS_12_IT = [
-    "programist", "oprogramowani", "kodowani", "software", "development",
-    "backend", "frontend", "fullstack", "devops", "cloud", "architektur",
-    "system", "baza danych", "api", "doradztwo it", "it consulting", "ai", "machine learning",
-    "infrastruktur", "informatyczn", "zarządzanie siecią", "zarządzanie system", "zarządzania infrastrukturą"
+    "programist",
+    "oprogramowani",
+    "kodowani",
+    "software",
+    "development",
+    "backend",
+    "frontend",
+    "fullstack",
+    "devops",
+    "cloud",
+    "architektur",
+    "system",
+    "baza danych",
+    "api",
+    "doradztwo it",
+    "it consulting",
+    "ai",
+    "machine learning",
+    "infrastruktur",
+    "informatyczn",
+    "zarządzanie siecią",
+    "zarządzanie system",
+    "zarządzania infrastrukturą",
 ]
 
 KEYWORDS_8_5_USLUGI = [
-    "administracyjn", "biurow", "szkoleni", "kurs", "tłumaczeni",
-    "wsparcie techniczne", "support", "serwis sprzętu", "grafik", "design"
+    "administracyjn",
+    "biurow",
+    "szkoleni",
+    "kurs",
+    "tłumaczeni",
+    "wsparcie techniczne",
+    "support",
+    "serwis sprzętu",
+    "grafik",
+    "design",
 ]
 
 
 @dataclass
 class RegulySprzedazyFirmy:
     """Trwałe reguły stawek ryczałtu dla kontrahentów / nabywców firmy."""
+
     nip_firmy: str
     stawki_nabywcow: Dict[str, Decimal] = field(default_factory=dict)
 
@@ -69,15 +98,10 @@ class RegulySprzedazyFirmy:
             "nip_firmy": self.nip_firmy,
             "stawki_nabywcow": {str(k): str(v) for k, v in self.stawki_nabywcow.items()},
         }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return path
+        return atomic_write_json(path, data, indent=2, ensure_ascii=False)
 
 
-def classify_ryczalt_rate_for_item(
-    item_desc: str,
-    default_rate: Decimal = STAWKA_12
-) -> Decimal:
+def classify_ryczalt_rate_for_item(item_desc: str, default_rate: Decimal = STAWKA_12) -> Decimal:
     """
     Klasyfikuje stawkę ryczałtu na podstawie opisu pozycji faktury.
     W przypadku braku dopasowania stosuje stawkę domyślną podatnika.
@@ -98,6 +122,7 @@ def classify_ryczalt_rate_for_item(
 @dataclass
 class EwidencjaPrzychodowWpis:
     """Wpis w Ewidencji Przychodów dla pojedynczej faktury."""
+
     numer_faktury: str
     data_sprzedazy: str
     nabywca_nazwa: str
@@ -123,6 +148,7 @@ class EwidencjaPrzychodowWpis:
 @dataclass
 class EwidencjaPrzychodowMiesiaca:
     """Zestawienie ewidencji przychodów za dany miesiąc."""
+
     rok: str
     miesiac: str
     wpisy: List[EwidencjaPrzychodowWpis] = field(default_factory=list)
@@ -133,7 +159,7 @@ class EwidencjaPrzychodowMiesiaca:
         self,
         invoice: Invoice,
         default_rate: Decimal = STAWKA_12,
-        custom_buyer_rates: Optional[Dict[str, Decimal]] = None
+        custom_buyer_rates: Optional[Dict[str, Decimal]] = None,
     ) -> EwidencjaPrzychodowWpis:
         """Księguje fakturę sprzedaży w ewidencji przychodów."""
         przychody_faktury: Dict[Decimal, Decimal] = {}
@@ -151,7 +177,9 @@ class EwidencjaPrzychodowMiesiaca:
             przychody_faktury[rate] = invoice.suma_netto
 
         suma_faktury = sum(przychody_faktury.values(), Decimal("0.00"))
-        opis_zdarzenia = ", ".join(p.opis for p in invoice.pozycje if p.opis) if invoice.pozycje else "Świadczenie usług"
+        opis_zdarzenia = (
+            ", ".join(p.opis for p in invoice.pozycje if p.opis) if invoice.pozycje else "Świadczenie usług"
+        )
         zrodlo = invoice.zrodlo or "KSEF"
 
         wpis = EwidencjaPrzychodowWpis(
@@ -186,6 +214,7 @@ class EwidencjaPrzychodowMiesiaca:
 @dataclass
 class PIT28CalculationResult:
     """Rezultat wyliczenia zaliczki na podatek ryczałtowy (PIT-28)."""
+
     rok: str
     miesiac: str
     przychod_laczny: Decimal
@@ -221,7 +250,7 @@ def calculate_pit28_advance(
 ) -> PIT28CalculationResult:
     """
     Oblicza miesięczną zaliczkę na podatek ryczałtowy (PIT-28).
-    
+
     Zasady obliczania:
     1. Przychód sumaryczny pomniejsza się o zapłacone w danym miesiącu składki społeczne ZUS.
     2. Przychód pomniejsza się o 50% zapłaconej składki zdrowotnej.
@@ -248,9 +277,7 @@ def calculate_pit28_advance(
         for stawka, przychod_stawki in sumy_przychodow_wg_stawek.items():
             if laczny_przychod > Decimal("0.00"):
                 udzial = przychod_stawki / laczny_przychod
-                odliczenia_dla_stawki = (laczne_odliczenia * udzial).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                )
+                odliczenia_dla_stawki = (laczne_odliczenia * udzial).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 # Zgodnie z art. 63 § 1 Ordynacji Podatkowej podstawę opodatkowania zaokrągla się do pełnych złotych
                 podstawa_stawki = max(Decimal("0.00"), przychod_stawki - odliczenia_dla_stawki).quantize(
                     Decimal("1"), rounding=ROUND_HALF_UP
@@ -258,9 +285,7 @@ def calculate_pit28_advance(
             else:
                 podstawa_stawki = Decimal("0.00")
 
-            podatek_stawki = (podstawa_stawki * stawka).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
+            podatek_stawki = (podstawa_stawki * stawka).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             podatek_wg_stawek[stawka] = podatek_stawki
             podatek_laczny_dokladny += podatek_stawki
 
@@ -290,4 +315,3 @@ def calculate_pit28_advance(
         zaliczka_pit28_zaokraglona=zaliczka_zaokraglona,
         termin_platnosci=termin_platnosci,
     )
-

@@ -2,17 +2,18 @@
 tests/test_version.py
 Testy jednostkowe modułu wersjonowania aplikacji (src/version.py) oraz obecności wersji w stopce UI.
 """
+
 import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 from src.version import (
-    get_version,
-    get_display_version,
     clear_version_cache,
-    DEFAULT_VERSION,
+    get_display_version,
+    get_version,
 )
 from src.web.app import app
 

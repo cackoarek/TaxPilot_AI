@@ -8,26 +8,27 @@ Przetwarza dokumenty z InvoiceStorage i generuje:
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from src.core.company import CompanyProfile
 from src.core.invoice import InvoiceType
-from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.invoice_deduplicator import DuplicateAnomaly
+from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
-from src.skills.ryczalt_tools import EwidencjaPrzychodowMiesiaca, STAWKA_12, RegulySprzedazyFirmy
-from src.skills.vat_tools import RejestrVATMiesiaca, ProporcjaOdliczeniaVAT
 from src.skills.cost_classifier import (
-    RegulyKosztoweFirmy,
-    ReczneKwalifikacjeService,
-    audit_invoice_expense,
     InvoiceTaxAuditReport,
+    ReczneKwalifikacjeService,
+    RegulyKosztoweFirmy,
+    audit_invoice_expense,
 )
+from src.skills.ryczalt_tools import EwidencjaPrzychodowMiesiaca, RegulySprzedazyFirmy
+from src.skills.vat_tools import ProporcjaOdliczeniaVAT, RejestrVATMiesiaca
 
 
 @dataclass
 class MonthlyLedger:
     """Kompletna ewidencja księgowa firmy za dany miesiąc."""
+
     profil: CompanyProfile
     rok: str
     miesiac: str
@@ -106,9 +107,7 @@ class BookkeepingService:
 
         for inv in faktury_sprzedaz_pit:
             ewidencja.dodaj_fakture(
-                inv,
-                default_rate=domyslna_stawka_ryczaltu,
-                custom_buyer_rates=reguly_sprzedazy.stawki_nabywcow
+                inv, default_rate=domyslna_stawka_ryczaltu, custom_buyer_rates=reguly_sprzedazy.stawki_nabywcow
             )
 
         if profile.platnik_vat:

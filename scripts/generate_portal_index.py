@@ -11,9 +11,8 @@ from pathlib import Path
 
 
 def generate_portal_html(pages_dir: Path, version_tag: str = "v0.1.0", repo: str = "cackoarek/TaxPilot_AI") -> str:
-    owner = repo.split("/")[0] if "/" in repo else "cackoarek"
-    repo_name = repo.split("/")[1] if "/" in repo else "TaxPilot_AI"
-    pages_base = f"https://{owner}.github.io/{repo_name}"
+    repo.split("/")[0] if "/" in repo else "cackoarek"
+    repo.split("/")[1] if "/" in repo else "TaxPilot_AI"
 
     # Generowanie dynamicznych wierszy tabeli wersji
     rows = []

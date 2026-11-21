@@ -9,22 +9,22 @@ Przestrzega reguły Zero-Hallucination: weryfikuje sumy arytmetyczne za pomocą 
 
 import asyncio
 import base64
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
 import json
 import mimetypes
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from src.logging_config import get_logger
 from src.core.company import CompanyProfile
-from src.core.invoice import Invoice, InvoiceType, InvoiceParty, InvoiceItem
+from src.core.invoice import Invoice, InvoiceItem, InvoiceParty, InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.web.services.llm.base import BaseLLMProvider, ChatMessage
+from src.logging_config import get_logger
+from src.web.services.llm.base import ChatMessage
 from src.web.services.llm.factory import LLMProviderFactory
 
 logger = get_logger("taxpilot.ai_extractor")
@@ -46,7 +46,7 @@ class AIDocumentExtractor:
             return Decimal("0.00")
         if isinstance(val, (int, float, Decimal)):
             return Decimal(str(val)).quantize(Decimal("0.01"))
-        
+
         s = str(val).strip()
         cleaned = re.sub(r"[^\d,\.\-]", "", s)
         if "," in cleaned and "." in cleaned:
@@ -97,7 +97,7 @@ class AIDocumentExtractor:
             # Jeśli PDF ma tekst, zwróć go
             if len(text_content) > 30:
                 return text_content, None, "text/plain"
-            
+
             # W przeciwnym razie przekaż surowe bajty PDF do analizy multimodalnej
             with open(file_path, "rb") as f:
                 return None, f.read(), mime
@@ -122,7 +122,7 @@ class AIDocumentExtractor:
     ) -> str:
         """Tworzy ustrukturyzowany prompt dla modelu AI z wytycznymi księgowymi."""
         typ_str = "KOSZT (zakup firmy)" if invoice_type == InvoiceType.KOSZT else "SPRZEDAŻ (przychód firmy)"
-        
+
         prompt = f"""Jesteś wyspecjalizowanym agentem księgowym TaxPilot AI odpowiedzialnym za ekstrakcję dokumentów finansowych (faktur VAT, paragonów fiskalnych z NIP, biletów, rachunków).
 Dokument: {file_path.name}
 Oczekiwany domyślny typ transakcji: {typ_str}
@@ -243,32 +243,38 @@ STRUKTURA JSON:
                     return res
                 logger.warning("Antigravity CLI nie zwrócił poprawnego JSON dla %s", file_path.name)
             except asyncio.TimeoutError:
-                logger.warning("Przekroczono limit czasu oczekiwania na odpowiedź providera antigravity (75s) dla pliku %s", file_path.name)
+                logger.warning(
+                    "Przekroczono limit czasu oczekiwania na odpowiedź providera antigravity (75s) dla pliku %s",
+                    file_path.name,
+                )
             except Exception as e:
                 logger.warning("Błąd chat_async w providerze antigravity: %s", e)
 
         # B) Gemini Provider
         elif provider.provider_name == "gemini" and provider.is_configured():
             import httpx
+
             api_key = getattr(provider, "_api_key", "")
             model = getattr(provider, "_model", "gemini-1.5-flash")
-            
+
             headers = {}
             if api_key.startswith("AQ.") or api_key.startswith("ya29."):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                 headers["Authorization"] = f"Bearer {api_key}"
             else:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-            
+
             parts: List[Dict[str, Any]] = [{"text": prompt}]
             if image_bytes:
                 b64 = base64.b64encode(image_bytes).decode("utf-8")
-                parts.append({
-                    "inlineData": {
-                        "mimeType": mime_type,
-                        "data": b64,
+                parts.append(
+                    {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": b64,
+                        }
                     }
-                })
+                )
 
             payload = {
                 "contents": [{"role": "user", "parts": parts}],
@@ -292,17 +298,20 @@ STRUKTURA JSON:
         # C) OpenAI Provider (GPT-4o z Vision)
         elif provider.provider_name == "openai" and provider.is_configured():
             import httpx
+
             api_key = getattr(provider, "_api_key", "")
             model = getattr(provider, "_model", "gpt-4o")
             base_url = getattr(provider, "_base_url", "https://api.openai.com/v1")
-            
+
             content_list: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
             if image_bytes:
                 b64 = base64.b64encode(image_bytes).decode("utf-8")
-                content_list.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{mime_type};base64,{b64}"},
-                })
+                content_list.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime_type};base64,{b64}"},
+                    }
+                )
 
             payload = {
                 "model": model,
@@ -327,21 +336,24 @@ STRUKTURA JSON:
         # D) Claude Provider (Anthropic)
         elif provider.provider_name in ("claude", "anthropic") and provider.is_configured():
             import httpx
+
             api_key = getattr(provider, "_api_key", "")
             model = getattr(provider, "_model", "claude-3-5-sonnet-20241022")
             url = "https://api.anthropic.com/v1/messages"
-            
+
             content_list = [{"type": "text", "text": prompt}]
             if image_bytes:
                 b64 = base64.b64encode(image_bytes).decode("utf-8")
-                content_list.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": mime_type,
-                        "data": b64,
-                    },
-                })
+                content_list.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": b64,
+                        },
+                    }
+                )
 
             payload = {
                 "model": model,
@@ -387,6 +399,7 @@ STRUKTURA JSON:
             logger.info("Uruchamianie awaryjnego odczytu Gemini Vision dla pliku %s", file_path.name)
             try:
                 import httpx
+
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
                 b64 = base64.b64encode(image_bytes).decode("utf-8")
                 parts = [
@@ -462,7 +475,9 @@ STRUKTURA JSON:
         buyer_data = data.get("nabywca") or {}
         buyer_nip = re.sub(r"[^0-9A-Za-z]", "", str(buyer_data.get("nip") or profile.nip))
         buyer_name = str(buyer_data.get("nazwa") or profile.nazwa).strip()
-        buyer = InvoiceParty(nip=buyer_nip, nazwa=buyer_name, kraj=buyer_data.get("kraj", "PL"), adres=buyer_data.get("adres"))
+        buyer = InvoiceParty(
+            nip=buyer_nip, nazwa=buyer_name, kraj=buyer_data.get("kraj", "PL"), adres=buyer_data.get("adres")
+        )
 
         # Kwoty
         netto = cls._clean_amount(data.get("suma_netto"))
@@ -576,7 +591,7 @@ STRUKTURA JSON:
         )
 
         parsed_data = cls._parse_llm_json(llm_response)
-        
+
         # Sprawdzenie czy w folderze extracted istnieje już plik z poprawnymi danymi (suma > 0)
         ext_dir = InvoiceStorage.get_non_ksef_extracted_dir(profile, rok, miesiac, typ=invoice_type)
         json_target = ext_dir / f"{file_path.stem}.json"
@@ -592,7 +607,9 @@ STRUKTURA JSON:
                 pass
 
         if not parsed_data:
-            logger.warning("Model AI nie zwrócił poprawnego JSON dla %s. Uruchamiam procedurę awaryjną.", file_path.name)
+            logger.warning(
+                "Model AI nie zwrócił poprawnego JSON dla %s. Uruchamiam procedurę awaryjną.", file_path.name
+            )
             if existing_good_data:
                 logger.info("Zachowano wcześniej wyekstrahowane dane z pliku %s z realnymi kwotami.", json_target.name)
                 parsed_data = existing_good_data
@@ -679,7 +696,7 @@ STRUKTURA JSON:
 
         target_ext_dir = InvoiceStorage.get_non_ksef_extracted_dir(profile, rok, miesiac, typ=target_type)
         target_json_path = target_ext_dir / f"{actual_raw_path.stem}.json"
-        
+
         with open(target_json_path, "w", encoding="utf-8") as f:
             json.dump(invoice.to_dict(), f, ensure_ascii=False, indent=2)
 
@@ -697,6 +714,7 @@ STRUKTURA JSON:
         Wyszukuje i ekstrahuje wszystkie nieodczytane dokumenty z bieżącego okresu.
         """
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         unprocessed_items = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
         if not unprocessed_items:
             logger.info("Brak nieprzetworzonych faktur do odczytania dla %s za %s-%s", profile.nazwa, rok, miesiac)
@@ -741,8 +759,11 @@ STRUKTURA JSON:
             if loop.is_running():
                 # Jeśli pętla jest już uruchomiona, użyj nowego wątku lub taska
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as pool:
-                    return pool.submit(asyncio.run, cls.extract_unprocessed_invoices_async(profile, rok, miesiac)).result()
+                    return pool.submit(
+                        asyncio.run, cls.extract_unprocessed_invoices_async(profile, rok, miesiac)
+                    ).result()
             else:
                 return loop.run_until_complete(cls.extract_unprocessed_invoices_async(profile, rok, miesiac))
         except RuntimeError:

@@ -3,17 +3,16 @@ Modele danych faktur, pozycji i stron transakcji.
 Używa Decimal do precyzyjnych obliczeń finansowych.
 """
 
-from dataclasses import dataclass, field, asdict
+import re
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from enum import Enum
-from typing import List, Dict, Optional, Any
-import json
-import re
+from typing import Any, Dict, List, Optional
 
 
 class InvoiceType(str, Enum):
     SPRZEDAZ = "sprzedaz"  # Faktura wystawiona przez podatnika (przychód)
-    KOSZT = "koszty"       # Faktura wystawiona na podatnika (koszt/wydatek)
+    KOSZT = "koszty"  # Faktura wystawiona na podatnika (koszt/wydatek)
 
 
 @dataclass
@@ -179,7 +178,7 @@ class Invoice:
                     "pkwiu": p.pkwiu,
                 }
                 for p in self.pozycje
-            ]
+            ],
         }
 
     @classmethod

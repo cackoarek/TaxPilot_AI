@@ -2,22 +2,21 @@
 src/web/app.py
 Główna aplikacja FastAPI dla TaxPilot AI (Wariant B: Server-Driven UI).
 """
-import sys
-from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.logging_config import setup_logging, get_logger
+from src.logging_config import get_logger, setup_logging
 from src.web.config import (
-    STATIC_DIR,
+    COOKIE_AUTH_TOKEN,
+    DEBUG,
     DEFAULT_HOST,
     DEFAULT_PORT,
-    DEBUG,
+    STATIC_DIR,
     TAXPILOT_ACCESS_TOKEN,
-    COOKIE_AUTH_TOKEN,
 )
-from src.web.routers import dashboard, companies, aml, settlement, copilot, invoices, advisor, settings, bookkeeping
+from src.web.routers import advisor, aml, bookkeeping, companies, copilot, dashboard, invoices, settings, settlement
 
 # Inicjalizacja centralnego logowania (konsola + taxpilot.log)
 setup_logging()
@@ -30,6 +29,7 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+
 
 @app.middleware("http")
 async def log_requests_and_exceptions(request: Request, call_next):
@@ -62,6 +62,7 @@ async def optional_token_auth_middleware(request: Request, call_next):
     Jeśli jest ustawiona -> wymaga poprawnego tokenu w nagłówku, query (?token=) lub ciasteczku.
     """
     import os
+
     # Sprawdzaj dynamicznie ze środowiska (np. dla testów z os.environ)
     required_token = os.getenv("TAXPILOT_ACCESS_TOKEN", "").strip() or TAXPILOT_ACCESS_TOKEN
     if not required_token:
@@ -126,6 +127,7 @@ async def optional_token_auth_middleware(request: Request, call_next):
         status_code=401,
     )
 
+
 # Montowanie plików statycznych (CSS, JS, obrazy)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -149,6 +151,7 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "src.web.app:app",
         host=DEFAULT_HOST,

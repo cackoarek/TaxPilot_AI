@@ -2,10 +2,12 @@
 src/web/config.py
 Konfiguracja warstwy webowej TaxPilot AI.
 """
+
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -81,37 +83,73 @@ def get_llm_status(profile: Optional[Any] = None) -> Dict[str, Any]:
     # 2. Jawny wybór providera chmurowego
     if forced_provider == "gemini" and gemini_key:
         model = custom_model or "gemini-1.5-flash"
-        return {"available": True, "provider": "gemini", "model": model, "mode": "cloud_sdk", "label": f"Gemini ({model})"}
+        return {
+            "available": True,
+            "provider": "gemini",
+            "model": model,
+            "mode": "cloud_sdk",
+            "label": f"Gemini ({model})",
+        }
     elif forced_provider in ("claude", "anthropic") and anthropic_key:
         model = custom_model or "claude-3-5-sonnet"
-        return {"available": True, "provider": "claude", "model": model, "mode": "cloud_sdk", "label": f"Claude ({model})"}
+        return {
+            "available": True,
+            "provider": "claude",
+            "model": model,
+            "mode": "cloud_sdk",
+            "label": f"Claude ({model})",
+        }
     elif forced_provider == "openai" and openai_key:
         model = custom_model or "gpt-4o"
-        return {"available": True, "provider": "openai", "model": model, "mode": "cloud_sdk", "label": f"OpenAI ({model})"}
+        return {
+            "available": True,
+            "provider": "openai",
+            "model": model,
+            "mode": "cloud_sdk",
+            "label": f"OpenAI ({model})",
+        }
     elif forced_provider in ("null", "deterministic", "none"):
         return {
             "available": False,
             "provider": "none",
             "model": "deterministic",
             "mode": "deterministic",
-            "label": "Deterministyczny (Zero-LLM)"
+            "label": "Deterministyczny (Zero-LLM)",
         }
 
     # 3. Tryb automatyczny (wg priorytetu skonfigurowanych kluczy API)
     if anthropic_key:
         model = custom_model or "claude-3-5-sonnet"
-        return {"available": True, "provider": "claude", "model": model, "mode": "cloud_sdk", "label": f"Claude ({model})"}
+        return {
+            "available": True,
+            "provider": "claude",
+            "model": model,
+            "mode": "cloud_sdk",
+            "label": f"Claude ({model})",
+        }
     elif gemini_key:
         model = custom_model or "gemini-1.5-flash"
-        return {"available": True, "provider": "gemini", "model": model, "mode": "cloud_sdk", "label": f"Gemini ({model})"}
+        return {
+            "available": True,
+            "provider": "gemini",
+            "model": model,
+            "mode": "cloud_sdk",
+            "label": f"Gemini ({model})",
+        }
     elif openai_key:
         model = custom_model or "gpt-4o"
-        return {"available": True, "provider": "openai", "model": model, "mode": "cloud_sdk", "label": f"OpenAI ({model})"}
+        return {
+            "available": True,
+            "provider": "openai",
+            "model": model,
+            "mode": "cloud_sdk",
+            "label": f"OpenAI ({model})",
+        }
 
     return {
         "available": False,
         "provider": "none",
         "model": "deterministic",
         "mode": "deterministic",
-        "label": "Deterministyczny (Zero-LLM)"
+        "label": "Deterministyczny (Zero-LLM)",
     }

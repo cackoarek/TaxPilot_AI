@@ -2,31 +2,32 @@
 src/web/routers/copilot.py
 Kontroler asystenta AI Copilot (SSE Streaming & HTMX chat).
 """
-import re
+
 import html
 import json
+import re
 import time
-import uuid
 import urllib.parse
-from dataclasses import dataclass, field
+import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
-from fastapi import APIRouter, Request, Form, Query, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from typing import List, Optional
+
+from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from src.core.company import CompanyProfile
 from src.logging_config import get_logger
 from src.web.config import TEMPLATES_DIR, get_llm_status
 from src.web.dependencies import get_global_context
-from src.web.services.llm.base import ChatMessage
-from src.web.services.copilot_service import CopilotService
 from src.web.services.chat_session_service import (
-    ChatSessionManager,
-    ChatSession,
     ChatMessageRecord,
+    ChatSession,
+    ChatSessionManager,
 )
+from src.web.services.copilot_service import CopilotService
+from src.web.services.llm.base import ChatMessage
 
 logger = get_logger("taxpilot.copilot")
 router = APIRouter(prefix="/api/copilot", tags=["AI Copilot"])
@@ -35,7 +36,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 AI_ASSISTANT_LOG_FILE = Path(__file__).resolve().parent.parent.parent.parent / "ai_asistant.log"
 
 
-def log_ai_interaction(user_message: str, assistant_response: str, nip: Optional[str] = None, okres: Optional[str] = None) -> None:
+def log_ai_interaction(
+    user_message: str, assistant_response: str, nip: Optional[str] = None, okres: Optional[str] = None
+) -> None:
     """Zapisuje każde zapytanie użytkownika i odpowiedź asystenta do pliku logów ai_asistant.log."""
     try:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -43,13 +46,12 @@ def log_ai_interaction(user_message: str, assistant_response: str, nip: Optional
             f"[{timestamp}] [OKRES: {okres or 'N/A'}] [NIP: {nip or 'N/A'}]\n"
             f"USER:\n{user_message.strip()}\n"
             f"ASSISTANT:\n{assistant_response.strip()}\n"
-            f"{'-'*80}\n"
+            f"{'-' * 80}\n"
         )
         with open(AI_ASSISTANT_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(entry)
     except Exception as e:
         logger.warning("Nie udało się zapisać do ai_asistant.log: %s", e)
-
 
 
 def is_safe_url(url: str) -> bool:
@@ -102,17 +104,19 @@ def markdown_to_html(text: str) -> str:
 
     # 1. Zabezpieczenie bloków kodu ``` ... ```
     code_blocks: List[str] = []
+
     def save_code_block(match):
         code_blocks.append(match.group(1))
-        return f"\n{cb_token_prefix}{len(code_blocks)-1}__\n"
+        return f"\n{cb_token_prefix}{len(code_blocks) - 1}__\n"
 
     text = re.sub(r"```(?:\w+)?\n?(.*?)```", save_code_block, text, flags=re.DOTALL)
 
     # 2. Zabezpieczenie inline code `...`
     inline_codes: List[str] = []
+
     def save_inline_code(match):
         inline_codes.append(match.group(1))
-        return f"{ic_token_prefix}{len(inline_codes)-1}__"
+        return f"{ic_token_prefix}{len(inline_codes) - 1}__"
 
     text = re.sub(r"`([^`]+)`", save_inline_code, text)
 
@@ -154,7 +158,7 @@ def markdown_to_html(text: str) -> str:
         # Sprawdzenie znacznika bloku kodu
         if line_stripped.startswith(cb_token_prefix) and line_stripped.endswith("__"):
             try:
-                idx = int(line_stripped[len(cb_token_prefix):-2])
+                idx = int(line_stripped[len(cb_token_prefix) : -2])
                 code_content = code_blocks[idx]
                 escaped_code = html.escape(code_content, quote=False)
                 output_html.append(
@@ -186,21 +190,21 @@ def markdown_to_html(text: str) -> str:
                     '<div class="overflow-x-auto my-2.5 rounded-lg border border-slate-200 shadow-2xs">',
                     '  <table class="min-w-full text-xs text-left divide-y divide-slate-200 bg-white">',
                     '    <thead class="bg-slate-100 text-slate-700 font-semibold uppercase text-[10px] tracking-wider">',
-                    '      <tr>'
+                    "      <tr>",
                 ]
                 for h in header_cells:
                     tbl_html.append(f'        <th class="px-3 py-1.5">{h}</th>')
-                tbl_html.append('      </tr>')
-                tbl_html.append('    </thead>')
+                tbl_html.append("      </tr>")
+                tbl_html.append("    </thead>")
                 tbl_html.append('    <tbody class="divide-y divide-slate-100">')
                 for row in table_rows:
                     tbl_html.append('      <tr class="hover:bg-slate-50/80 transition-colors">')
                     for cell in row:
                         tbl_html.append(f'        <td class="px-3 py-1.5 text-slate-800">{cell}</td>')
-                    tbl_html.append('      </tr>')
-                tbl_html.append('    </tbody>')
-                tbl_html.append('  </table>')
-                tbl_html.append('</div>')
+                    tbl_html.append("      </tr>")
+                tbl_html.append("    </tbody>")
+                tbl_html.append("  </table>")
+                tbl_html.append("</div>")
                 output_html.append("\n".join(tbl_html))
                 continue
 
@@ -242,7 +246,9 @@ def markdown_to_html(text: str) -> str:
             while i < n and (lines[i].strip().startswith("- ") or lines[i].strip().startswith("* ")):
                 list_items.append(f'<li class="pl-1">{lines[i].strip()[2:]}</li>')
                 i += 1
-            output_html.append(f'<ul class="list-disc pl-4 space-y-1 my-1.5 text-xs text-slate-700">{"".join(list_items)}</ul>')
+            output_html.append(
+                f'<ul class="list-disc pl-4 space-y-1 my-1.5 text-xs text-slate-700">{"".join(list_items)}</ul>'
+            )
             continue
 
         # Sprawdzenie listy numerowanej (1. , 2. )
@@ -255,7 +261,9 @@ def markdown_to_html(text: str) -> str:
                     break
                 num_items.append(f'<li class="pl-1">{m.group(1)}</li>')
                 i += 1
-            output_html.append(f'<ol class="list-decimal pl-4 space-y-1 my-1.5 text-xs text-slate-700">{"".join(num_items)}</ol>')
+            output_html.append(
+                f'<ol class="list-decimal pl-4 space-y-1 my-1.5 text-xs text-slate-700">{"".join(num_items)}</ol>'
+            )
             continue
 
         # Zwykły akapit
@@ -366,15 +374,21 @@ def render_assistant_bubble(assistant_html: str, record_id: str = "") -> str:
 
 
 def render_pending_bubble(record_id: str, elapsed_sec: int = 0) -> str:
-    time_badge = f'<span class="text-blue-500 font-mono text-[11px] ml-1">({elapsed_sec}s)</span>' if elapsed_sec > 0 else ""
-    tip_str = '<span class="text-[10px] text-slate-400 block font-normal mt-0.5">Asystent analizuje rejestry księgowe i wykonuje obliczenia (Zero-Hallucination)...</span>' if elapsed_sec >= 6 else ""
+    time_badge = (
+        f'<span class="text-blue-500 font-mono text-[11px] ml-1">({elapsed_sec}s)</span>' if elapsed_sec > 0 else ""
+    )
+    tip_str = (
+        '<span class="text-[10px] text-slate-400 block font-normal mt-0.5">Asystent analizuje rejestry księgowe i wykonuje obliczenia (Zero-Hallucination)...</span>'
+        if elapsed_sec >= 6
+        else ""
+    )
     return f"""
-    <div id="copilot-active-loader" 
+    <div id="copilot-active-loader"
          data-msg-id="{record_id}"
-         hx-get="/api/copilot/message-status?id={record_id}" 
-         hx-trigger="every 1s" 
-         hx-target="this" 
-         hx-swap="outerHTML" 
+         hx-get="/api/copilot/message-status?id={record_id}"
+         hx-trigger="every 1s"
+         hx-target="this"
+         hx-swap="outerHTML"
          class="flex space-x-3 my-2">
       <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-xs animate-spin">
         🤖
@@ -398,9 +412,7 @@ def render_session_title_bar(session: Optional[ChatSession], oob: bool = False) 
     else:
         title = session.title or "Nowa rozmowa"
         sess_id = session.id
-    escaped_title = (
-        title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-    )
+    escaped_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     return f"""
     <div class="flex items-center space-x-2 flex-1 min-w-0 mr-2" id="copilot-active-session-title-container" {oob_attr}>
       <span class="text-blue-400 flex-shrink-0">💬</span>
@@ -439,9 +451,9 @@ def render_sessions_list(profile: Optional[CompanyProfile], active_id: str) -> s
     if not sessions:
         return (
             '<div class="text-center py-6 text-slate-400 text-xs">'
-            'Brak zapisanych rozmów dla tej firmy.<br>'
+            "Brak zapisanych rozmów dla tej firmy.<br>"
             '<span class="text-slate-500 text-[11px]">Zadaj pytanie w oknie czatu, a wątek zostanie automatycznie zarchiwizowany!</span>'
-            '</div>'
+            "</div>"
         )
 
     items = []
@@ -464,7 +476,7 @@ def render_sessions_list(profile: Optional[CompanyProfile], active_id: str) -> s
         items.append(f"""
         <div class="p-2.5 rounded-lg border {active_class} transition-all flex items-start justify-between group">
           <button type="button"
-                  hx-post="/api/copilot/sessions/{s['id']}/select"
+                  hx-post="/api/copilot/sessions/{s["id"]}/select"
                   hx-target="#copilot-chat-container"
                   hx-swap="innerHTML"
                   @click="historyOpen = false"
@@ -475,16 +487,16 @@ def render_sessions_list(profile: Optional[CompanyProfile], active_id: str) -> s
             </div>
             {snippet_html}
             <div class="flex items-center space-x-2 text-[10px] text-slate-400 mt-1">
-              <span>📅 {s['display_date']}</span>
+              <span>📅 {s["display_date"]}</span>
               <span>•</span>
-              <span>Okres: {s['rok']}-{s['miesiac']}</span>
+              <span>Okres: {s["rok"]}-{s["miesiac"]}</span>
               <span>•</span>
-              <span>💬 {s['messages_count']} wiad.</span>
+              <span>💬 {s["messages_count"]} wiad.</span>
             </div>
           </button>
           <div class="flex items-center space-x-1 opacity-70 group-hover:opacity-100 flex-shrink-0 mt-0.5">
             <button type="button"
-                    hx-delete="/api/copilot/sessions/{s['id']}"
+                    hx-delete="/api/copilot/sessions/{s["id"]}"
                     hx-target="#copilot-sessions-list"
                     hx-swap="innerHTML"
                     hx-confirm="Czy na pewno chcesz bezpowrotnie usunąć tę rozmowę z historii?"
@@ -595,11 +607,7 @@ async def select_copilot_session(request: Request, session_id: str):
 
 
 @router.post("/session-rename", response_class=HTMLResponse)
-async def rename_active_session(
-    request: Request,
-    session_id: str = Form(...),
-    title: str = Form(...)
-):
+async def rename_active_session(request: Request, session_id: str = Form(...), title: str = Form(...)):
     """Zmienia tytuł sesji czatu."""
     ctx = get_global_context(request)
     profile = ctx.get("profile")
@@ -607,8 +615,7 @@ async def rename_active_session(
     ChatSessionManager.rename_session(profile, session_id, title)
     session = ChatSessionManager.load_session(profile, session_id)
     return HTMLResponse(
-        render_session_title_bar(session),
-        headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})}
+        render_session_title_bar(session), headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})}
     )
 
 
@@ -627,7 +634,7 @@ async def delete_copilot_session(request: Request, session_id: str):
 
     return HTMLResponse(
         f"{title_oob}\n{list_html}",
-        headers={"HX-Trigger": json.dumps({"copilot-refresh-title": True, "copilot-refresh": True})}
+        headers={"HX-Trigger": json.dumps({"copilot-refresh-title": True, "copilot-refresh": True})},
     )
 
 
@@ -686,7 +693,11 @@ async def get_copilot_history(request: Request):
     session_id = f"company_{nip}"
 
     chat_session = ChatSessionManager.get_active_session(profile, rok=rok, miesiac=miesiac)
-    records = chat_session.messages if chat_session and chat_session.messages else CopilotSessionHistory.get_messages(session_id)
+    records = (
+        chat_session.messages
+        if chat_session and chat_session.messages
+        else CopilotSessionHistory.get_messages(session_id)
+    )
     if not records:
         return ""
 
@@ -735,13 +746,15 @@ async def copilot_reset(request: Request):
     CopilotSessionHistory.clear(session_id)
 
     from src.web.services.llm.antigravity_provider import AntigravitySessionManager
+
     AntigravitySessionManager.reset_session(session_id)
     nazwa_firmy = profile.nazwa if profile else "TaxPilot"
     logger.info("Zresetowano sesję AI Copilot dla firmy: %s (session_id=%s)", nazwa_firmy, session_id)
 
     title_oob = render_session_title_bar(new_session, oob=True)
 
-    return HTMLResponse(f"""
+    return HTMLResponse(
+        f"""
     {title_oob}
     <div class="flex space-x-3 my-2">
       <div class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shadow-xs">
@@ -755,7 +768,9 @@ async def copilot_reset(request: Request):
         <p class="text-slate-500 text-[11px]">Wszelkie wiszące procesy zostały zatrzymane. Możesz zadać nowe pytanie.</p>
       </div>
     </div>
-    """, headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})})
+    """,
+        headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})},
+    )
 
 
 @router.post("/chat", response_class=HTMLResponse)
@@ -770,6 +785,7 @@ async def copilot_chat(
     oraz pełny kontekst wieloturowy (Multi-turn conversational memory).
     """
     import asyncio
+
     ctx = get_global_context(request)
     profile = ctx["profile"]
     rok = ctx["rok"]
@@ -801,19 +817,26 @@ async def copilot_chat(
             llm_messages.append(ChatMessage(role="assistant", content=content))
     llm_messages.append(ChatMessage(role="user", content=user_msg_clean))
 
-    logger.info("Otrzymano zapytanie do Copilota: %s (tury=%d, stream=%s)", user_msg_clean[:60], len(llm_messages), stream)
+    logger.info(
+        "Otrzymano zapytanie do Copilota: %s (tury=%d, stream=%s)", user_msg_clean[:60], len(llm_messages), stream
+    )
 
     # Obsługa SSE Streaming
     accept_header = request.headers.get("accept", "")
     if stream or "text/event-stream" in accept_header:
+
         async def event_generator():
             accumulated_tokens = []
             try:
-                async for token in CopilotService.stream_chat(llm_messages, profile, rok, miesiac, session_id=chat_session.id):
+                async for token in CopilotService.stream_chat(
+                    llm_messages, profile, rok, miesiac, session_id=chat_session.id
+                ):
                     accumulated_tokens.append(token)
                     yield f"data: {json.dumps({'delta': token})}\n\n"
                 full_stream_resp = "".join(accumulated_tokens)
-                log_ai_interaction(user_msg_clean, full_stream_resp, nip=profile.nip if profile else None, okres=f"{rok}-{miesiac}")
+                log_ai_interaction(
+                    user_msg_clean, full_stream_resp, nip=profile.nip if profile else None, okres=f"{rok}-{miesiac}"
+                )
                 html_resp = markdown_to_html(full_stream_resp)
                 chat_session.update_message(record.id, html_resp, assistant_raw=full_stream_resp, status="done")
                 ChatSessionManager.save_session(profile, chat_session)
@@ -822,7 +845,9 @@ async def copilot_chat(
                 logger.exception("Błąd podczas strumieniowania Copilota: %s", e)
                 err_text = f"\n\n⚠️ **Błąd komunikacji z modelem AI:**\n> {str(e)}\n\n*Wskazówka:* Sprawdź klucz API oraz nazwę modelu w zakładce **Ustawienia**."
                 yield f"data: {json.dumps({'delta': err_text})}\n\n"
-                log_ai_interaction(user_msg_clean, f"BŁĄD: {e}", nip=profile.nip if profile else None, okres=f"{rok}-{miesiac}")
+                log_ai_interaction(
+                    user_msg_clean, f"BŁĄD: {e}", nip=profile.nip if profile else None, okres=f"{rok}-{miesiac}"
+                )
                 chat_session.update_message(record.id, err_text, assistant_raw=err_text, status="error")
                 ChatSessionManager.save_session(profile, chat_session)
                 CopilotSessionHistory.update_message(session_id, record.id, err_text, status="error")
@@ -858,10 +883,10 @@ async def copilot_chat(
         html_response = await asyncio.wait_for(asyncio.shield(task), timeout=2.0)
         return HTMLResponse(
             f"{render_user_bubble(user_msg_clean)}\n{render_assistant_bubble(html_response, record_id=record.id)}\n{title_bar_oob}",
-            headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})}
+            headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})},
         )
     except asyncio.TimeoutError:
         return HTMLResponse(
             f"{render_user_bubble(user_msg_clean)}\n{render_pending_bubble(record.id)}\n{title_bar_oob}",
-            headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})}
+            headers={"HX-Trigger": json.dumps({"copilot-refresh-sessions": True})},
         )

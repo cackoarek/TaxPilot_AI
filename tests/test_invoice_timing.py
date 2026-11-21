@@ -5,7 +5,8 @@ Weryfikuje zgodność z art. 19a VAT / art. 14 PIT (sprzedaż) oraz art. 86 ust.
 
 import unittest
 from decimal import Decimal
-from src.core.invoice import Invoice, InvoiceType, InvoiceParty
+
+from src.core.invoice import Invoice, InvoiceParty, InvoiceType
 
 
 class TestInvoiceTiming(unittest.TestCase):
@@ -85,4 +86,3 @@ class TestInvoiceTiming(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

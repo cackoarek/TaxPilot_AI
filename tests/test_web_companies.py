@@ -7,14 +7,16 @@ Testy jednostkowe i integracyjne dla routera firm (/firmy):
 - Endpoint autopobierania danych z rejestrów (/firmy/lookup-nip)
 - Tworzenie nowej firmy, autoselekcja w ciasteczku i przekierowanie na pulpit
 """
+
 import shutil
 import unittest
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.config import FIRMY_DIR
 from src.core.company import CompanyProfile
+from src.web.app import app
 from src.web.config import COOKIE_ACTIVE_NIP
 
 

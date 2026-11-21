@@ -7,13 +7,12 @@ from decimal import Decimal
 
 from src.core.company import CompanyProfile
 from src.level_3_tax_settlement.settlement_service import SettlementService
-from tests.fixtures import setup_test_company, cleanup_test_company
+from tests.fixtures import cleanup_test_company, setup_isolated_test_company
 
 
 class TestSettlementService(unittest.TestCase):
-
     def setUp(self):
-        self.profile = setup_test_company()
+        self.profile = setup_isolated_test_company()
         self.assertIsNotNone(self.profile)
 
     def tearDown(self):
@@ -58,7 +57,7 @@ class TestSettlementService(unittest.TestCase):
 
     def test_reports_generation(self):
         # Rozliczenie kwietnia z zapisem raportów
-        result = SettlementService.settle_month(
+        SettlementService.settle_month(
             self.profile, "2026", "04", nadwyzka_vat_poprzedni=Decimal("217.10"), zapisz_raporty=True
         )
 
@@ -109,6 +108,7 @@ class TestSettlementService(unittest.TestCase):
     def test_settle_october_2026_professional_accountant_mode(self):
         """Test rozliczenia 2026-10 w trybie księgowego profesjonalnego (zasada kasowa + wyłączenie FP)."""
         import pathlib
+
         p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
         if not (p_path / "faktury" / "2026" / "10" / "sprzedaz").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
@@ -122,6 +122,7 @@ class TestSettlementService(unittest.TestCase):
     def test_settle_may_2026_retroactive_correction(self):
         """Test rozliczenia 2026-05: korekta wsteczna 1/KOR/06/2026 (-4000 zł) koryguje przychód maja dla PIT-28."""
         import pathlib
+
         p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
         if not (p_path / "faktury" / "2026" / "05" / "sprzedaz").exists():
             self.skipTest("Brak danych testowych za 2026-05 dla firmy testowej")

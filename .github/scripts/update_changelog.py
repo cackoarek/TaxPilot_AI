@@ -131,8 +131,8 @@ def update_changelog_content(
     # Szukamy początku kolejnej sekcji wersji (np. \n## [0.1.0])
     next_ver_match = re.search(r"\n## \[", rest)
     if next_ver_match:
-        unreleased_block = rest[:next_ver_match.start()].strip()
-        remaining = rest[next_ver_match.start():]
+        unreleased_block = rest[: next_ver_match.start()].strip()
+        remaining = rest[next_ver_match.start() :]
     else:
         unreleased_block = rest.strip()
         remaining = ""

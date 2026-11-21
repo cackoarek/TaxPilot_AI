@@ -2,8 +2,10 @@
 tests/test_web_qr.py
 Testy jednostkowe i integracyjne generatora kodów QR przelewów bankowych (Standard ZBP) - Kamień Milowy M4.
 """
+
 import unittest
 from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 from src.web.app import app
@@ -19,6 +21,7 @@ class TestWebQR(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
+
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
 
     def test_clean_account_number(self):
@@ -35,7 +38,7 @@ class TestWebQR(unittest.TestCase):
         tytul = "PIT-28 za 2026-01"
 
         payload = format_zbp_payload(rachunek, kwota, nazwa, tytul)
-        
+
         # Oczekiwany format ZBP: ||rachunek|kwota_w_groszach|nazwa|tytul|||
         self.assertTrue(payload.startswith("||10101000550225777000112200|125050|"))
         self.assertIn("Urząd Skarbowy Warszawa", payload)

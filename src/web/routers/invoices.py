@@ -3,35 +3,36 @@ src/web/routers/invoices.py
 Kontroler Magazynu Dokumentów: przeglądanie faktur KSeF/Non-KSeF, upload Drag&Drop,
 auto-routing oraz wywołanie synchronizacji z KSeF 2.0.
 """
-import os
-import re
-import json
-import shutil
-from pathlib import Path
-from decimal import Decimal
-from typing import Optional, List, Dict, Any, Tuple
 
-from fastapi import APIRouter, Request, Form, UploadFile, File, Query, HTTPException, Response
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
+import json
+import re
+from decimal import Decimal
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.core.invoice import Invoice, InvoiceType
 from src.core.company import CompanyProfile
+from src.core.invoice import InvoiceType
+from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.ksef_client import KSeFClient
+from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
+from src.logging_config import get_logger
 from src.web.config import TEMPLATES_DIR
 from src.web.dependencies import get_global_context
-from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
-from src.level_1_ingestion.ksef_client import KSeFClient
 
+logger = get_logger("taxpilot.invoices")
 router = APIRouter(prefix="/faktury", tags=["Magazyn Faktur & KSeF"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 ALLOWED_EXTENSIONS = {".pdf", ".json", ".txt", ".md", ".jpg", ".jpeg", ".png"}
 
 # Limity uploadu (ochrona przed DoS pamięciowym i wyczerpaniem dysku)
-MAX_SINGLE_FILE_SIZE = 15 * 1024 * 1024   # 15 MB
+MAX_SINGLE_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
-CHUNK_SIZE = 64 * 1024                     # 64 KB bufor odczytu strumieniowego
+CHUNK_SIZE = 64 * 1024  # 64 KB bufor odczytu strumieniowego
 
 
 def sanitize_filename(raw_filename: str) -> str:
@@ -99,7 +100,9 @@ def validate_file_content(content: bytes, ext: str) -> Tuple[bool, str]:
     return False, f"Nieobsługiwany format zawartości {ext}"
 
 
-def get_month_invoices_summary(profile: CompanyProfile, rok: str, miesiac: str, typ_filter: Optional[str] = None) -> Dict[str, Any]:
+def get_month_invoices_summary(
+    profile: CompanyProfile, rok: str, miesiac: str, typ_filter: Optional[str] = None
+) -> Dict[str, Any]:
     """Zbiera wszystkie faktury, statystyki i relokacje dla wybranego miesiąca."""
     typ_enum = None
     if typ_filter == "sprzedaz":
@@ -127,11 +130,13 @@ def get_month_invoices_summary(profile: CompanyProfile, rok: str, miesiac: str, 
         if raw_dir.exists():
             for marker in raw_dir.glob("*.PRZENIESIONO.txt"):
                 try:
-                    relokacje.append({
-                        "plik": marker.name.replace(".PRZENIESIONO.txt", ""),
-                        "katalog": check_type.value,
-                        "tresc": marker.read_text(encoding="utf-8")
-                    })
+                    relokacje.append(
+                        {
+                            "plik": marker.name.replace(".PRZENIESIONO.txt", ""),
+                            "katalog": check_type.value,
+                            "tresc": marker.read_text(encoding="utf-8"),
+                        }
+                    )
                 except Exception:
                     pass
 
@@ -194,7 +199,9 @@ async def invoices_table_partial(
     last_sync = None
     sync_history = []
     if profile:
-        summary = get_month_invoices_summary(profile, rok, miesiac, typ_filter=tab_clean if tab_clean != "all" else None)
+        summary = get_month_invoices_summary(
+            profile, rok, miesiac, typ_filter=tab_clean if tab_clean != "all" else None
+        )
         last_sync = KSeFClient.get_last_sync(profile, rok, miesiac)
         sync_history = KSeFClient.load_sync_history(profile)
 
@@ -250,6 +257,7 @@ async def upload_invoice_file(
         """
         summary = get_month_invoices_summary(profile, rok, miesiac)
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         unprocessed = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
         ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
         return templates.TemplateResponse(
@@ -406,8 +414,9 @@ async def upload_invoice_file(
 
     alert_html = "".join(alert_parts)
     summary = get_month_invoices_summary(profile, rok, miesiac)
-    
+
     from src.level_1_ingestion.extraction_service import ExtractionService
+
     unprocessed = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
     ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
 
@@ -528,7 +537,9 @@ async def download_invoice_file(
     try:
         target_path.relative_to(company_root)
     except ValueError:
-        raise HTTPException(status_code=403, detail="Dostęp zabroniony: Próba nieautoryzowanego odczytu spoza katalogu firmy.")
+        raise HTTPException(
+            status_code=403, detail="Dostęp zabroniony: Próba nieautoryzowanego odczytu spoza katalogu firmy."
+        )
 
     if not target_path.exists() or not target_path.is_file():
         raise HTTPException(status_code=404, detail="Plik faktury nie został odnaleziony na dysku.")
@@ -555,6 +566,7 @@ async def trigger_ai_extraction(request: Request):
         raise HTTPException(status_code=400, detail="Brak profilu firmy")
 
     from src.level_1_ingestion.extraction_service import ExtractionService
+
     ExtractionService.start_ai_extraction(profile, rok, miesiac)
 
     # Odśwież stan kontekstu
@@ -583,6 +595,7 @@ async def check_ai_extraction_status(request: Request):
     headers = {}
     if profile:
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
         ctx["extraction_status"] = ext_status
         ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
@@ -617,6 +630,7 @@ async def dismiss_ai_extraction_status(request: Request):
 
     if profile:
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         ExtractionService.clear_task_status(profile, rok, miesiac)
         ctx["extraction_status"] = {"status": "idle", "message": ""}
         ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
@@ -627,4 +641,3 @@ async def dismiss_ai_extraction_status(request: Request):
         name="partials/unprocessed_invoices_banner.html",
         context=ctx,
     )
-

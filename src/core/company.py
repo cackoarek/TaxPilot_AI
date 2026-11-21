@@ -2,14 +2,16 @@
 Modele danych profilu firmy podatnika i konfiguracji podatkowo-składkowej.
 """
 
-from dataclasses import dataclass, field, asdict
-from enum import Enum
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Union
 import json
 import re
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from src.config import FIRMY_DIR
+
+from .io import atomic_write_json
 
 
 class FormaOpodatkowania(str, Enum):
@@ -32,7 +34,9 @@ class ZUSConfig:
     zasada_odliczen: str = "MEMORIALOWA"  # "MEMORIALOWA" (domyślna) | "KASOWA" (biura rachunkowe)
     metoda_zdrowotna: str = "BIEZACA"  # "BIEZACA" (domyślna) | "UPROSZCZONA_UBIEGLY_ROK" (art. 81 ust. 2h)
     prog_zdrowotnej_uproszczony: str = "60k-300k"  # "<60k" | "60k-300k" | ">300k"
-    historia_typow: Dict[str, str] = field(default_factory=dict)  # np. {"2026-01": "TYLKO_ZDROWOTNA", "2026-04": "PELNY_ZUS"}
+    historia_typow: Dict[str, str] = field(
+        default_factory=dict
+    )  # np. {"2026-01": "TYLKO_ZDROWOTNA", "2026-04": "PELNY_ZUS"}
 
     def get_typ_for_period(self, rok: str, miesiac: str) -> TypZUS:
         """Zwraca właściwy typ ZUS dla danego okresu YYYY-MM na podstawie historii zmian."""
@@ -116,6 +120,7 @@ class CompanyProfile:
     regon: Optional[str] = None
     adres: Optional[str] = None
     llm: Dict[str, Any] = field(default_factory=dict)
+    _custom_path: Optional[Path] = field(default=None, repr=False)
 
     def __post_init__(self):
         # Wyczyszczenie NIP z myślników i spacji
@@ -126,6 +131,8 @@ class CompanyProfile:
 
     @property
     def katalog_firmy(self) -> Path:
+        if self._custom_path is not None:
+            return Path(self._custom_path)
         return FIRMY_DIR / (self.katalog_nazwa or self.nip)
 
     @classmethod
@@ -149,6 +156,7 @@ class CompanyProfile:
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
+        res.pop("_custom_path", None)
         res["forma_opodatkowania"] = self.forma_opodatkowania.value
         res["zus"]["typ"] = self.zus.typ.value
         res["ksef"] = self.ksef.to_dict()
@@ -197,9 +205,7 @@ class CompanyProfile:
         target_dir = self.katalog_firmy
         target_dir.mkdir(parents=True, exist_ok=True)
         profil_path = target_dir / "profil.json"
-        with open(profil_path, "w", encoding="utf-8") as f:
-            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
-        return profil_path
+        return atomic_write_json(profil_path, self.to_dict(), indent=2, ensure_ascii=False)
 
     @classmethod
     def load_from_dir(cls, directory_path: Path) -> "CompanyProfile":
@@ -208,7 +214,9 @@ class CompanyProfile:
             raise FileNotFoundError(f"Brak pliku profil.json w katalogu: {directory_path}")
         with open(profil_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return cls.from_dict(data)
+        profile = cls.from_dict(data)
+        profile._custom_path = directory_path.resolve()
+        return profile
 
     @classmethod
     def load_by_nip(cls, nip: str) -> Optional["CompanyProfile"]:
@@ -256,6 +264,7 @@ def initialize_company(
     tworzy profil.json, strukturę katalogów faktur i rozliczeń oraz wstępne reguły podatkowe.
     """
     from datetime import datetime
+
     clean_nip = re.sub(r"[^0-9]", "", nip or "")
     if len(clean_nip) != 10:
         raise ValueError(f"Nieprawidłowy NIP ({nip}). Polski NIP musi składać się dokładnie z 10 cyfr.")
@@ -273,6 +282,7 @@ def initialize_company(
     if auto_fetch:
         try:
             from src.level_1_ingestion.company_fetcher import CompanyFetcher
+
             public_data = CompanyFetcher.fetch_company_info(clean_nip, ceidg_token=ceidg_token)
             if public_data.get("nazwa") and not final_nazwa:
                 final_nazwa = public_data["nazwa"]
@@ -316,19 +326,40 @@ def initialize_company(
 
     # Wstępne reguły kosztowe
     try:
-        from src.skills.cost_classifier import RegulyKosztoweFirmy, RegulaPozycji, KwalifikacjaKosztu
+        from src.skills.cost_classifier import KwalifikacjaKosztu, RegulaPozycji, RegulyKosztoweFirmy
+
         reguly = RegulyKosztoweFirmy(nip_firmy=clean_nip)
         reguly.reguly_globalne.append(
-            RegulaPozycji(wzorzec="paliwo", kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50, uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)")
+            RegulaPozycji(
+                wzorzec="paliwo",
+                kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50,
+                uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)",
+            )
         )
         is_it = any(code.startswith(("62.", "58.2", "63.")) for code in final_pkd)
         if is_it or not final_pkd:
-            reguly.reguly_globalne.extend([
-                RegulaPozycji(wzorzec="hosting", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Infrastruktura serwerowa i chmurowa"),
-                RegulaPozycji(wzorzec="cloud", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Usługi chmurowe"),
-                RegulaPozycji(wzorzec="serwer", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Serwery i bazy danych"),
-                RegulaPozycji(wzorzec="oprogramowanie", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Licencje na oprogramowanie"),
-            ])
+            reguly.reguly_globalne.extend(
+                [
+                    RegulaPozycji(
+                        wzorzec="hosting",
+                        kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100,
+                        uzasadnienie="Infrastruktura serwerowa i chmurowa",
+                    ),
+                    RegulaPozycji(
+                        wzorzec="cloud", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Usługi chmurowe"
+                    ),
+                    RegulaPozycji(
+                        wzorzec="serwer",
+                        kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100,
+                        uzasadnienie="Serwery i bazy danych",
+                    ),
+                    RegulaPozycji(
+                        wzorzec="oprogramowanie",
+                        kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100,
+                        uzasadnienie="Licencje na oprogramowanie",
+                    ),
+                ]
+            )
         reguly.save(profile)
     except Exception:
         pass
@@ -336,6 +367,7 @@ def initialize_company(
     # Puste reguły sprzedaży
     try:
         from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
+
         reguly_sprz = RegulySprzedazyFirmy(nip_firmy=clean_nip)
         reguly_sprz.save(profile)
     except Exception:

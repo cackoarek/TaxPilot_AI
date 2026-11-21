@@ -2,21 +2,19 @@
 tests/test_antigravity_provider.py
 Testy jednostkowe providera Antigravity (agy CLI) oraz zarządcy sesji.
 """
-import unittest
-from unittest.mock import patch, AsyncMock, MagicMock
-from pathlib import Path
 
-from src.web.services.llm.base import ChatMessage
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from src.web.services.llm.antigravity_provider import (
     AntigravityProvider,
     AntigravitySession,
     AntigravitySessionManager,
-    SYSTEM_AGENTS_INSTRUCTION,
 )
+from src.web.services.llm.base import ChatMessage
 
 
 class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
-
     def setUp(self):
         AntigravitySessionManager.reset_session("test_session")
 
@@ -156,11 +154,7 @@ class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
         mock_which.return_value = "/usr/local/bin/agy"
 
         proc = AsyncMock()
-        proc.stdout.readline = AsyncMock(side_effect=[
-            b"Linia 1 od agenta\n",
-            b"Linia 2 od agenta\n",
-            b""
-        ])
+        proc.stdout.readline = AsyncMock(side_effect=[b"Linia 1 od agenta\n", b"Linia 2 od agenta\n", b""])
         proc.stderr.read = AsyncMock(return_value=b"")
         proc.wait = AsyncMock(return_value=0)
         proc.returncode = 0

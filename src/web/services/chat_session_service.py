@@ -4,16 +4,18 @@ Serwis zarządzania trwałymi sesjami rozmów asystenta AI Copilot w TaxPilot AI
 Wspiera przechowywanie historii per firma (Multi-Tenant), nadawanie i edycję tytułów,
 wybór i wznawianie starszych rozmów oraz pełny kontekst wieloturowy dla modeli LLM.
 """
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+
 import json
 import time
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from src.core.company import CompanyProfile
 from src.config import FIRMY_DIR
+from src.core.company import CompanyProfile
+from src.core.io import atomic_write_json
 from src.logging_config import get_logger
 
 logger = get_logger("taxpilot.chat_sessions")
@@ -131,6 +133,7 @@ class ChatSession:
 
 class ChatSessionManager:
     """Zarządca trwałych sesji czatu na dysku w katalogu firmy (Multi-Tenant)."""
+
     _active_sessions_cache: Dict[str, str] = {}  # nip -> active_session_id
     _sessions_cache: Dict[str, ChatSession] = {}  # session_id -> ChatSession
     _running_tasks: Dict[str, Any] = {}  # session_id -> asyncio.Task
@@ -170,17 +173,19 @@ class ChatSessionManager:
                     except Exception:
                         pass
 
-                    sessions.append({
-                        "id": data.get("id"),
-                        "title": data.get("title", "Rozmowa"),
-                        "created_at": created_str,
-                        "display_date": display_date,
-                        "updated_at": data.get("updated_at", ""),
-                        "rok": data.get("rok", "2026"),
-                        "miesiac": data.get("miesiac", "01"),
-                        "messages_count": len(messages),
-                        "snippet": last_snippet,
-                    })
+                    sessions.append(
+                        {
+                            "id": data.get("id"),
+                            "title": data.get("title", "Rozmowa"),
+                            "created_at": created_str,
+                            "display_date": display_date,
+                            "updated_at": data.get("updated_at", ""),
+                            "rok": data.get("rok", "2026"),
+                            "miesiac": data.get("miesiac", "01"),
+                            "messages_count": len(messages),
+                            "snippet": last_snippet,
+                        }
+                    )
             except Exception as e:
                 logger.warning("Błąd odczytu sesji czatu z %s: %s", p, e)
 
@@ -190,11 +195,7 @@ class ChatSessionManager:
 
     @classmethod
     def get_active_session(
-        cls,
-        profile: Optional[CompanyProfile],
-        rok: str = "2026",
-        miesiac: str = "01",
-        create_if_none: bool = True
+        cls, profile: Optional[CompanyProfile], rok: str = "2026", miesiac: str = "01", create_if_none: bool = True
     ) -> Optional[ChatSession]:
         nip = profile.nip if profile else "default"
         s_dir = cls.get_sessions_dir(profile)
@@ -269,20 +270,13 @@ class ChatSessionManager:
         s_dir = cls.get_sessions_dir(profile)
         session_file = s_dir / f"{session.id}.json"
         try:
-            tmp_file = s_dir / f"{session.id}.tmp"
-            with open(tmp_file, "w", encoding="utf-8") as f:
-                json.dump(session.to_dict(), f, ensure_ascii=False, indent=2)
-            tmp_file.replace(session_file)
+            atomic_write_json(session_file, session.to_dict(), ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error("Błąd zapisu sesji %s: %s", session.id, e)
 
     @classmethod
     def create_new_session(
-        cls,
-        profile: Optional[CompanyProfile],
-        rok: str = "2026",
-        miesiac: str = "01",
-        title: str = "Nowa rozmowa"
+        cls, profile: Optional[CompanyProfile], rok: str = "2026", miesiac: str = "01", title: str = "Nowa rozmowa"
     ) -> ChatSession:
         nip = profile.nip if profile else "default"
         now = datetime.now()

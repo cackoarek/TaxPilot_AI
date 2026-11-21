@@ -4,9 +4,10 @@ Testy jednostkowe modułu wskaźników makroekonomicznych ZUS/GUS.
 
 import unittest
 from decimal import Decimal
+
+from src.core.company import FormaOpodatkowania, TypZUS
 from src.skills.zus_indicators import get_zus_indicators
 from src.skills.zus_tools import calculate_zus
-from src.core.company import TypZUS, FormaOpodatkowania
 
 
 class TestZUSIndicators(unittest.TestCase):
@@ -64,7 +65,8 @@ class TestZUSIndicators(unittest.TestCase):
     def test_cache_save_and_load(self):
         import tempfile
         from pathlib import Path
-        from src.skills.zus_indicators import save_to_cache, load_from_cache, ZUSMacroParams
+
+        from src.skills.zus_indicators import ZUSMacroParams, load_from_cache, save_to_cache
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_file = Path(tmpdir) / "test_zus_cache.json"
@@ -91,4 +93,3 @@ class TestZUSIndicators(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
