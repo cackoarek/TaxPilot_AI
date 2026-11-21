@@ -11,7 +11,7 @@ from src.core.invoice import Invoice, InvoiceType, InvoiceParty
 class TestInvoiceTiming(unittest.TestCase):
     def setUp(self):
         self.seller = InvoiceParty(nip="7770001122", nazwa="Sprzedawca")
-        self.buyer = InvoiceParty(nip="5322030067", nazwa="Nabywca")
+        self.buyer = InvoiceParty(nip="5252545285", nazwa="Nabywca")
 
     def test_sales_invoice_month_transition(self):
         # Sprzedaż wykonana 31.08, faktura wystawiona 02.09

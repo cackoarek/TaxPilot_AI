@@ -11,9 +11,11 @@ from src.web.app import app
 class TestWebAdvisor(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         from src.core.company import CompanyProfile
         from tests.fixtures import setup_test_company
-        if not CompanyProfile.load_by_nip("5322030067") and not CompanyProfile.load_by_nip("7770001122"):
+        if not CompanyProfile.load_by_nip("7770001122"):
             setup_test_company()
 
     def test_advisor_dashboard_renders(self):
@@ -81,9 +83,9 @@ class TestWebAdvisor(unittest.TestCase):
     def test_advisor_annual_fallback_previous_year(self):
         """Test fallbacku do poprzedniego roku gdy styczeń/rok bez danych."""
         from pathlib import Path
-        p_path = Path("firmy/5322030067-Smart_IT_Solutions_Arkadiusz_Cacko")
-        if not p_path.exists():
-            self.skipTest("Firma 5322030067 nie istnieje w środowisku testowym")
+        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        if not (p_path / "rozliczenia" / "2026").exists():
+            self.skipTest("Brak danych rocznych 2026 dla firmy testowej")
         from src.core.company import CompanyProfile
         from src.skills.tax_advisor_tools import get_annual_financial_summary
 

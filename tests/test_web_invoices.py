@@ -17,7 +17,9 @@ from src.level_1_ingestion.extraction_service import ExtractionService
 class TestWebInvoices(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
-        self.profile = CompanyProfile.load_by_nip("5322030067") or CompanyProfile.load_by_nip("7770001122")
+        from src.web.config import COOKIE_ACTIVE_NIP
+        self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
+        self.profile = CompanyProfile.load_by_nip("7770001122")
         if not self.profile:
             from tests.fixtures import setup_test_company
             self.profile = setup_test_company()

@@ -11,9 +11,10 @@ from src.web.config import COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, COOKIE_ACTIVE_
 class TestWebApp(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         from src.core.company import CompanyProfile
         from tests.fixtures import setup_test_company
-        if not CompanyProfile.load_by_nip("5322030067") and not CompanyProfile.load_by_nip("7770001122"):
+        if not CompanyProfile.load_by_nip("7770001122"):
             setup_test_company()
 
     def test_health_check(self):
@@ -31,7 +32,7 @@ class TestWebApp(unittest.TestCase):
         html = response.text
         # Sprawdzenie obecności kluczowych elementów interfejsu
         self.assertIn("TaxPilot", html)
-        self.assertTrue("Smart IT Solutions" in html or "CloudTech Solutions" in html)
+        self.assertIn("CloudTech", html)
         self.assertIn("Paczka Przelewów", html)
         self.assertIn("Urząd Skarbowy", html)
         self.assertIn("ZUS", html)
@@ -40,12 +41,12 @@ class TestWebApp(unittest.TestCase):
         """Test przełączania firmy przez POST /firmy/switch."""
         response = self.client.post(
             "/firmy/switch",
-            data={"nip": "5322030067", "redirect_url": "/"},
+            data={"nip": "7770001122", "redirect_url": "/"},
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 303)
         self.assertIn(COOKIE_ACTIVE_NIP, response.cookies)
-        self.assertEqual(response.cookies[COOKIE_ACTIVE_NIP], "5322030067")
+        self.assertEqual(response.cookies[COOKIE_ACTIVE_NIP], "7770001122")
 
     def test_switch_period(self):
         """Test przełączania okresu przez POST /firmy/period."""

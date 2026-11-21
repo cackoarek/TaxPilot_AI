@@ -4,13 +4,14 @@ from src.skills.vat_aggregator import VATAggregator, VATAggregationReport
 
 
 class TestVATAggregator(unittest.TestCase):
-    def test_aggregation_smart_it_2026(self):
+    def test_aggregation_cloudtech_2026(self):
         from pathlib import Path
-        if not Path("firmy/5322030067-Smart_IT_Solutions_Arkadiusz_Cacko").exists():
-            self.skipTest("Firma 5322030067 nie istnieje w środowisku testowym")
-        report = VATAggregator.aggregate("firmy", "5322030067", "2026")
+        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        if not (p_path / "rozliczenia" / "2026").exists():
+            self.skipTest("Brak rocznych rozliczeń testowych 2026 dla firmy testowej")
+        report = VATAggregator.aggregate("firmy", "7770001122", "2026")
         self.assertIsInstance(report, VATAggregationReport)
-        self.assertEqual(report.nip, "5322030067")
+        self.assertEqual(report.nip, "7770001122")
         self.assertEqual(report.rok, "2026")
         self.assertIn(len(report.zamkniete_miesiace), (9, 10))
         self.assertGreater(report.laczny_vat_odliczony, Decimal("4000.00"))

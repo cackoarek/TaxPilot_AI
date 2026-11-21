@@ -14,9 +14,7 @@ class TestWebSettings(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Kopia zapasowa profilu
-        cls.profile = CompanyProfile.load_by_nip("5322030067")
-        if not cls.profile:
-            cls.profile = CompanyProfile.load_by_nip("7770001122")
+        cls.profile = CompanyProfile.load_by_nip("7770001122")
         if not cls.profile:
             from tests.fixtures import setup_test_company
             cls.profile = setup_test_company()
@@ -57,6 +55,8 @@ class TestWebSettings(unittest.TestCase):
 
     def setUp(self):
         self.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        self.client.cookies[COOKIE_ACTIVE_NIP] = self.profile.nip
 
     def test_settings_view_renders(self):
         """Test renderowania strony ustawień GET /ustawienia."""

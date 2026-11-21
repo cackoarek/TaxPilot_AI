@@ -20,6 +20,8 @@ class TestWebBookkeeping(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        cls.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         cls.temp_dir = Path(tempfile.mkdtemp(prefix="taxpilot_test_bookkeeping_"))
 
         cls.profile = CompanyProfile(

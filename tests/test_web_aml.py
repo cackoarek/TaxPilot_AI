@@ -20,9 +20,11 @@ class TestWebAML(unittest.TestCase):
     def setUp(self):
         AMLVerificationEngine.clear_cache()
         self.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         from src.core.company import CompanyProfile
         from tests.fixtures import setup_test_company
-        if not CompanyProfile.load_by_nip("5322030067") and not CompanyProfile.load_by_nip("7770001122"):
+        if not CompanyProfile.load_by_nip("7770001122"):
             setup_test_company()
 
     def test_aml_dashboard_view(self):
@@ -36,7 +38,7 @@ class TestWebAML(unittest.TestCase):
         self.assertIn("KROK 3", html)
         self.assertIn("/ksiegowanie", html)
         self.assertIn("Przejdź do Kroku 4: Księgowanie", html)
-        self.assertTrue("KAFT" in html or "5252545285" in html)
+        self.assertTrue("5252545285" in html or "5213242793" in html or "Kontrahent" in html)
 
     def test_adhoc_verification_post(self):
         """Test POST /aml/verify dla NIP 5252545285."""

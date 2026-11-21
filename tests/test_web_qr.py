@@ -18,16 +18,18 @@ from src.web.services.qr_generator import (
 class TestWebQR(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
 
     def test_clean_account_number(self):
         """Test oczyszczania numeru konta ze spacji i myślników."""
-        raw = "PL 10 1010-0055 0225 5322 0300 6700"
+        raw = "PL 10 1010-0055 0225 7770 0011 2200"
         clean = clean_account_number(raw)
-        self.assertEqual(clean, "10101000550225532203006700")
+        self.assertEqual(clean, "10101000550225777000112200")
 
     def test_format_zbp_payload(self):
         """Test formatowania ciągu danych według standardu Związku Banków Polskich."""
-        rachunek = "10101000550225532203006700"
+        rachunek = "10101000550225777000112200"
         kwota = Decimal("1250.50")
         nazwa = "Urząd Skarbowy Warszawa"
         tytul = "PIT-28 za 2026-01"
@@ -35,14 +37,14 @@ class TestWebQR(unittest.TestCase):
         payload = format_zbp_payload(rachunek, kwota, nazwa, tytul)
         
         # Oczekiwany format ZBP: ||rachunek|kwota_w_groszach|nazwa|tytul|||
-        self.assertTrue(payload.startswith("||10101000550225532203006700|125050|"))
+        self.assertTrue(payload.startswith("||10101000550225777000112200|125050|"))
         self.assertIn("Urząd Skarbowy Warszawa", payload)
         self.assertIn("PIT-28 za 2026-01", payload)
         self.assertTrue(payload.endswith("|||"))
 
     def test_generate_qr_base64_data_uri(self):
         """Test generowania obrazu QR jako Data URI base64."""
-        payload = "||10101000550225532203006700|0125050|US|PIT-28|||"
+        payload = "||10101000550225777000112200|0125050|US|PIT-28|||"
         uri = generate_qr_base64_data_uri(payload)
         self.assertTrue(uri.startswith("data:image/png;base64,"))
         self.assertTrue(len(uri) > 300)
@@ -51,17 +53,17 @@ class TestWebQR(unittest.TestCase):
         """Test przygotowania kompletnej paczki przelewu."""
         pkg = get_transfer_qr_package(
             typ="PIT-28",
-            rachunek="PL10101000550225532203006700",
+            rachunek="PL10101000550225777000112200",
             kwota="450.00",
             rok="2026",
             miesiac="01",
-            nip="5322030067",
+            nip="7770001122",
         )
         self.assertEqual(pkg["typ"], "PIT-28")
         self.assertIn("Mikrorachunek", pkg["odbiorca"])
         self.assertEqual(pkg["kwota"], "450.00")
         self.assertTrue(pkg["qr_data_uri"].startswith("data:image/png;base64,"))
-        self.assertIn("PIT-28 za 2026-01 NIP 5322030067", pkg["tytul"])
+        self.assertIn("PIT-28 za 2026-01 NIP 7770001122", pkg["tytul"])
 
     def test_qr_modal_endpoints_pit28(self):
         """Test endpointu GET /api/settlement/qr/pit28."""

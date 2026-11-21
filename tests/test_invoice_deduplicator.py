@@ -42,7 +42,7 @@ class TestInvoiceDeduplicator(unittest.TestCase):
         self.assertEqual(normalize_invoice_number("  f-12 3 / abc "), "F123ABC")
         self.assertEqual(extract_core_number("FV/36230/1561/26"), "36230156126")
         self.assertEqual(extract_core_number("FAKTURA-VAT 999/2026"), "9992026")
-        self.assertEqual(clean_nip("PL 532-203-00-67"), "5322030067")
+        self.assertEqual(clean_nip("PL 777-000-11-22"), "7770001122")
         self.assertEqual(clean_nip("IE6388047V"), "IE6388047V")
 
     def test_are_invoices_matching(self):

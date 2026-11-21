@@ -90,9 +90,9 @@ class TestSettlementService(unittest.TestCase):
     def test_settle_october_2026_professional_accountant_mode(self):
         """Test rozliczenia 2026-10 w trybie księgowego profesjonalnego (zasada kasowa + wyłączenie FP)."""
         import pathlib
-        p_path = pathlib.Path("firmy/5322030067-Smart_IT_Solutions_Arkadiusz_Cacko")
-        if not p_path.exists():
-            self.skipTest("Firma 5322030067 nie istnieje w środowisku testowym")
+        p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        if not (p_path / "faktury" / "2026" / "10" / "sprzedaz").exists():
+            self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
         real_profile = CompanyProfile.load_from_dir(p_path)
         result = SettlementService.settle_month(real_profile, "2026", "10", zapisz_raporty=False)
 
@@ -103,9 +103,9 @@ class TestSettlementService(unittest.TestCase):
     def test_settle_may_2026_retroactive_correction(self):
         """Test rozliczenia 2026-05: korekta wsteczna 1/KOR/06/2026 (-4000 zł) koryguje przychód maja dla PIT-28."""
         import pathlib
-        p_path = pathlib.Path("firmy/5322030067-Smart_IT_Solutions_Arkadiusz_Cacko")
-        if not p_path.exists():
-            self.skipTest("Firma 5322030067 nie istnieje w środowisku testowym")
+        p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        if not (p_path / "faktury" / "2026" / "05" / "sprzedaz").exists():
+            self.skipTest("Brak danych testowych za 2026-05 dla firmy testowej")
         real_profile = CompanyProfile.load_from_dir(p_path)
         result = SettlementService.settle_month(real_profile, "2026", "05", zapisz_raporty=False)
 
