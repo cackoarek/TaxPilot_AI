@@ -843,7 +843,7 @@ class NonKSeFExtractor:
                         with open(target_json, "r", encoding="utf-8") as tj:
                             data = json.load(tj)
                             json_typ = data.get("typ")
-                            if json_typ and json_typ.lower() == curr_type.value.lower() and target_json.stat().st_mtime >= raw_file.stat().st_mtime:
+                            if json_typ and json_typ.lower() == curr_type.value.lower():
                                 if target_json not in extracted_paths:
                                     extracted_paths.append(target_json)
                                 continue
