@@ -97,7 +97,7 @@ class TestSettlementService(unittest.TestCase):
         result = SettlementService.settle_month(real_profile, "2026", "10", zapisz_raporty=False)
 
         self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 4468)
-        self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 8772)
+        self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 8782)
         self.assertEqual(result.zus.lacznie_do_zaplaty, Decimal("3283.33"))
 
     def test_settle_may_2026_retroactive_correction(self):

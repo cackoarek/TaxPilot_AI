@@ -224,6 +224,9 @@ async def download_monthly_report_md(
     md_path = profile.katalog_firmy / "weryfikacje" / r / m / "raport-weryfikacji.md"
 
     if not md_path.exists():
+        VerificationService.verify_month(profile, r, m, zapisz_pliki=True)
+
+    if not md_path.exists():
         raise HTTPException(status_code=404, detail="Brak raportu Markdown")
 
     return FileResponse(

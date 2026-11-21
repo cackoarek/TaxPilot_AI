@@ -20,6 +20,10 @@ class TestWebAML(unittest.TestCase):
     def setUp(self):
         AMLVerificationEngine.clear_cache()
         self.client = TestClient(app)
+        from src.core.company import CompanyProfile
+        from tests.fixtures import setup_test_company
+        if not CompanyProfile.load_by_nip("5322030067") and not CompanyProfile.load_by_nip("7770001122"):
+            setup_test_company()
 
     def test_aml_dashboard_view(self):
         """Test widoku GET /aml."""

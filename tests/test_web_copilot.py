@@ -63,7 +63,10 @@ class TestWebCopilot(unittest.TestCase):
 
     def test_copilot_system_prompt_builder(self):
         """Test budowania promptu systemowego z kontekstem firmy (Zero-Hallucination)."""
-        profile = CompanyProfile.load_by_nip("5322030067")
+        profile = CompanyProfile.load_by_nip("5322030067") or CompanyProfile.load_by_nip("7770001122")
+        if not profile:
+            from tests.fixtures import setup_test_company
+            profile = setup_test_company()
         self.assertIsNotNone(profile)
         prompt = CopilotService.build_system_prompt(profile, "2026", "01")
         
@@ -183,7 +186,12 @@ class TestWebCopilot(unittest.TestCase):
     def test_copilot_history_no_container_flickering(self):
         """Test weryfikujący, że historia czatu nie narzuca globalnego przeładowania całego kontenera."""
         from src.web.routers.copilot import CopilotSessionHistory
-        session_id = "company_5322030067"
+        from src.web.dependencies import get_global_context
+        from unittest.mock import MagicMock
+        ctx = get_global_context(MagicMock(query_params={}, cookies=self.client.cookies))
+        profile = ctx.get("profile")
+        nip = profile.nip if profile else "default"
+        session_id = f"company_{nip}"
         CopilotSessionHistory.clear(session_id)
         CopilotSessionHistory.add_message(session_id, "Pytanie 1")
         
@@ -196,7 +204,10 @@ class TestWebCopilot(unittest.TestCase):
     def test_chat_sessions_manager_crud(self):
         """Test operacji CRUD na trwałych sesjach czatu w ChatSessionManager."""
         from src.web.services.chat_session_service import ChatSessionManager
-        profile = CompanyProfile.load_by_nip("5322030067")
+        profile = CompanyProfile.load_by_nip("5322030067") or CompanyProfile.load_by_nip("7770001122")
+        if not profile:
+            from tests.fixtures import setup_test_company
+            profile = setup_test_company()
         self.assertIsNotNone(profile)
 
         # 1. Tworzenie nowej sesji z domyślnym tytułem
@@ -251,7 +262,10 @@ class TestWebCopilot(unittest.TestCase):
 
         # 4. Zmiana nazwy sesji przez POST /api/copilot/session-rename
         from src.web.services.chat_session_service import ChatSessionManager
-        profile = CompanyProfile.load_by_nip("5322030067")
+        profile = CompanyProfile.load_by_nip("5322030067") or CompanyProfile.load_by_nip("7770001122")
+        if not profile:
+            from tests.fixtures import setup_test_company
+            profile = setup_test_company()
         active_sess = ChatSessionManager.get_active_session(profile)
         self.assertIsNotNone(active_sess)
 

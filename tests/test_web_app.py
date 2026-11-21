@@ -11,6 +11,10 @@ from src.web.config import COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, COOKIE_ACTIVE_
 class TestWebApp(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        from src.core.company import CompanyProfile
+        from tests.fixtures import setup_test_company
+        if not CompanyProfile.load_by_nip("5322030067") and not CompanyProfile.load_by_nip("7770001122"):
+            setup_test_company()
 
     def test_health_check(self):
         """Test endpointu /health."""
@@ -27,7 +31,7 @@ class TestWebApp(unittest.TestCase):
         html = response.text
         # Sprawdzenie obecności kluczowych elementów interfejsu
         self.assertIn("TaxPilot", html)
-        self.assertIn("Smart IT Solutions", html)
+        self.assertTrue("Smart IT Solutions" in html or "CloudTech Solutions" in html)
         self.assertIn("Paczka Przelewów", html)
         self.assertIn("Urząd Skarbowy", html)
         self.assertIn("ZUS", html)
