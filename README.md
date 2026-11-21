@@ -13,6 +13,7 @@
 [![LLM-Agnostic](https://img.shields.io/badge/LLM-Agnostic%20(Claude%20%7C%20GPT%20%7C%20Gemini%20%7C%20AGY)-blueviolet.svg?style=flat-square)](#-elastyczność-llm-oraz-tryb-zero-llm)
 [![Local-First](https://img.shields.io/badge/privacy-Local--First-2e7d32.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
+[![GitHub Pages](https://img.shields.io/badge/demo-GitHub%20Pages-0969da.svg?style=flat-square&logo=github&logoColor=white)](https://cackoarek.github.io/TaxPilot_AI/)
 
 <p align="center">
   Automatyczne pobieranie i ekstrakcja faktur (KSeF 2.0 + Non-KSeF PDF/JPG),<br>
@@ -21,7 +22,29 @@
   oraz gotowa Paczka Przelewów z kodami QR dla polskich aplikacji bankowych.
 </p>
 
-[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura 4 Poziomów](#-architektura-i-4-poziomy-systemu) • [🤖 Praca z Agentem AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [💻 Interfejs CLI](#-interfejs-cli-wiersz-poleceń)
+[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Przeglądaj Demo](#-przykładowe-widoki-www-i-raporty-na-żywo-github-pages) • [💻 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura](#-architektura-i-4-poziomy-systemu) • [🤖 Scenariusze AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [⌨️ CLI](#-interfejs-cli-wiersz-poleceń)
+
+</div>
+
+---
+
+## 📄 Przykładowe widoki WWW i raporty na żywo (GitHub Pages)
+
+Możesz przetestować wygenerowane raporty i widoki aplikacji bezpośrednio w przeglądarce bez konieczności instalacji i logowania:
+
+| Kategoria | Widok / Raport | Opis funkcjonalności | Link demo |
+|:---|:---|:---|:---|
+| 📊 **Pulpit WWW** | **Pulpit & Paczka Przelewów** | Główne KPI, podatki do zapłaty (ZUS, PIT, VAT), kody QR i mikrorachunki | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_dashboard.html) |
+| 📝 **Pulpit WWW** | **Wstępny Przegląd (Krok 2)** | 3 tabele weryfikacyjne, inline-editing kwalifikacji (100%/50%/0%), reguły | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_przeglad.html) |
+| 📑 **Pulpit WWW** | **Księgowanie & Ewidencje** | Ewidencja Przychodów, Rejestr VAT, podsumowanie roczne YTD i audyt | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_ksiegowanie.html) |
+| 📁 **Pulpit WWW** | **Archiwum Faktur (KSeF)** | Przeglądarka faktur z podglądem pozycji i numerów KSeF 2.0 | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_faktury.html) |
+| 🛡️ **Pulpit WWW** | **Compliance AML & Biała Lista** | Weryfikacja MF, sankcje MSWiA/UE, rachunki bankowe i dowody na 5 lat | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_aml.html) |
+| 💡 **Pulpit WWW** | **Doradca Podatkowy** | Symulator form (Ryczałt vs Liniowy vs Skala) i audyt brakujących kosztów | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_doradca.html) |
+| ⚙️ **Pulpit WWW** | **Centrum Ustawień** | Konfiguracja firmy, tokenu KSeF 2.0 (TEST/PROD), ZUS i wyuczonych reguł | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_ustawienia.html) |
+| 🏢 **Pulpit WWW** | **Kreator Onboardingu** | Wieloetapowy kreator wdrażania firmy z pobieraniem danych z rejestrów MF | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_setup.html) |
+| 📑 **Raport PDF** | **Zbiorczy Raport Compliance** | Oficjalny certyfikowany raport w formacie PDF (A4 pejzaż) z SHA-256 | [→ Pobierz PDF](https://cackoarek.github.io/TaxPilot_AI/latest/reports/raport-weryfikacji-2026-10.pdf) |
+| 📄 **Raport PDF** | **Karta Kontrahenta (AML)** | Przykładowa Karta Weryfikacji Kontrahenta w formacie PDF (A4 pion) | [→ Pobierz PDF](https://cackoarek.github.io/TaxPilot_AI/latest/reports/5252674797-karta.pdf) |
+| 🌐 **Portal** | **Strona Główna Wydań Demo** | Zbiorczy portal wszystkich wydań i wersji demonstracyjnych | [→ Przejdź do portalu](https://cackoarek.github.io/TaxPilot_AI/) |
 
 </div>
 

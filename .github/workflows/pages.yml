@@ -1,0 +1,104 @@
+name: Deploy Demo Showcase to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, docs ]
+    paths:
+      - 'src/web/**'
+      - 'examples/**'
+      - 'scripts/export_demo_pages.py'
+      - 'scripts/generate_portal_index.py'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-pages:
+    name: Build & Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install dependencies
+        working-directory: source
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate static demo pages
+        working-directory: source
+        run: |
+          mkdir -p ../export_output
+          python scripts/export_demo_pages.py --output ../export_output
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 0
+        continue-on-error: true
+
+      - name: Prepare gh-pages branch structure
+        run: |
+          if [ ! -d "pages" ] || [ -z "$(ls -A pages 2>/dev/null)" ]; then
+            echo "ℹ️ Inicjalizuję nową gałąź gh-pages..."
+            mkdir -p pages
+            cd pages
+            git init
+            git checkout --orphan gh-pages
+            cd ..
+          fi
+
+          VERSION=$(cat source/VERSION 2>/dev/null || echo "0.1.0")
+          TAG="v${VERSION}"
+
+          # 1. Kopia dla wersji bieżącej oraz latest/
+          mkdir -p "pages/${TAG}"
+          rm -rf pages/${TAG}/*
+          cp -r export_output/* "pages/${TAG}/"
+
+          mkdir -p pages/latest
+          rm -rf pages/latest/*
+          cp -r export_output/* pages/latest/
+
+          # 2. Główny root index.html (landing portal)
+          python source/scripts/generate_portal_index.py \
+            --output pages/index.html \
+            --version "${TAG}" \
+            --repo "${{ github.repository }}"
+
+          # 3. Wyłączenie silnika Jekyll (obsługa czystego HTML)
+          touch pages/.nojekyll
+
+      - name: Commit and push to gh-pages
+        working-directory: pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if ! git remote | grep -q origin; then
+            git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "ℹ️ Brak zmian do opublikowania na gh-pages."
+          else
+            git commit -m "docs(pages): deploy web demo showcase [skip ci]"
+            git push origin HEAD:gh-pages --force
+            echo "✅ Pomyślnie zaktualizowano gałąź gh-pages"
+          fi
