@@ -78,8 +78,11 @@ def get_global_context(request: Request) -> dict:
         unprocessed_invoices = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
         extraction_status = ExtractionService.get_task_status(profile, rok, miesiac)
 
+    from src.version import get_display_version
+
     return {
         "request": request,
+        "app_version": get_display_version(),
         "profile": profile,
         "all_companies": all_companies,
         "rok": rok,

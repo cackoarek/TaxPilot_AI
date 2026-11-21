@@ -75,8 +75,15 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
-            <div>
-                <strong>TaxPilot AI</strong> – Deterministyczna Księgowość i Podatki JDG &copy; 2026.
+            <div class="flex items-center space-x-2">
+                <strong>TaxPilot AI</strong>
+                {% if app_version %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs" title="Wersja aplikacji (git tag)">
+                        {{ app_version }}
+                    </span>
+                {% endif %}
+                <span class="text-slate-400">•</span>
+                <span>Deterministyczna Księgowość i Podatki JDG &copy; 2026.</span>
             </div>
             <div class="flex items-center space-x-4">
                 <span>Stos: FastAPI + HTMX + TailwindCSS</span>

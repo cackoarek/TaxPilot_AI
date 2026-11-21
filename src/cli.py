@@ -431,8 +431,21 @@ def cmd_agregat_vat(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="TaxPilot AI - Autonomiczny Asystent Podatkowy JDG")
+    from src.version import get_display_version
+    app_ver = get_display_version()
+
+    parser = argparse.ArgumentParser(description=f"TaxPilot AI ({app_ver}) - Autonomiczny Asystent Podatkowy JDG")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"TaxPilot AI {app_ver}",
+        help="Pokaż wersję aplikacji i zakończ",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # Polecenie version (wersja aplikacji)
+    p_ver = subparsers.add_parser("version", help="Wyświetl wersję aplikacji")
+    p_ver.set_defaults(func=lambda args: print(f"TaxPilot AI {get_display_version()}"))
 
     # Polecenie web (interfejs webowy)
     p_web = subparsers.add_parser("web", aliases=["serve", "gui"], help="Uruchom interfejs webowy (FastAPI + Jinja2 + HTMX)")
