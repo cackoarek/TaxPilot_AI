@@ -3,9 +3,11 @@ src/web/routers/copilot.py
 Kontroler asystenta AI Copilot (SSE Streaming & HTMX chat).
 """
 import re
+import html
 import json
 import time
 import uuid
+import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -50,9 +52,39 @@ def log_ai_interaction(user_message: str, assistant_response: str, nip: Optional
 
 
 
+def is_safe_url(url: str) -> bool:
+    """
+    Sprawdza, czy URL jest bezpieczny (brak schematów javascript:, data:, vbscript: itp.).
+    Dozwala na protokoły http, https, mailto oraz bezpieczne ścieżki względne i kotwice.
+    """
+    if not url:
+        return False
+    url_clean = url.strip()
+    if any(c in url_clean for c in ("\r", "\n", "\t", "\x00")):
+        return False
+    url_no_space = re.sub(r"\s+", "", url_clean).lower()
+    if url_no_space.startswith(("javascript:", "data:", "vbscript:", "file:")):
+        return False
+    if url_clean.startswith("//"):
+        return False
+    if url_clean.startswith("/") or url_clean.startswith("#"):
+        return True
+    try:
+        parsed = urllib.parse.urlsplit(url_clean)
+        if parsed.scheme.lower() in ("http", "https", "mailto"):
+            return True
+        if not parsed.scheme and ":" not in url_clean and not url_clean.startswith("//"):
+            return True
+        return False
+    except Exception:
+        return False
+
+
 def markdown_to_html(text: str) -> str:
     """
     Konwertuje markdown na bezpieczny i estetyczny kod HTML dla dymków czatu na stronie WWW.
+    Zawiera pełną ochronę przed atakami XSS (CWE-79) poprzez ucieczkę tagów HTML,
+    walidację protokołów URL oraz bezpieczne formatowanie tabel i bloków kodu.
     Obsługuje:
     - Tabele Markdown (| Nagłówek 1 | Nagłówek 2 | ...) -> responsywne tabele HTML Tailwind
     - Bloki kodu (``` ... ```) oraz inline code (`kod`)
@@ -64,36 +96,49 @@ def markdown_to_html(text: str) -> str:
     if not text:
         return ""
 
+    nonce = uuid.uuid4().hex[:8]
+    cb_token_prefix = f"__TP_CB_{nonce}_"
+    ic_token_prefix = f"__TP_IC_{nonce}_"
+
     # 1. Zabezpieczenie bloków kodu ``` ... ```
-    code_blocks = []
+    code_blocks: List[str] = []
     def save_code_block(match):
         code_blocks.append(match.group(1))
-        return f"__CODE_BLOCK_{len(code_blocks)-1}__"
+        return f"\n{cb_token_prefix}{len(code_blocks)-1}__\n"
 
     text = re.sub(r"```(?:\w+)?\n?(.*?)```", save_code_block, text, flags=re.DOTALL)
 
-    # 2. Inline code `kod`
-    text = re.sub(
-        r"`([^`]+)`",
-        r'<code class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[11px] font-mono">\1</code>',
-        text
-    )
+    # 2. Zabezpieczenie inline code `...`
+    inline_codes: List[str] = []
+    def save_inline_code(match):
+        inline_codes.append(match.group(1))
+        return f"{ic_token_prefix}{len(inline_codes)-1}__"
 
-    # 3. Pogrubienia **tekst**
+    text = re.sub(r"`([^`]+)`", save_inline_code, text)
+
+    # 3. Pełna ucieczka znaków HTML z tekstu (ochrona przed XSS)
+    text = html.escape(text, quote=False)
+
+    # 4. Formatowanie inline (pogrubienie, kursywa, linki)
+    # 4a. Pogrubienia **tekst**
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
 
-    # 4. Kursywa *tekst* (z pominięciem list punktowanych na początku linii)
+    # 4b. Kursywa *tekst* (z pominięciem list punktowanych na początku linii)
     text = re.sub(r"(?<!^)(?<!\n)(?<!\*)\*([^*]+?)\*(?!\*)", r"<em>\1</em>", text)
 
-    # 5. Linki [tekst](url)
-    text = re.sub(
-        r"\[([^\]]+)\]\(([^)]+)\)",
-        r'<a href="\2" class="text-blue-600 underline font-semibold hover:text-blue-800">\1</a>',
-        text
-    )
+    # 4c. Bezpieczne linki [tekst](url)
+    def replace_link(match):
+        label = match.group(1)
+        raw_url = html.unescape(match.group(2).strip())
+        if not is_safe_url(raw_url):
+            return f"[{label}]({html.escape(raw_url, quote=True)})"
+        safe_url = html.escape(raw_url, quote=True)
+        return f'<a href="{safe_url}" class="text-blue-600 underline font-semibold hover:text-blue-800" target="_blank" rel="noopener noreferrer">{label}</a>'
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replace_link, text)
 
     lines = text.split("\n")
-    output_html = []
+    output_html: List[str] = []
     i = 0
     n = len(lines)
 
@@ -107,15 +152,11 @@ def markdown_to_html(text: str) -> str:
             continue
 
         # Sprawdzenie znacznika bloku kodu
-        if line_stripped.startswith("__CODE_BLOCK_") and line_stripped.endswith("__"):
+        if line_stripped.startswith(cb_token_prefix) and line_stripped.endswith("__"):
             try:
-                idx = int(line_stripped.replace("__CODE_BLOCK_", "").replace("__", ""))
+                idx = int(line_stripped[len(cb_token_prefix):-2])
                 code_content = code_blocks[idx]
-                escaped_code = (
-                    code_content.replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;")
-                )
+                escaped_code = html.escape(code_content, quote=False)
                 output_html.append(
                     f'<pre class="bg-slate-900 text-slate-100 p-2.5 rounded-lg text-[11px] overflow-x-auto font-mono my-2"><code>{escaped_code}</code></pre>'
                 )
@@ -177,12 +218,19 @@ def markdown_to_html(text: str) -> str:
             i += 1
             continue
 
-        # Sprawdzenie cytatów (> cytat)
-        if line_stripped.startswith("> "):
+        # Sprawdzenie cytatów (> cytat lub &gt; cytat po escapowaniu)
+        if line_stripped.startswith("&gt; ") or line_stripped.startswith("> "):
             quote_lines = []
-            while i < n and lines[i].strip().startswith("> "):
-                quote_lines.append(lines[i].strip()[2:])
-                i += 1
+            while i < n:
+                curr = lines[i].strip()
+                if curr.startswith("&gt; "):
+                    quote_lines.append(curr[5:])
+                    i += 1
+                elif curr.startswith("> "):
+                    quote_lines.append(curr[2:])
+                    i += 1
+                else:
+                    break
             output_html.append(
                 f'<blockquote class="border-l-2 border-blue-500 pl-2.5 py-1 my-1.5 text-slate-600 bg-blue-50/30 rounded-r text-[11px] italic">{"<br>".join(quote_lines)}</blockquote>'
             )
@@ -214,7 +262,15 @@ def markdown_to_html(text: str) -> str:
         output_html.append(f'<p class="mb-1.5">{line_stripped}</p>')
         i += 1
 
-    return "".join(output_html)
+    res = "".join(output_html)
+
+    # 5. Przywrócenie inline code z bezpiecznym escapowaniem
+    for idx, code_content in enumerate(inline_codes):
+        escaped_inline = html.escape(code_content, quote=False)
+        formatted = f'<code class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[11px] font-mono">{escaped_inline}</code>'
+        res = res.replace(f"{ic_token_prefix}{idx}__", formatted)
+
+    return res
 
 
 CopilotMessageRecord = ChatMessageRecord

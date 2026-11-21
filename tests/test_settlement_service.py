@@ -86,6 +86,25 @@ class TestSettlementService(unittest.TestCase):
         self.assertIn("Część I: Faktury Sprzedaży", spr_content)
         self.assertIn("Część II: Faktury Kosztowe", spr_content)
         self.assertIn("Część III: Podsumowanie Audytu", spr_content)
+        self.assertIn("Klauzula informacyjna:", spr_content)
+
+        rozl_content = (target_dir / "rozliczenie.md").read_text(encoding="utf-8")
+        self.assertNotIn("Podatnik jest w 100% bezpieczny", rozl_content)
+        self.assertIn("Klauzula informacyjna:", rozl_content)
+
+    def test_tax_precautionary_principle_unaudited_expenses(self):
+        """Weryfikuje zasadę ostrożności podatkowej (TAX-1): faktury bez audytu mają status DO_WYJASNIENIA i 0 zł VAT."""
+        result = SettlementService.settle_month(
+            self.profile, "2026", "04", nadwyzka_vat_poprzedni=Decimal("217.10"), zapisz_raporty=False
+        )
+        # Symulacja braku audytu dla dokumentów kosztowych
+        result.ledger.audyt_kosztow.clear()
+        sprawozdanie = result.generate_sprawozdanie_report()
+
+        self.assertNotIn("✅ 100% Firmowy", sprawozdanie)
+        self.assertIn("⚠️ Do wyjaśnienia", sprawozdanie)
+        self.assertIn("Brak audytu pozycji – wymaga decyzji podatnika przed odliczeniem", sprawozdanie)
+        self.assertIn("**0.00 zł**", sprawozdanie)
 
     def test_settle_october_2026_professional_accountant_mode(self):
         """Test rozliczenia 2026-10 w trybie księgowego profesjonalnego (zasada kasowa + wyłączenie FP)."""

@@ -214,9 +214,16 @@ class MonthlySettlementResult:
                 )
             linie.extend([
                 "",
-                f"*Łącznie zneutralizowano:* **{len(self.ledger.duplikaty)}** zdublowanych plików. Podatnik jest w 100% bezpieczny.",
+                f"*Łącznie zneutralizowano:* **{len(self.ledger.duplikaty)}** zdublowanych plików. Wszystkie zidentyfikowane kolizje i duplikaty zostały pomyślnie zneutralizowane zgodnie z regułami deduplikacji.",
                 "",
             ])
+
+        linie.extend([
+            "",
+            "---",
+            "> ℹ️ *Klauzula informacyjna:* Wyliczenie deterministyczne na podstawie wprowadzonych dokumentów i przyjętych reguł podatnika. Ostateczna odpowiedzialność za deklarację podatkową i rozliczenia spoczywa na podatniku.",
+            "",
+        ])
 
         return "\n".join(linie)
 
@@ -658,8 +665,11 @@ class MonthlySettlementResult:
                         f"| {opis_p} | {poz.wartosc_netto:.2f} zł | {poz.kwota_vat:.2f} zł ({poz.stawka_vat}%) | {kwal_badge} | **{poz.vat_do_odliczenia:.2f} zł** | {poz.uzasadnienie} |"
                     )
             else:
-                linie.append(f"| Całość faktury | {inv.suma_netto:.2f} zł | {inv.suma_vat:.2f} zł | ✅ 100% Firmowy | {inv.suma_vat:.2f} zł | Standardowy wydatek firmowy |")
-                vat_odliczony_faktury = inv.suma_vat
+                linie.append(
+                    f"| Całość faktury | {inv.suma_netto:.2f} zł | {inv.suma_vat:.2f} zł | ⚠️ Do wyjaśnienia | **0.00 zł** | Brak audytu pozycji – wymaga decyzji podatnika przed odliczeniem |"
+                )
+                vat_odliczony_faktury = Decimal("0.00")
+                vat_nieodliczony_faktury = inv.suma_vat
 
             linie.extend([
                 "",
@@ -728,6 +738,13 @@ class MonthlySettlementResult:
                 f"*Łącznie wykluczono:* **{len(self.ledger.duplikaty)}** prób podwójnego ujęcia dokumentów.",
                 "",
             ])
+
+        linie.extend([
+            "",
+            "---",
+            "> ℹ️ *Klauzula informacyjna:* Wyliczenie deterministyczne na podstawie wprowadzonych dokumentów i przyjętych reguł podatnika. Ostateczna odpowiedzialność za deklarację podatkową i rozliczenia spoczywa na podatniku.",
+            "",
+        ])
 
         return "\n".join(linie)
 
