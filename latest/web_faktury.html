@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magazyn Faktur & KSeF 2.0 – TaxPilot AI</title>
+    <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                900: '#1e3a8a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/custom.css?v=20261114_1">
+
+    <!-- HTMX 2.x -->
+    <script src="static/js/htmx.min.js"></script>
+
+    <!-- Alpine.js 3.x (with x-cloak style) -->
+    <style>[x-cloak] { display: none !important; }</style>
+    <script defer src="static/js/alpine.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased" x-data="{ copilotOpen: false, copilotMaximized: false, historyOpen: false, editingTitle: false }">
+
+<!-- TaxPilot AI Demo Banner -->
+<div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 shadow-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-white/20 text-white uppercase tracking-wider">Demo Showcase</span>
+      <span class="font-medium text-slate-100 hidden sm:inline">
+        Statyczna wersja demonstracyjna dla GitHub Pages. Dane testowe: <strong class="text-white">CloudTech Solutions Jan Kowalski</strong> (okres: 2026-10).
+      </span>
+    </div>
+    <div class="flex items-center space-x-3 shrink-0">
+      <span class="text-xs text-indigo-200 hidden md:inline">100% Deterministyczna Księgowość & KSeF 2.0</span>
+      <a href="https://github.com/cackoarek/TaxPilot_AI" target="_blank" class="px-2.5 py-1 bg-white text-slate-900 hover:bg-slate-100 rounded-md font-bold text-[11px] transition-colors flex items-center space-x-1 shadow-xs">
+        <span>⭐ GitHub</span>
+      </a>
+    </div>
+  </div>
+</div>
+<!-- End TaxPilot AI Demo Banner -->
+
+
+    <!-- Header & Navigation -->
+    <!-- Top Header & Navigation Bar -->
+<header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo & Tenant Selector -->
+      <div class="flex items-center space-x-4">
+        <a href="index.html" class="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors">
+          <span class="text-2xl font-black tracking-tight text-blue-500">TaxPilot</span>
+          <span class="text-xs uppercase px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white">AI</span>
+        </a>
+
+        <!-- Tenant Switcher Dropdown -->
+        <form action="#" onsubmit="return false;" method="POST" class="inline-flex items-center">
+          <input type="hidden" name="redirect_url" value="/faktury">
+          <div class="relative inline-block text-left">
+            <select name="nip" onchange="if(this.value==='__NEW__'){ window.location.href='firmy_nowa.html'; } else { this.form.submit(); }" 
+                    style="color-scheme: dark;"
+                    class="dark-select bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+              <optgroup label="Zarejestrowane firmy" class="bg-slate-900 text-slate-400 font-semibold">
+                
+                  <option value="7770001122" class="bg-slate-800 text-slate-100 py-1" selected>
+                    🏢 CloudTech Solutions Jan Kowalski (NIP: 7770001122)
+                  </option>
+                
+              </optgroup>
+              <optgroup label="Zarządzanie firmami" class="bg-slate-900 text-slate-400 font-semibold">
+                <option value="__NEW__" class="bg-blue-950 text-blue-300 font-bold py-1.5">
+                  ➕ Dodaj nową firmę do księgowania...
+                </option>
+              </optgroup>
+            </select>
+          </div>
+          <a href="firmy_nowa.html" 
+             title="Dodaj nową firmę do księgowania" 
+             class="ml-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 p-1.5 rounded-lg transition-colors inline-flex items-center text-xs font-bold" 
+             aria-label="Dodaj nową firmę">
+            ➕
+          </a>
+        </form>
+      </div>
+
+      <!-- Period Switcher & LLM Status & Copilot Toggle -->
+      <div class="flex items-center space-x-4">
+        
+        <!-- Period Switcher (Rok / Miesiąc) -->
+        <form action="#" onsubmit="return false;" method="POST" class="flex items-center space-x-1.5 bg-slate-800/90 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 shadow-inner">
+          <input type="hidden" name="redirect_url" value="/faktury">
+          <span class="text-blue-400 text-xs select-none">📅</span>
+          <select name="rok" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            <option value="2027" class="bg-slate-800 text-slate-100 font-semibold py-1" >2027</option>
+            <option value="2026" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>2026</option>
+            <option value="2025" class="bg-slate-800 text-slate-100 font-semibold py-1" >2025</option>
+            <option value="2024" class="bg-slate-800 text-slate-100 font-semibold py-1" >2024</option>
+          </select>
+          <span class="text-slate-500 text-xs font-bold select-none">/</span>
+          <select name="miesiac" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            
+            
+              <option value="01" class="bg-slate-800 text-slate-100 font-semibold py-1" >01 - Styczeń</option>
+            
+              <option value="02" class="bg-slate-800 text-slate-100 font-semibold py-1" >02 - Luty</option>
+            
+              <option value="03" class="bg-slate-800 text-slate-100 font-semibold py-1" >03 - Marzec</option>
+            
+              <option value="04" class="bg-slate-800 text-slate-100 font-semibold py-1" >04 - Kwiecień</option>
+            
+              <option value="05" class="bg-slate-800 text-slate-100 font-semibold py-1" >05 - Maj</option>
+            
+              <option value="06" class="bg-slate-800 text-slate-100 font-semibold py-1" >06 - Czerwiec</option>
+            
+              <option value="07" class="bg-slate-800 text-slate-100 font-semibold py-1" >07 - Lipiec</option>
+            
+              <option value="08" class="bg-slate-800 text-slate-100 font-semibold py-1" >08 - Sierpień</option>
+            
+              <option value="09" class="bg-slate-800 text-slate-100 font-semibold py-1" >09 - Wrzesień</option>
+            
+              <option value="10" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>10 - Październik</option>
+            
+              <option value="11" class="bg-slate-800 text-slate-100 font-semibold py-1" >11 - Listopad</option>
+            
+              <option value="12" class="bg-slate-800 text-slate-100 font-semibold py-1" >12 - Grudzień</option>
+            
+          </select>
+        </form>
+
+        <!-- Dynamiczny Badge LLM -->
+        <div>
+          
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700" title="System działa w 100% lokalnie w trybie deterministycznym (Zero-LLM)">
+              ⚙️ Deterministyczny (Zero-LLM)
+            </span>
+          
+        </div>
+
+        <!-- Copilot Drawer Button -->
+        <button @click="copilotOpen = !copilotOpen" 
+                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <span>💬 Asystent AI</span>
+          <span class="ml-1.5 text-indigo-200 text-xs">Ctrl+K</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Główny Pasek Zakładek (Sub-Nav) -->
+  <div class="bg-slate-800/90 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-6 text-sm font-medium overflow-x-auto">
+        <a href="index.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📊 Pulpit & Przelewy
+        </a>
+        <a href="faktury.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-blue-500 text-blue-400 font-semibold transition-colors">
+          📁 Faktury & KSeF 2.0
+        </a>
+        <a href="przeglad.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📝 Przegląd i Kwalifikacja
+        </a>
+        <a href="aml.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          🛡️ Compliance AML & VAT
+        </a>
+        <a href="ksiegowanie.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📑 Księgowanie
+        </a>
+        <a href="doradca.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          💡 Doradca Podatkowy
+        </a>
+        <a href="ustawienia.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          ⚙️ Ustawienia Firmy
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+<div class="space-y-6" x-data="{ historyModalOpen: false }">
+
+  <!-- Przewodnik po module (Ogólne - Zadanie 4) -->
+  <div x-data="{ guideOpen: false }" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-sm border border-slate-800 p-4 transition-all">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">📁</span>
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <span>Magazyn Faktur & KSeF 2.0</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Krok 1</span>
+          </h2>
+          <p class="text-xs text-slate-300 mt-0.5">Centralne repozytorium dokumentów finansowych – pobieranie z Krajowego Systemu e-Faktur oraz import plików zewnętrznych.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Gwarantuje kompletność dokumentacji podatkowej przed przystąpieniem do księgowania. Eliminuje ryzyko pominięcia faktur kosztowych oraz automatycznie chroni przed duplikatami (zasada KSeF First).</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>KSeF First:</strong> Faktury z KSeF mają nadrzędną moc dowodową nad plikami PDF.</li>
+          <li><strong>Non-KSeF:</strong> Dokumenty zagraniczne (np. Google Cloud, AWS, GitHub) lub paragony z NIP wrzucaj w strefie Drag & Drop.</li>
+          <li><strong>Auto-routing:</strong> Nawet jeśli omyłkowo upuścisz fakturę sprzedaży jako koszt, system rozpozna NIP i przeniesie ją automatycznie.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nagłówek Magazynu Dokumentów -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-xs font-bold rounded">KROK 1</span>
+        <h1 class="text-xl font-bold text-slate-900">
+          Magazyn Dokumentów & Synchronizacja KSeF 2.0
+        </h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">
+        Okres: <strong class="text-slate-800">2026-10</strong> • Firma: <strong class="text-slate-800">CloudTech Solutions Jan Kowalski</strong> (NIP: 7770001122)
+      </p>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <a href="przeglad.html" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1">
+        <span>Przejdź do Wstępnego Przeglądu &rarr;</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Komunikat o nieprzetworzonych dokumentach i przycisk AI -->
+  <div id="unprocessed-banner-container"  class="transition-all">
+  
+</div>
+
+  <!-- Górna Sekcja: Upload Drag&Drop oraz Synchronizacja KSeF 2.0 -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- 1. Strefa Drag & Drop (Non-KSeF) -->
+    <div x-data="{ isDropping: false, fileCount: 0, fileNames: '' }" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>📁 Dodaj Faktury Spoza KSeF</span>
+          <span class="text-[10px] bg-slate-100 text-slate-600 font-normal px-2 py-0.5 rounded">PDF, Skany, JSON</span>
+        </h2>
+        <span class="text-[11px] text-slate-400">Dwuetapowa Ekstrakcja</span>
+      </div>
+
+      <form hx-post="/faktury/upload" 
+            hx-target="#invoices-table-container" 
+            hx-swap="outerHTML"
+            hx-indicator="#upload-indicator"
+            enctype="multipart/form-data" 
+            class="space-y-3"
+            @htmx:after-request="fileNames = ''; fileCount = 0; if ($refs.fileInput) $refs.fileInput.value = '';">
+        
+        <!-- Drag & Drop Dropzone -->
+        <div @dragover.prevent="isDropping = true"
+             @dragleave.prevent="isDropping = false"
+             @drop.prevent="isDropping = false; 
+                            if ($event.dataTransfer && $event.dataTransfer.files.length) {
+                              $refs.fileInput.files = $event.dataTransfer.files;
+                              fileCount = $refs.fileInput.files.length;
+                              fileNames = Array.from($refs.fileInput.files).map(f => f.name).join(', ');
+                            }"
+             :class="isDropping ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-slate-400 bg-slate-50/50'"
+             class="border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer relative">
+          
+          <input type="file" name="files" x-ref="fileInput" multiple required
+                 @change="fileCount = $el.files.length; 
+                          fileNames = Array.from($el.files).map(f => f.name).join(', ')"
+                 accept=".pdf,.json,.txt,.md,.jpg,.jpeg,.png"
+                 class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+
+          <div class="space-y-1">
+            <span class="text-2xl block">📄</span>
+            <div class="text-xs text-slate-700 font-semibold" 
+                 x-text="fileCount > 0 ? (fileCount === 1 ? 'Wybrano: ' + fileNames : 'Wybrano ' + fileCount + ' plików: ' + fileNames) : 'Przeciągnij plik(i) tutaj lub kliknij, aby wybrać'"></div>
+            <p class="text-[11px] text-slate-400">Możesz zaznaczyć lub przeciągnąć wiele plików naraz: PDF, zdjęcia faktur (JPG/PNG), JSON (np. Google Cloud, AWS, GitHub)</p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 text-xs">
+          <div class="flex items-center space-x-3">
+            <span class="text-slate-500 font-medium">Kategoria:</span>
+            <label class="flex items-center space-x-1 cursor-pointer">
+              <input type="radio" name="kategoria" value="koszt" checked class="text-blue-600 focus:ring-blue-500">
+              <span class="text-slate-700">Zakup (Koszt)</span>
+            </label>
+            <label class="flex items-center space-x-1 cursor-pointer">
+              <input type="radio" name="kategoria" value="sprzedaz" class="text-blue-600 focus:ring-blue-500">
+              <span class="text-slate-700">Sprzedaż</span>
+            </label>
+          </div>
+
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+            <span>Wgraj i Ekstrahuj</span>
+          </button>
+        </div>
+
+        <!-- Wskaźnik ładowania -->
+        <div id="upload-indicator" class="htmx-indicator flex items-center justify-center space-x-2 py-2 text-xs text-blue-600 font-semibold">
+          <span class="animate-spin">🔄</span>
+          <span>Przetwarzanie dokumentów i deterministyczna ekstrakcja...</span>
+        </div>
+
+        <p class="text-[10px] text-slate-400">
+          💡 <strong>Wbudowany Auto-Routing:</strong> Jeśli faktura sprzedaży zostanie omyłkowo wgrana jako koszt, system automatycznie rozpozna NIP i przeniesie plik do przychodów.
+        </p>
+      </form>
+    </div>
+
+    <!-- 2. Panel Synchronizacji KSeF 2.0 -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4 flex flex-col justify-between">
+      <div class="space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+            <span>🏛️ Krajowy System e-Faktur (KSeF 2.0)</span>
+          </h2>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                       bg-emerald-100 text-emerald-800">
+            Środowisko: PROD
+          </span>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-2">
+          <p>
+            TaxPilot AI łączy się bezpośrednio z bramką Ministerstwa Finansów KSeF 2.0 z wykorzystaniem szyfrowania 
+            <strong>RSA-OAEP SHA-256</strong>.
+          </p>
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+            <div class="flex justify-between items-center text-[11px]">
+              <span class="text-slate-500">Status Tokena Autoryzacyjnego:</span>
+              
+                <span class="text-amber-700 font-bold flex items-center space-x-1">
+                  <span>●</span> <span>Brak tokenu (Wymaga konfiguracji)</span>
+                </span>
+              
+            </div>
+            <div class="text-[10px] text-slate-400 font-mono truncate">
+              Token: Brak...
+            </div>
+
+            <!-- Status ostatniej synchronizacji (KSeF 2.0 - Zadanie 1) -->
+            <!-- Fragment statusu ostatniej synchronizacji KSeF: partials/ksef_sync_status.html -->
+<div id="ksef-last-sync-status" class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
+  <div>
+    <span class="text-slate-500">Ostatnia synchronizacja:</span>
+    
+      <span class="text-slate-400 font-medium">Brak prób w tym okresie</span>
+    
+  </div>
+  
+</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <form hx-post="/faktury/ksef-sync" 
+              hx-target="#invoices-table-container" 
+              hx-swap="outerHTML" 
+              hx-indicator="#ksef-indicator">
+          <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors cursor-pointer">
+            <span>🏛️ Synchronizuj Faktury z KSeF 2.0 za 2026-10</span>
+          </button>
+        </form>
+
+        <div id="ksef-indicator" class="htmx-indicator flex items-center justify-center space-x-2 py-2 text-xs text-slate-700 font-semibold">
+          <span class="animate-spin">🔄</span>
+          <span>Nawiązywanie bezpiecznej sesji KSeF z certyfikatem MF...</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Baner Informacyjny Relokacji Auto-Routing -->
+  
+
+  <!-- Tabela Dokumentów (Fragment) -->
+  <!-- Fragment tabeli faktur: partials/invoices_table.html -->
+<div id="invoices-table-container" 
+     
+     class="space-y-4"
+     hx-get="/faktury/table?tab=all" 
+     hx-trigger="invoices-refresh from:body" 
+     hx-swap="outerHTML">
+  
+  
+
+  <!-- Tabela Dokumentów -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Pasek nagłówka tabeli i statystyk -->
+    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center space-x-2">
+        <span class="font-bold text-slate-800">Dokumenty w wybranym okresie:</span>
+        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold">
+          14 łącznie
+        </span>
+        <span class="text-slate-400">•</span>
+        <span class="text-slate-600">🏛️ KSeF: <strong>10</strong></span>
+        <span class="text-slate-400">•</span>
+        <span class="text-slate-600">📁 Non-KSeF: <strong>4</strong></span>
+      </div>
+
+      <!-- Filtry zakładek -->
+      <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-lg">
+        <a href="faktury.html" class="px-2.5 py-1 rounded text-xs font-semibold bg-white text-slate-900 shadow-xs transition-colors">
+          Wszystkie (14)
+        </a>
+        <a href="faktury.html" class="px-2.5 py-1 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors">
+          Sprzedaż (2)
+        </a>
+        <a href="faktury.html" class="px-2.5 py-1 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors">
+          Koszty (12)
+        </a>
+      </div>
+    </div>
+
+    <!-- Tabela główna -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+            <th class="p-3 text-center">LP</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Numer Faktury</th>
+            <th class="p-3">Druga Strona (Kontrahent)</th>
+            <th class="p-3 text-center">Kategoria</th>
+            <th class="p-3 text-center">Źródło</th>
+            <th class="p-3 text-right">Netto</th>
+            <th class="p-3 text-right">VAT</th>
+            <th class="p-3 text-right">Brutto</th>
+            <th class="p-3 text-center">Plik</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">1</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-30</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  1/10/2026
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="7770001122-20261030-99AC41000001-1A">
+                      KSeF: 7770001122-20261030-99AC41000001-1A
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 8971793639</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Sprzedaż
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  36500.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  8395.00 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  44895.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=1/10/2026&typ=sprzedaz"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-30_1_10_2026.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">2</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-10</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  CE/FAV/2026/0005129
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="5270005984-20261010-88AABB000012-4C">
+                      KSeF: 5270005984-20261010-88AABB000012-4C
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">EURO-NET SP. Z O.O.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 5270005984</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  1299.18 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  298.82 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  1598.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=CE/FAV/2026/0005129&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-10_CE_FAV_2026_0005129.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">3</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-10</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  F/60131422/10/26
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="9512120077-20261010-001122334455-CC">
+                      KSeF: 9512120077-20261010-001122334455-CC
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">Operator Play P4 Sp. z o.o.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 9512120077</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  200.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  46.00 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  246.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=F/60131422/10/26&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-10_F_60131422_10_26.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">4</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-14</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  FV/ALG/2026/10/9128
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="5252674797-20261014-77CC88000099-2B">
+                      KSeF: 5252674797-20261014-77CC88000099-2B
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">ALLEGRO SP. Z O.O.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 5252674797</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  470.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  108.10 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  578.10 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=FV/ALG/2026/10/9128&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-14_FV_ALG_2026_10_9128.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">5</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-14</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  F 37804/1561/26
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="7740001454-20261014-001122334455-DD">
+                      KSeF: 7740001454-20261014-001122334455-DD
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">PKN ORLEN S.A.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 7740001454</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  250.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  57.50 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  307.50 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=F%2037804/1561/26&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-14_F_37804_1561_26.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">6</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-15</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  F/71029415/10/26
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="9512120077-20261015-33EE55000077-8D">
+                      KSeF: 9512120077-20261015-33EE55000077-8D
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">P4 SP. Z O.O.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 9512120077</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  210.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  48.30 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  258.30 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=F/71029415/10/26&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-15_F_71029415_10_26.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">7</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-18</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  6550172
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="5270203968-20261018-001122334455-EE">
+                      KSeF: 5270203968-20261018-001122334455-EE
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">Nestle Polska S.A. Nespresso</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 5270203968</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  480.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  110.40 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  590.40 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=6550172&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-18_6550172.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">8</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-19</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  F 41209/1561/26
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="7740001454-20261019-112233000044-9F">
+                      KSeF: 7740001454-20261019-112233000044-9F
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">ORLEN S.A.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 7740001454</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  298.54 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  68.66 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  367.20 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=F%2041209/1561/26&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-19_F_41209_1561_26.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">9</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-25</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  FV/TEST/XYZ_999
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="7740001454-20261025-001122334455-FF">
+                      KSeF: 7740001454-20261025-001122334455-FF
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">PKN ORLEN S.A.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 7740001454</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  150.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  34.50 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  184.50 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=FV/TEST/XYZ_999&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-25_FV_TEST_XYZ_999.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">10</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-26</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  F 9999/TEST/26
+                  
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="7740001454-20261026-001122334455-GG">
+                      KSeF: 7740001454-20261026-001122334455-GG
+                    </div>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">PKN ORLEN S.A.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 7740001454</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  200.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  46.00 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  246.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=F%209999/TEST/26&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        2026-10-26_F_9999_TEST_26.json
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">11</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-28</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  EXP/2026/10/01
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">Google Ireland Limited</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: IE6388047V</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Sprzedaż
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                      📁 Non-KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  18000.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  0.00 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  18000.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=EXP/2026/10/01&typ=sprzedaz"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        EXP_2026_10_01.txt
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">12</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-24</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  AWS-INV-2026-10-7419
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">Amazon Web Services EMEA SARL</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: LU26375245</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                      📁 Non-KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  1450.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  0.00 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  1450.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=AWS-INV-2026-10-7419&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        AWS-INV-2026-10-7419.pdf
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">13</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-22</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  FV/2026/10/FAST-891
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">FAST-NET CLOUD SP. Z O.O.</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 9990001122</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                      📁 Non-KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  1850.00 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  425.50 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  2275.50 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=FV/2026/10/FAST-891&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        INV-2026-10-FASTNET.pdf
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">14</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">2026-10-27</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  PAR-2026-10-55912
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <div class="font-bold text-slate-900">M&amp;M Michał Szymusik (Circle K nr 75090)</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: 5341531304</div>
+                  
+                </td>
+                <td class="p-3 text-center">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                      📁 Non-KSeF
+                    </span>
+                  
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  235.77 zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  54.23 zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  290.00 zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer=PAR-2026-10-55912&typ=koszty"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      
+                        PAR-2026-10-55912.jpg
+                      
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            
+          
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pasek sum na dole -->
+    
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
+        <div class="flex items-center space-x-6">
+          <div>
+            <span class="text-slate-500 block text-[10px] uppercase font-sans">Suma Sprzedaży Netto:</span>
+            <span class="text-sm font-bold text-emerald-800">54500.00 zł</span>
+          </div>
+          <div class="border-l border-slate-200 pl-6">
+            <span class="text-slate-500 block text-[10px] uppercase font-sans">Suma Kosztów Netto:</span>
+            <span class="text-sm font-bold text-slate-900">7093.49 zł</span>
+          </div>
+          <div class="border-l border-slate-200 pl-6">
+            <span class="text-slate-500 block text-[10px] uppercase font-sans">VAT Kosztowy:</span>
+            <span class="text-sm font-bold text-blue-700">1298.01 zł</span>
+          </div>
+        </div>
+
+        <div class="text-slate-400 text-[11px] font-sans">
+          Archiwum: <code class="text-slate-600">firmy/7770001122/faktury/2026/10/</code>
+        </div>
+      </div>
+    
+
+  </div>
+</div>
+
+
+
+
+
+  <!-- Modal Historii Synchronizacji KSeF -->
+  <div x-cloak x-show="historyModalOpen" 
+       class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+       role="dialog" aria-modal="true">
+    <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col"
+         @click.away="historyModalOpen = false">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">📜</span>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Historia Synchronizacji KSeF 2.0</h3>
+            <p class="text-xs text-slate-500">Rejestr wszystkich prób połączeń, statusów oraz ilości pobranych dokumentów.</p>
+          </div>
+        </div>
+        <button type="button" @click="historyModalOpen = false" class="text-slate-400 hover:text-slate-600 text-lg p-1 rounded-lg">✕</button>
+      </div>
+
+      <div id="ksef-history-modal-body" class="flex-1 overflow-y-auto">
+        <!-- Fragment tabeli historii synchronizacji KSeF: partials/ksef_history_modal_body.html -->
+<div id="ksef-history-modal-body" class="flex-1 overflow-y-auto">
+  
+    <div class="p-8 text-center text-slate-400 italic">
+      Brak odnotowanych prób synchronizacji dla tej firmy.
+    </div>
+  
+</div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 text-right">
+        <button type="button" @click="historyModalOpen = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors">
+          Zamknij
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+    </main>
+
+    <!-- Global Modal Podglądu Faktur (KSeF / Non-KSeF) -->
+    <div id="invoice-modal-wrapper"
+         class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+         style="display: none;"
+         onclick="if (event.target === this) closeInvoiceModal()"
+         role="dialog"
+         aria-modal="true">
+
+        <div id="invoice-modal-container"
+             class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[85vh] min-h-[520px] max-h-[90vh] my-auto"
+             onclick="event.stopPropagation()">
+            <!-- Treść podglądu ładowana dynamicznie przez HTMX z /api/invoices/preview -->
+            <div class="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
+              <span class="animate-spin inline-block text-4xl">⏳</span>
+              <p class="text-sm font-bold text-slate-800">Ładowanie podglądu faktury...</p>
+              <p class="text-xs text-slate-400">Pobieranie danych źródłowych i parsowanie formatów JSON/XML</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Copilot Drawer -->
+    <!-- AI Copilot Drawer (Boczny panel wysuwany Alpine.js) -->
+<div x-cloak x-show="copilotOpen" class="relative z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div x-show="copilotOpen" 
+       x-transition:enter="ease-in-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="ease-in-out duration-300"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="copilotOpen = false"
+       class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full transition-all duration-300"
+           :class="copilotMaximized ? 'w-full pl-0' : 'pl-10'">
+        
+        <!-- Panel content -->
+        <div x-show="copilotOpen" 
+             x-transition:enter="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="pointer-events-auto bg-white shadow-2xl flex flex-col transition-all duration-300 ease-in-out"
+             :class="copilotMaximized ? 'w-screen max-w-full' : 'w-screen max-w-md sm:max-w-lg'">
+          
+          <!-- Drawer Header -->
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <h2 class="text-sm font-bold tracking-tight">TaxPilot AI Assistant</h2>
+                <p class="text-xs text-slate-400">
+                  
+                    <span class="text-amber-400 font-semibold">Tryb Deterministyczny (Zero-LLM)</span>
+                  
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button hx-post="/api/copilot/reset" 
+                      hx-target="#copilot-chat-container" 
+                      hx-swap="innerHTML"
+                      title="Zrestartuj sesję AI dla bieżącej firmy (przerywa proces w tle i czyści kontekst)"
+                      class="px-2 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>🔄 Nowa sesja</span>
+              </button>
+
+              <!-- Przycisk maksymalizacji / przywrócenia normalnego rozmiaru -->
+              <button @click="copilotMaximized = !copilotMaximized" 
+                      :title="copilotMaximized ? 'Zmniejsz panel (przywróć standardową szerokość)' : 'Maksymalizuj na cały ekran (pełny widok tabel i wykresów)'"
+                      class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Maksymalizuj / Zmniejsz okno">
+                <!-- Ikona Pełnego ekranu -->
+                <svg x-show="!copilotMaximized" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <!-- Ikona Zmniejszenia -->
+                <svg x-show="copilotMaximized" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v5H4m0 0l5-5M15 4v5h5m0 0l-5-5M9 20v-5H4m0 0l5 5m6 0l5-5m-5 5v-5h5" />
+                </svg>
+              </button>
+
+              <button @click="copilotOpen = false" 
+                      title="Zamknij panel asystenta"
+                      class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-header: Aktywny wątek, edycja nazwy & Przycisk Historii -->
+          <div class="px-4 py-2 bg-slate-800 text-slate-200 border-b border-slate-700 flex items-center justify-between text-xs">
+            <!-- Dynamiczny tytuł aktywnej rozmowy i formularz szybkiej edycji -->
+            <div id="copilot-active-session-title-container"
+                 hx-get="/api/copilot/active-title"
+                 hx-trigger="load, copilot-refresh-title from:body"
+                 class="flex items-center space-x-2 flex-1 min-w-0 mr-2">
+              <span class="text-blue-400 flex-shrink-0">💬</span>
+              <span class="font-medium text-slate-300 truncate">Wczytywanie rozmowy...</span>
+            </div>
+
+            <!-- Przyciski: Historia rozmów oraz Nowy wątek -->
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              <button type="button"
+                      @click="historyOpen = !historyOpen" 
+                      :class="historyOpen ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600'"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Przeglądaj historię rozmów firmy">
+                <span>📜 Historia</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/copilot/sessions/new"
+                      hx-target="#copilot-chat-container"
+                      hx-swap="innerHTML"
+                      @click="historyOpen = false"
+                      class="px-2.5 py-1 text-[11px] font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Rozpocznij nowy, czysty wątek rozmowy">
+                <span>➕ Nowa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel Historii Rozmów (wysuwana lista archiwalnych sesji) -->
+          <div x-cloak x-show="historyOpen" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="bg-slate-900 border-b border-slate-700 p-3 max-h-72 overflow-y-auto shadow-inner text-xs space-y-2 z-10">
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                🗂️ Zapisane rozmowy firmy (kliknij, aby wczytać lub kontynuować)
+              </span>
+              <button type="button" @click="historyOpen = false" class="text-slate-400 hover:text-white text-xs cursor-pointer">
+                ✕ Zamknij
+              </button>
+            </div>
+            <div id="copilot-sessions-list"
+                 hx-get="/api/copilot/sessions"
+                 hx-trigger="load, copilot-refresh-sessions from:body"
+                 class="space-y-1.5">
+              <div class="text-center py-4 text-slate-500 text-xs">Ładowanie historii rozmów...</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50" id="copilot-messages">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full space-y-4' : 'space-y-4'">
+              <!-- Powitanie -->
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
+                  TP
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
+                  <p class="font-semibold text-slate-900">Cześć!</p>
+                  <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">CloudTech Solutions Jan Kowalski</strong>.</p>
+                  <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">2026-10</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
+                </div>
+              </div>
+
+              <!-- Kontener dynamicznych wiadomości z trwałą sesją -->
+              <div id="copilot-chat-container" 
+                   hx-get="/api/copilot/history" 
+                   hx-trigger="load, copilot-refresh from:body"
+                   class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Drawer Footer / Input -->
+          <div class="p-3 bg-white border-t border-slate-200">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full' : ''">
+              <form id="copilot-form"
+                    hx-post="/api/copilot/chat" 
+                    hx-target="#copilot-chat-container" 
+                    hx-swap="beforeend"
+                    onsubmit="return onCopilotSubmit(this);"
+                    class="flex items-center space-x-2"
+                    autocomplete="off">
+                <input type="text" 
+                       id="copilot-input"
+                       name="message" 
+                       required 
+                       placeholder="Zadaj pytanie asystentowi..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                  <span>Wyślij</span>
+                </button>
+              </form>
+              <div class="mt-1.5 text-center text-[10px] text-slate-400">
+                
+                  Tryb Deterministyczny (Zero-LLM) • Zero-Hallucination
+                
+              </div>
+            </div>
+          </div>
+
+          <script>
+            function onCopilotSubmit(form) {
+              const input = form.querySelector('input[name="message"]');
+              const msg = input.value.trim();
+              if (!msg) return false;
+
+              const messagesBox = document.getElementById('copilot-messages');
+              setTimeout(() => { input.value = ''; }, 10);
+              setTimeout(() => { if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight; }, 60);
+              return true;
+            }
+
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+              const messagesBox = document.getElementById('copilot-messages');
+              if (messagesBox && (evt.detail.target.id === 'copilot-chat-container' || evt.detail.target.closest('#copilot-messages'))) {
+                setTimeout(() => { messagesBox.scrollTop = messagesBox.scrollHeight; }, 30);
+              }
+            });
+          </script>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Toast Notifications -->
+    <!-- Toast Notifications Container -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none">
+  <!-- Dynamiczne toasty wstrzykiwane przez zdarzenia HTMX -->
+</div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+            <div class="flex items-center space-x-2">
+                <strong>TaxPilot AI</strong>
+                
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs" title="Wersja aplikacji (git tag)">
+                        v0.1.0
+                    </span>
+                
+                <span class="text-slate-400">•</span>
+                <span>Deterministyczna Księgowość i Podatki JDG &copy; 2026.</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Stos: FastAPI + HTMX + TailwindCSS</span>
+                <span>•</span>
+                <span>Zasada: Zero-Hallucination (`Decimal`)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Globalne skróty klawiszowe (Ctrl+K dla Asystenta) i integracja HTMX + Alpine -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const body = document.querySelector('body');
+                if (window.Alpine) {
+                    const data = Alpine.$data(body);
+                    if (data) {
+                        data.copilotOpen = !data.copilotOpen;
+                    }
+                }
+            }
+        });
+
+        // Globalne funkcje sterujące modalem podglądu faktury
+        function openInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'flex', 'important');
+            wrapper.classList.remove('hidden');
+            wrapper.classList.add('flex');
+        }
+
+        function closeInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'none', 'important');
+            wrapper.classList.add('hidden');
+            wrapper.classList.remove('flex');
+        }
+
+        function switchInvoiceTab(tab) {
+            ['summary', 'json', 'xml'].forEach(t => {
+                const el = document.getElementById('invoice-tab-' + t);
+                const btn = document.getElementById('invoice-tab-btn-' + t);
+                if (el) {
+                    el.style.display = (t === tab) ? 'block' : 'none';
+                }
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = 'border-b-2 border-blue-600 text-blue-600 pb-2.5 cursor-pointer font-bold';
+                    } else {
+                        btn.className = 'text-slate-500 hover:text-slate-800 pb-2.5 cursor-pointer font-bold';
+                    }
+                }
+            });
+        }
+
+        window.openInvoiceModal = openInvoiceModal;
+        window.closeInvoiceModal = closeInvoiceModal;
+        window.switchInvoiceTab = switchInvoiceTab;
+
+        window.addEventListener('open-invoice-modal', openInvoiceModal);
+        document.addEventListener('open-invoice-modal', openInvoiceModal);
+        window.addEventListener('close-invoice-modal', closeInvoiceModal);
+        document.addEventListener('close-invoice-modal', closeInvoiceModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeInvoiceModal();
+        });
+
+        // Inicjalizacja komponentów Alpine.js i otwarcie modalu po wstrzyknięciu treści przez HTMX
+        document.addEventListener('htmx:afterSwap', (evt) => {
+            if (evt.detail && evt.detail.target && evt.detail.target.id === 'invoice-modal-container') {
+                openInvoiceModal();
+                if (window.Alpine) {
+                    try {
+                        window.Alpine.initTree(evt.detail.target);
+                    } catch (err) {
+                        console.warn('Alpine.initTree warning:', err);
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- TaxPilot AI Demo Offline Scripts -->
+    <script src="static/js/demo-data.js"></script>
+    <script src="static/js/demo.js"></script>
+    
+</body>
+</html>

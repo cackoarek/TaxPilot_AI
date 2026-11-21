@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulpit & Paczka Przelewów – TaxPilot AI</title>
+    <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                900: '#1e3a8a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/custom.css?v=20261114_1">
+
+    <!-- HTMX 2.x -->
+    <script src="static/js/htmx.min.js"></script>
+
+    <!-- Alpine.js 3.x (with x-cloak style) -->
+    <style>[x-cloak] { display: none !important; }</style>
+    <script defer src="static/js/alpine.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased" x-data="{ copilotOpen: false, copilotMaximized: false, historyOpen: false, editingTitle: false }">
+
+<!-- TaxPilot AI Demo Banner -->
+<div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 shadow-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-white/20 text-white uppercase tracking-wider">Demo Showcase</span>
+      <span class="font-medium text-slate-100 hidden sm:inline">
+        Statyczna wersja demonstracyjna dla GitHub Pages. Dane testowe: <strong class="text-white">CloudTech Solutions Jan Kowalski</strong> (okres: 2026-10).
+      </span>
+    </div>
+    <div class="flex items-center space-x-3 shrink-0">
+      <span class="text-xs text-indigo-200 hidden md:inline">100% Deterministyczna Księgowość & KSeF 2.0</span>
+      <a href="https://github.com/cackoarek/TaxPilot_AI" target="_blank" class="px-2.5 py-1 bg-white text-slate-900 hover:bg-slate-100 rounded-md font-bold text-[11px] transition-colors flex items-center space-x-1 shadow-xs">
+        <span>⭐ GitHub</span>
+      </a>
+    </div>
+  </div>
+</div>
+<!-- End TaxPilot AI Demo Banner -->
+
+
+    <!-- Header & Navigation -->
+    <!-- Top Header & Navigation Bar -->
+<header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo & Tenant Selector -->
+      <div class="flex items-center space-x-4">
+        <a href="index.html" class="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors">
+          <span class="text-2xl font-black tracking-tight text-blue-500">TaxPilot</span>
+          <span class="text-xs uppercase px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white">AI</span>
+        </a>
+
+        <!-- Tenant Switcher Dropdown -->
+        <form action="#" onsubmit="return false;" method="POST" class="inline-flex items-center">
+          <input type="hidden" name="redirect_url" value="/">
+          <div class="relative inline-block text-left">
+            <select name="nip" onchange="if(this.value==='__NEW__'){ window.location.href='firmy_nowa.html'; } else { this.form.submit(); }" 
+                    style="color-scheme: dark;"
+                    class="dark-select bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+              <optgroup label="Zarejestrowane firmy" class="bg-slate-900 text-slate-400 font-semibold">
+                
+                  <option value="7770001122" class="bg-slate-800 text-slate-100 py-1" selected>
+                    🏢 CloudTech Solutions Jan Kowalski (NIP: 7770001122)
+                  </option>
+                
+              </optgroup>
+              <optgroup label="Zarządzanie firmami" class="bg-slate-900 text-slate-400 font-semibold">
+                <option value="__NEW__" class="bg-blue-950 text-blue-300 font-bold py-1.5">
+                  ➕ Dodaj nową firmę do księgowania...
+                </option>
+              </optgroup>
+            </select>
+          </div>
+          <a href="firmy_nowa.html" 
+             title="Dodaj nową firmę do księgowania" 
+             class="ml-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 p-1.5 rounded-lg transition-colors inline-flex items-center text-xs font-bold" 
+             aria-label="Dodaj nową firmę">
+            ➕
+          </a>
+        </form>
+      </div>
+
+      <!-- Period Switcher & LLM Status & Copilot Toggle -->
+      <div class="flex items-center space-x-4">
+        
+        <!-- Period Switcher (Rok / Miesiąc) -->
+        <form action="#" onsubmit="return false;" method="POST" class="flex items-center space-x-1.5 bg-slate-800/90 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 shadow-inner">
+          <input type="hidden" name="redirect_url" value="/">
+          <span class="text-blue-400 text-xs select-none">📅</span>
+          <select name="rok" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            <option value="2027" class="bg-slate-800 text-slate-100 font-semibold py-1" >2027</option>
+            <option value="2026" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>2026</option>
+            <option value="2025" class="bg-slate-800 text-slate-100 font-semibold py-1" >2025</option>
+            <option value="2024" class="bg-slate-800 text-slate-100 font-semibold py-1" >2024</option>
+          </select>
+          <span class="text-slate-500 text-xs font-bold select-none">/</span>
+          <select name="miesiac" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            
+            
+              <option value="01" class="bg-slate-800 text-slate-100 font-semibold py-1" >01 - Styczeń</option>
+            
+              <option value="02" class="bg-slate-800 text-slate-100 font-semibold py-1" >02 - Luty</option>
+            
+              <option value="03" class="bg-slate-800 text-slate-100 font-semibold py-1" >03 - Marzec</option>
+            
+              <option value="04" class="bg-slate-800 text-slate-100 font-semibold py-1" >04 - Kwiecień</option>
+            
+              <option value="05" class="bg-slate-800 text-slate-100 font-semibold py-1" >05 - Maj</option>
+            
+              <option value="06" class="bg-slate-800 text-slate-100 font-semibold py-1" >06 - Czerwiec</option>
+            
+              <option value="07" class="bg-slate-800 text-slate-100 font-semibold py-1" >07 - Lipiec</option>
+            
+              <option value="08" class="bg-slate-800 text-slate-100 font-semibold py-1" >08 - Sierpień</option>
+            
+              <option value="09" class="bg-slate-800 text-slate-100 font-semibold py-1" >09 - Wrzesień</option>
+            
+              <option value="10" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>10 - Październik</option>
+            
+              <option value="11" class="bg-slate-800 text-slate-100 font-semibold py-1" >11 - Listopad</option>
+            
+              <option value="12" class="bg-slate-800 text-slate-100 font-semibold py-1" >12 - Grudzień</option>
+            
+          </select>
+        </form>
+
+        <!-- Dynamiczny Badge LLM -->
+        <div>
+          
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700" title="System działa w 100% lokalnie w trybie deterministycznym (Zero-LLM)">
+              ⚙️ Deterministyczny (Zero-LLM)
+            </span>
+          
+        </div>
+
+        <!-- Copilot Drawer Button -->
+        <button @click="copilotOpen = !copilotOpen" 
+                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <span>💬 Asystent AI</span>
+          <span class="ml-1.5 text-indigo-200 text-xs">Ctrl+K</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Główny Pasek Zakładek (Sub-Nav) -->
+  <div class="bg-slate-800/90 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-6 text-sm font-medium overflow-x-auto">
+        <a href="index.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-blue-500 text-blue-400 font-semibold transition-colors">
+          📊 Pulpit & Przelewy
+        </a>
+        <a href="faktury.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📁 Faktury & KSeF 2.0
+        </a>
+        <a href="przeglad.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📝 Przegląd i Kwalifikacja
+        </a>
+        <a href="aml.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          🛡️ Compliance AML & VAT
+        </a>
+        <a href="ksiegowanie.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📑 Księgowanie
+        </a>
+        <a href="doradca.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          💡 Doradca Podatkowy
+        </a>
+        <a href="ustawienia.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          ⚙️ Ustawienia Firmy
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+<div class="space-y-6" x-data="{ qrModalOpen: false, copiedAccount: false, copiedAmount: false, copiedTitle: false, guideOpen: false }">
+
+  
+
+  <!-- Baner Pomocy i Przewodnik po module -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-white shadow-sm transition-all duration-200">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">💡</span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Przewodnik: Pulpit Przedsiębiorcy & Paczka Przelewów</h2>
+          <p class="text-xs text-slate-400">Centrum dowodzenia rozliczeniami podatkowymi JDG, kwotami zobowiązań ZUS/US i kodami QR do przelewów.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Umożliwia błyskawiczne opłacenie podatków za pomocą dedykowanych kodów QR przelewu (dla aplikacji bankowych mBank, PKO, Santander, ING) lub skopiowanie numerów indywidualnych rachunków ZUS (NRS) i mikrorachunku podatkowego US.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Terminy płatności:</strong> ZUS oraz zaliczka PIT do 20. dnia kolejnego miesiąca, podatek VAT-7 do 25. dnia.</li>
+          <li><strong>Mikrorachunek US:</strong> Indywidualny rachunek przypisany do Twojego NIP (PIT i VAT wpłaca się na ten sam numer).</li>
+          <li><strong>Kody QR:</strong> Zeskanuj aparatem w telefonie, aby wyeliminować błędy w kwotach i numerach rachunków.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Baner Stanu Rozliczenia -->
+  
+    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl shadow-xs flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">🟢</span>
+        <div>
+          <h3 class="text-sm font-bold text-emerald-900">Rozliczenie za okres 2026-10 zostało sfinalizowane</h3>
+          <p class="text-xs text-emerald-700">Wszystkie dokumenty zostały zaksięgowane, a podatki deterministycznie przeliczone. Poniżej znajduje się oficjalna Paczka Przelewów.</p>
+        </div>
+      </div>
+      <div class="flex space-x-2">
+        <a href="przeglad.html" class="px-3 py-1.5 bg-white border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-lg hover:bg-emerald-100 transition-colors">
+          Zobacz ewidencję
+        </a>
+      </div>
+    </div>
+  
+
+  <!-- Sekcja: Paczka Przelewów Podatnika -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <span>📦 Paczka Przelewów Podatnika</span>
+          <span class="text-xs font-normal text-slate-500">(2026-10)</span>
+        </h2>
+        <p class="text-xs text-slate-500">Deterministyczne wyliczenia Python Decimal – kwoty do zapłaty w banku.</p>
+      </div>
+      
+        <div class="text-right">
+          <span class="text-xs text-slate-500">Suma wszystkich zobowiązań:</span>
+          <span class="block text-base font-black text-slate-900">16566.34 zł</span>
+        </div>
+      
+    </div>
+
+    <!-- 3 Kafelki Przelewów -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      
+      <!-- Kafelek 1: Urząd Skarbowy - PIT-28 -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">🏛️ Urząd Skarbowy</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800">PIT-28</span>
+          </div>
+          <div>
+            <span class="text-2xl font-black text-slate-900">
+              
+                6276 zł
+              
+            </span>
+            <span class="block text-xs font-semibold text-slate-600 mt-1">
+              Termin płatności: <strong class="text-red-600">20.11.2026</strong>
+            </span>
+          </div>
+          <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-200">
+            <span class="block text-[10px] text-slate-400 uppercase font-bold">Mikrorachunek Podatkowy US:</span>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-800">
+              <span class="truncate">PL 10 1010 0055 0225 7770001122 000</span>
+              <button onclick="navigator.clipboard.writeText('PL101010005502257770001122000')" title="Kopiuj numer konta" class="text-blue-600 hover:text-blue-800 ml-1">📋</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <button hx-get="/api/settlement/qr/pit28" hx-target="#qr-modal-content" @click="qrModalOpen = true"
+                  class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors cursor-pointer">
+            <span>📱 Pokaż Kod QR Przelewu</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Kafelek 2: Urząd Skarbowy - VAT-7 -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">🏛️ Urząd Skarbowy</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-800">VAT-7</span>
+          </div>
+          <div>
+            <span class="text-2xl font-black text-slate-900">
+              
+                7533 zł
+              
+            </span>
+            <span class="block text-xs font-semibold text-slate-600 mt-1">
+              Termin płatności: <strong class="text-red-600">25.11.2026</strong>
+            </span>
+          </div>
+          <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-200">
+            <span class="block text-[10px] text-slate-400 uppercase font-bold">Mikrorachunek Podatkowy US:</span>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-800">
+              <span class="truncate">PL 10 1010 0055 0225 7770001122 000</span>
+              <button onclick="navigator.clipboard.writeText('PL101010005502257770001122000')" title="Kopiuj numer konta" class="text-blue-600 hover:text-blue-800 ml-1">📋</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <button hx-get="/api/settlement/qr/vat7" hx-target="#qr-modal-content" @click="qrModalOpen = true"
+                  class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors cursor-pointer">
+            <span>📱 Pokaż Kod QR Przelewu</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Kafelek 3: ZUS - Społeczne + Zdrowotna -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">🛡️ ZUS</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-teal-100 text-teal-800">NRS Składki</span>
+          </div>
+          <div>
+            <span class="text-2xl font-black text-slate-900">
+              
+                2757.34 zł
+              
+            </span>
+            <span class="block text-xs font-semibold text-slate-600 mt-1">
+              Termin płatności: <strong class="text-red-600">20.11.2026</strong>
+            </span>
+          </div>
+          <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-200">
+            <span class="block text-[10px] text-slate-400 uppercase font-bold">Indywidualny Rachunek NRS ZUS:</span>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-800">
+              <span class="truncate">PL 83 1010 1023 0000 2613 9510 0000</span>
+              <button onclick="navigator.clipboard.writeText('PL83101010230000261395100000')" title="Kopiuj numer konta" class="text-teal-600 hover:text-teal-800 ml-1">📋</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <button hx-get="/api/settlement/qr/zus" hx-target="#qr-modal-content" @click="qrModalOpen = true"
+                  class="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors cursor-pointer">
+            <span>📱 Pokaż Kod QR Przelewu</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Podsumowanie Wyników i Compliance -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    <!-- Wyniki Finansowe -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+      <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+        <span>📈 Wyniki Finansowe za 2026-10</span>
+      </h3>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">Przychody Netto:</span>
+          <span class="text-base font-bold text-slate-900">
+            
+              54500.00 zł
+            
+          </span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">Koszty Zakupów Netto:</span>
+          <span class="text-base font-bold text-slate-900">
+            
+              5463.49 zł
+            
+          </span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">Podatek VAT Należny:</span>
+          <span class="text-base font-bold text-slate-900">
+            
+              8395.00 zł
+            
+          </span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">VAT Odliczony (Naliczony):</span>
+          <span class="text-base font-bold text-slate-900">
+            
+              861.67 zł
+            
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Należytej Staranności AML -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <span>🛡️ Compliance & AML (Biała Lista)</span>
+        </h3>
+        <a href="aml.html" class="text-xs text-blue-600 hover:text-blue-800 font-semibold">Pełny rejestr &rarr;</a>
+      </div>
+      
+        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="p-2.5 bg-green-50 text-green-800 rounded-lg border border-green-200">
+            <span class="text-xl font-bold block">8</span>
+            <span class="text-[10px] uppercase font-bold">🟢 Czystych</span>
+          </div>
+          <div class="p-2.5 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">
+            <span class="text-xl font-bold block">0</span>
+            <span class="text-[10px] uppercase font-bold">🟡 Uwagi</span>
+          </div>
+          <div class="p-2.5 bg-red-50 text-red-800 rounded-lg border border-red-200">
+            <span class="text-xl font-bold block">0</span>
+            <span class="text-[10px] uppercase font-bold">🔴 Sankcje</span>
+          </div>
+        </div>
+        <!-- Status Weryfikacji Kont Bankowych (Biała Lista) -->
+        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-center justify-between">
+          <span class="flex items-center space-x-1 font-medium">
+            <span>🏦 Rachunki na Białej Liście:</span>
+          </span>
+          <span class="font-mono text-xs">
+            
+              <span class="text-emerald-700 font-bold">✅ 5 zgodnych</span>
+              
+                <span class="text-amber-600 font-bold ml-1">/ ⚠️ 1 poza listą</span>
+              
+            
+          </span>
+        </div>
+
+        
+      
+      <div class="pt-2 flex justify-between items-center text-xs text-slate-500">
+        <span>Zweryfikowano łącznie: <strong>9</strong></span>
+        <a href="aml.html" class="text-blue-600 font-semibold underline">Generuj raport PDF</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Szybkie Akcje -->
+  <div class="bg-slate-100 rounded-xl p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+    <span class="font-bold text-slate-700 uppercase tracking-wider text-[11px]">Szybkie Akcje:</span>
+    <div class="flex flex-wrap gap-2">
+      <a href="faktury.html" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        🔄 Synchronizuj z KSeF 2.0
+      </a>
+      <a href="faktury.html" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        📥 Wgraj fakturę PDF/skan
+      </a>
+      <a href="aml.html" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        🔍 Sprawdź kontrahenta NIP
+      </a>
+      <a href="doradca.html" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        💡 Porównaj formy opodatkowania
+      </a>
+    </div>
+  </div>
+
+  <!-- Modal Kodu QR Przelewu Bankowego -->
+  <div x-cloak x-show="qrModalOpen" class="relative z-50" role="dialog" aria-modal="true">
+    <div x-show="qrModalOpen" 
+         x-transition:enter="ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click="qrModalOpen = false" 
+         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+      <div class="flex min-h-full items-center justify-center p-4 text-center">
+        <div x-show="qrModalOpen"
+             x-transition:enter="ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             @click.away="qrModalOpen = false"
+             id="qr-modal-content"
+             class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl border border-slate-200">
+          <div class="p-8 text-center text-slate-500 text-xs">
+            Ładowanie danych przelewu i generowanie kodu QR...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+    </main>
+
+    <!-- Global Modal Podglądu Faktur (KSeF / Non-KSeF) -->
+    <div id="invoice-modal-wrapper"
+         class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+         style="display: none;"
+         onclick="if (event.target === this) closeInvoiceModal()"
+         role="dialog"
+         aria-modal="true">
+
+        <div id="invoice-modal-container"
+             class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[85vh] min-h-[520px] max-h-[90vh] my-auto"
+             onclick="event.stopPropagation()">
+            <!-- Treść podglądu ładowana dynamicznie przez HTMX z /api/invoices/preview -->
+            <div class="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
+              <span class="animate-spin inline-block text-4xl">⏳</span>
+              <p class="text-sm font-bold text-slate-800">Ładowanie podglądu faktury...</p>
+              <p class="text-xs text-slate-400">Pobieranie danych źródłowych i parsowanie formatów JSON/XML</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Copilot Drawer -->
+    <!-- AI Copilot Drawer (Boczny panel wysuwany Alpine.js) -->
+<div x-cloak x-show="copilotOpen" class="relative z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div x-show="copilotOpen" 
+       x-transition:enter="ease-in-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="ease-in-out duration-300"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="copilotOpen = false"
+       class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full transition-all duration-300"
+           :class="copilotMaximized ? 'w-full pl-0' : 'pl-10'">
+        
+        <!-- Panel content -->
+        <div x-show="copilotOpen" 
+             x-transition:enter="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="pointer-events-auto bg-white shadow-2xl flex flex-col transition-all duration-300 ease-in-out"
+             :class="copilotMaximized ? 'w-screen max-w-full' : 'w-screen max-w-md sm:max-w-lg'">
+          
+          <!-- Drawer Header -->
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <h2 class="text-sm font-bold tracking-tight">TaxPilot AI Assistant</h2>
+                <p class="text-xs text-slate-400">
+                  
+                    <span class="text-amber-400 font-semibold">Tryb Deterministyczny (Zero-LLM)</span>
+                  
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button hx-post="/api/copilot/reset" 
+                      hx-target="#copilot-chat-container" 
+                      hx-swap="innerHTML"
+                      title="Zrestartuj sesję AI dla bieżącej firmy (przerywa proces w tle i czyści kontekst)"
+                      class="px-2 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>🔄 Nowa sesja</span>
+              </button>
+
+              <!-- Przycisk maksymalizacji / przywrócenia normalnego rozmiaru -->
+              <button @click="copilotMaximized = !copilotMaximized" 
+                      :title="copilotMaximized ? 'Zmniejsz panel (przywróć standardową szerokość)' : 'Maksymalizuj na cały ekran (pełny widok tabel i wykresów)'"
+                      class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Maksymalizuj / Zmniejsz okno">
+                <!-- Ikona Pełnego ekranu -->
+                <svg x-show="!copilotMaximized" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <!-- Ikona Zmniejszenia -->
+                <svg x-show="copilotMaximized" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v5H4m0 0l5-5M15 4v5h5m0 0l-5-5M9 20v-5H4m0 0l5 5m6 0l5-5m-5 5v-5h5" />
+                </svg>
+              </button>
+
+              <button @click="copilotOpen = false" 
+                      title="Zamknij panel asystenta"
+                      class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-header: Aktywny wątek, edycja nazwy & Przycisk Historii -->
+          <div class="px-4 py-2 bg-slate-800 text-slate-200 border-b border-slate-700 flex items-center justify-between text-xs">
+            <!-- Dynamiczny tytuł aktywnej rozmowy i formularz szybkiej edycji -->
+            <div id="copilot-active-session-title-container"
+                 hx-get="/api/copilot/active-title"
+                 hx-trigger="load, copilot-refresh-title from:body"
+                 class="flex items-center space-x-2 flex-1 min-w-0 mr-2">
+              <span class="text-blue-400 flex-shrink-0">💬</span>
+              <span class="font-medium text-slate-300 truncate">Wczytywanie rozmowy...</span>
+            </div>
+
+            <!-- Przyciski: Historia rozmów oraz Nowy wątek -->
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              <button type="button"
+                      @click="historyOpen = !historyOpen" 
+                      :class="historyOpen ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600'"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Przeglądaj historię rozmów firmy">
+                <span>📜 Historia</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/copilot/sessions/new"
+                      hx-target="#copilot-chat-container"
+                      hx-swap="innerHTML"
+                      @click="historyOpen = false"
+                      class="px-2.5 py-1 text-[11px] font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Rozpocznij nowy, czysty wątek rozmowy">
+                <span>➕ Nowa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel Historii Rozmów (wysuwana lista archiwalnych sesji) -->
+          <div x-cloak x-show="historyOpen" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="bg-slate-900 border-b border-slate-700 p-3 max-h-72 overflow-y-auto shadow-inner text-xs space-y-2 z-10">
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                🗂️ Zapisane rozmowy firmy (kliknij, aby wczytać lub kontynuować)
+              </span>
+              <button type="button" @click="historyOpen = false" class="text-slate-400 hover:text-white text-xs cursor-pointer">
+                ✕ Zamknij
+              </button>
+            </div>
+            <div id="copilot-sessions-list"
+                 hx-get="/api/copilot/sessions"
+                 hx-trigger="load, copilot-refresh-sessions from:body"
+                 class="space-y-1.5">
+              <div class="text-center py-4 text-slate-500 text-xs">Ładowanie historii rozmów...</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50" id="copilot-messages">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full space-y-4' : 'space-y-4'">
+              <!-- Powitanie -->
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
+                  TP
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
+                  <p class="font-semibold text-slate-900">Cześć!</p>
+                  <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">CloudTech Solutions Jan Kowalski</strong>.</p>
+                  <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">2026-10</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
+                </div>
+              </div>
+
+              <!-- Kontener dynamicznych wiadomości z trwałą sesją -->
+              <div id="copilot-chat-container" 
+                   hx-get="/api/copilot/history" 
+                   hx-trigger="load, copilot-refresh from:body"
+                   class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Drawer Footer / Input -->
+          <div class="p-3 bg-white border-t border-slate-200">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full' : ''">
+              <form id="copilot-form"
+                    hx-post="/api/copilot/chat" 
+                    hx-target="#copilot-chat-container" 
+                    hx-swap="beforeend"
+                    onsubmit="return onCopilotSubmit(this);"
+                    class="flex items-center space-x-2"
+                    autocomplete="off">
+                <input type="text" 
+                       id="copilot-input"
+                       name="message" 
+                       required 
+                       placeholder="Zadaj pytanie asystentowi..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                  <span>Wyślij</span>
+                </button>
+              </form>
+              <div class="mt-1.5 text-center text-[10px] text-slate-400">
+                
+                  Tryb Deterministyczny (Zero-LLM) • Zero-Hallucination
+                
+              </div>
+            </div>
+          </div>
+
+          <script>
+            function onCopilotSubmit(form) {
+              const input = form.querySelector('input[name="message"]');
+              const msg = input.value.trim();
+              if (!msg) return false;
+
+              const messagesBox = document.getElementById('copilot-messages');
+              setTimeout(() => { input.value = ''; }, 10);
+              setTimeout(() => { if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight; }, 60);
+              return true;
+            }
+
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+              const messagesBox = document.getElementById('copilot-messages');
+              if (messagesBox && (evt.detail.target.id === 'copilot-chat-container' || evt.detail.target.closest('#copilot-messages'))) {
+                setTimeout(() => { messagesBox.scrollTop = messagesBox.scrollHeight; }, 30);
+              }
+            });
+          </script>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Toast Notifications -->
+    <!-- Toast Notifications Container -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none">
+  <!-- Dynamiczne toasty wstrzykiwane przez zdarzenia HTMX -->
+</div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+            <div class="flex items-center space-x-2">
+                <strong>TaxPilot AI</strong>
+                
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs" title="Wersja aplikacji (git tag)">
+                        v0.1.0
+                    </span>
+                
+                <span class="text-slate-400">•</span>
+                <span>Deterministyczna Księgowość i Podatki JDG &copy; 2026.</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Stos: FastAPI + HTMX + TailwindCSS</span>
+                <span>•</span>
+                <span>Zasada: Zero-Hallucination (`Decimal`)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Globalne skróty klawiszowe (Ctrl+K dla Asystenta) i integracja HTMX + Alpine -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const body = document.querySelector('body');
+                if (window.Alpine) {
+                    const data = Alpine.$data(body);
+                    if (data) {
+                        data.copilotOpen = !data.copilotOpen;
+                    }
+                }
+            }
+        });
+
+        // Globalne funkcje sterujące modalem podglądu faktury
+        function openInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'flex', 'important');
+            wrapper.classList.remove('hidden');
+            wrapper.classList.add('flex');
+        }
+
+        function closeInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'none', 'important');
+            wrapper.classList.add('hidden');
+            wrapper.classList.remove('flex');
+        }
+
+        function switchInvoiceTab(tab) {
+            ['summary', 'json', 'xml'].forEach(t => {
+                const el = document.getElementById('invoice-tab-' + t);
+                const btn = document.getElementById('invoice-tab-btn-' + t);
+                if (el) {
+                    el.style.display = (t === tab) ? 'block' : 'none';
+                }
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = 'border-b-2 border-blue-600 text-blue-600 pb-2.5 cursor-pointer font-bold';
+                    } else {
+                        btn.className = 'text-slate-500 hover:text-slate-800 pb-2.5 cursor-pointer font-bold';
+                    }
+                }
+            });
+        }
+
+        window.openInvoiceModal = openInvoiceModal;
+        window.closeInvoiceModal = closeInvoiceModal;
+        window.switchInvoiceTab = switchInvoiceTab;
+
+        window.addEventListener('open-invoice-modal', openInvoiceModal);
+        document.addEventListener('open-invoice-modal', openInvoiceModal);
+        window.addEventListener('close-invoice-modal', closeInvoiceModal);
+        document.addEventListener('close-invoice-modal', closeInvoiceModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeInvoiceModal();
+        });
+
+        // Inicjalizacja komponentów Alpine.js i otwarcie modalu po wstrzyknięciu treści przez HTMX
+        document.addEventListener('htmx:afterSwap', (evt) => {
+            if (evt.detail && evt.detail.target && evt.detail.target.id === 'invoice-modal-container') {
+                openInvoiceModal();
+                if (window.Alpine) {
+                    try {
+                        window.Alpine.initTree(evt.detail.target);
+                    } catch (err) {
+                        console.warn('Alpine.initTree warning:', err);
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- TaxPilot AI Demo Offline Scripts -->
+    <script src="static/js/demo-data.js"></script>
+    <script src="static/js/demo.js"></script>
+    
+</body>
+</html>

@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centrum Compliance & AML – TaxPilot AI</title>
+    <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                900: '#1e3a8a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/custom.css?v=20261114_1">
+
+    <!-- HTMX 2.x -->
+    <script src="static/js/htmx.min.js"></script>
+
+    <!-- Alpine.js 3.x (with x-cloak style) -->
+    <style>[x-cloak] { display: none !important; }</style>
+    <script defer src="static/js/alpine.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased" x-data="{ copilotOpen: false, copilotMaximized: false, historyOpen: false, editingTitle: false }">
+
+<!-- TaxPilot AI Demo Banner -->
+<div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 shadow-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-white/20 text-white uppercase tracking-wider">Demo Showcase</span>
+      <span class="font-medium text-slate-100 hidden sm:inline">
+        Statyczna wersja demonstracyjna dla GitHub Pages. Dane testowe: <strong class="text-white">CloudTech Solutions Jan Kowalski</strong> (okres: 2026-10).
+      </span>
+    </div>
+    <div class="flex items-center space-x-3 shrink-0">
+      <span class="text-xs text-indigo-200 hidden md:inline">100% Deterministyczna Księgowość & KSeF 2.0</span>
+      <a href="https://github.com/cackoarek/TaxPilot_AI" target="_blank" class="px-2.5 py-1 bg-white text-slate-900 hover:bg-slate-100 rounded-md font-bold text-[11px] transition-colors flex items-center space-x-1 shadow-xs">
+        <span>⭐ GitHub</span>
+      </a>
+    </div>
+  </div>
+</div>
+<!-- End TaxPilot AI Demo Banner -->
+
+
+    <!-- Header & Navigation -->
+    <!-- Top Header & Navigation Bar -->
+<header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo & Tenant Selector -->
+      <div class="flex items-center space-x-4">
+        <a href="index.html" class="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors">
+          <span class="text-2xl font-black tracking-tight text-blue-500">TaxPilot</span>
+          <span class="text-xs uppercase px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white">AI</span>
+        </a>
+
+        <!-- Tenant Switcher Dropdown -->
+        <form action="#" onsubmit="return false;" method="POST" class="inline-flex items-center">
+          <input type="hidden" name="redirect_url" value="/aml">
+          <div class="relative inline-block text-left">
+            <select name="nip" onchange="if(this.value==='__NEW__'){ window.location.href='firmy_nowa.html'; } else { this.form.submit(); }" 
+                    style="color-scheme: dark;"
+                    class="dark-select bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+              <optgroup label="Zarejestrowane firmy" class="bg-slate-900 text-slate-400 font-semibold">
+                
+                  <option value="7770001122" class="bg-slate-800 text-slate-100 py-1" selected>
+                    🏢 CloudTech Solutions Jan Kowalski (NIP: 7770001122)
+                  </option>
+                
+              </optgroup>
+              <optgroup label="Zarządzanie firmami" class="bg-slate-900 text-slate-400 font-semibold">
+                <option value="__NEW__" class="bg-blue-950 text-blue-300 font-bold py-1.5">
+                  ➕ Dodaj nową firmę do księgowania...
+                </option>
+              </optgroup>
+            </select>
+          </div>
+          <a href="firmy_nowa.html" 
+             title="Dodaj nową firmę do księgowania" 
+             class="ml-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 p-1.5 rounded-lg transition-colors inline-flex items-center text-xs font-bold" 
+             aria-label="Dodaj nową firmę">
+            ➕
+          </a>
+        </form>
+      </div>
+
+      <!-- Period Switcher & LLM Status & Copilot Toggle -->
+      <div class="flex items-center space-x-4">
+        
+        <!-- Period Switcher (Rok / Miesiąc) -->
+        <form action="#" onsubmit="return false;" method="POST" class="flex items-center space-x-1.5 bg-slate-800/90 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 shadow-inner">
+          <input type="hidden" name="redirect_url" value="/aml">
+          <span class="text-blue-400 text-xs select-none">📅</span>
+          <select name="rok" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            <option value="2027" class="bg-slate-800 text-slate-100 font-semibold py-1" >2027</option>
+            <option value="2026" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>2026</option>
+            <option value="2025" class="bg-slate-800 text-slate-100 font-semibold py-1" >2025</option>
+            <option value="2024" class="bg-slate-800 text-slate-100 font-semibold py-1" >2024</option>
+          </select>
+          <span class="text-slate-500 text-xs font-bold select-none">/</span>
+          <select name="miesiac" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            
+            
+              <option value="01" class="bg-slate-800 text-slate-100 font-semibold py-1" >01 - Styczeń</option>
+            
+              <option value="02" class="bg-slate-800 text-slate-100 font-semibold py-1" >02 - Luty</option>
+            
+              <option value="03" class="bg-slate-800 text-slate-100 font-semibold py-1" >03 - Marzec</option>
+            
+              <option value="04" class="bg-slate-800 text-slate-100 font-semibold py-1" >04 - Kwiecień</option>
+            
+              <option value="05" class="bg-slate-800 text-slate-100 font-semibold py-1" >05 - Maj</option>
+            
+              <option value="06" class="bg-slate-800 text-slate-100 font-semibold py-1" >06 - Czerwiec</option>
+            
+              <option value="07" class="bg-slate-800 text-slate-100 font-semibold py-1" >07 - Lipiec</option>
+            
+              <option value="08" class="bg-slate-800 text-slate-100 font-semibold py-1" >08 - Sierpień</option>
+            
+              <option value="09" class="bg-slate-800 text-slate-100 font-semibold py-1" >09 - Wrzesień</option>
+            
+              <option value="10" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>10 - Październik</option>
+            
+              <option value="11" class="bg-slate-800 text-slate-100 font-semibold py-1" >11 - Listopad</option>
+            
+              <option value="12" class="bg-slate-800 text-slate-100 font-semibold py-1" >12 - Grudzień</option>
+            
+          </select>
+        </form>
+
+        <!-- Dynamiczny Badge LLM -->
+        <div>
+          
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700" title="System działa w 100% lokalnie w trybie deterministycznym (Zero-LLM)">
+              ⚙️ Deterministyczny (Zero-LLM)
+            </span>
+          
+        </div>
+
+        <!-- Copilot Drawer Button -->
+        <button @click="copilotOpen = !copilotOpen" 
+                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <span>💬 Asystent AI</span>
+          <span class="ml-1.5 text-indigo-200 text-xs">Ctrl+K</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Główny Pasek Zakładek (Sub-Nav) -->
+  <div class="bg-slate-800/90 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-6 text-sm font-medium overflow-x-auto">
+        <a href="index.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📊 Pulpit & Przelewy
+        </a>
+        <a href="faktury.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📁 Faktury & KSeF 2.0
+        </a>
+        <a href="przeglad.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📝 Przegląd i Kwalifikacja
+        </a>
+        <a href="aml.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-blue-500 text-blue-400 font-semibold transition-colors">
+          🛡️ Compliance AML & VAT
+        </a>
+        <a href="ksiegowanie.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📑 Księgowanie
+        </a>
+        <a href="doradca.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          💡 Doradca Podatkowy
+        </a>
+        <a href="ustawienia.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          ⚙️ Ustawienia Firmy
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+<div class="space-y-6">
+
+  <!-- Przewodnik po module (Ogólne - Zadanie 4) -->
+  <div x-data="{ guideOpen: false }" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-sm border border-slate-800 p-4 transition-all">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">🛡️</span>
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <span>Compliance AML & Należyta Staranność VAT</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Krok 3</span>
+          </h2>
+          <p class="text-xs text-slate-300 mt-0.5">Automatyczna weryfikacja kontrahentów w rejestrach Ministerstwa Finansów (Biała Lista) oraz listach sankcyjnych MSWiA i Unii Europejskiej.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Chroni Twoją firmę przed surowymi sankcjami karno-skarbowymi i utratą prawa do zaliczenia wydatków w koszty (art. 22p PIT pow. 15 tys. zł). Zapewnia niezaprzeczalny dowód weryfikacji na 5 lat.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Płatności pow. 15 000 zł:</strong> Przelew na rachunek spoza Białej Listy grozi wyłączeniem z kosztów i odpowiedzialnością solidarną w VAT.</li>
+          <li><strong>Karta PDF:</strong> Kliknij przycisk „Karta PDF” przy kontrahencie, aby pobrać urzędowy dowód audytu z sumą SHA-256.</li>
+          <li><strong>Subkonta masowe:</strong> System automatycznie weryfikuje rachunki wirtualne telekomów i leasingów w dedykowanym rejestrze MF.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tytuł Strony i Wprowadzenie -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded">KROK 3</span>
+        <h1 class="text-xl font-bold text-slate-900 flex items-center space-x-2">
+          <span>Centrum Compliance & Biała Lista VAT</span>
+          <span class="text-xs font-normal text-slate-500">(2026-10)</span>
+        </h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">
+        Procedura należytej staranności, weryfikacja statusu podatnika VAT, ochrona kosztów powyżej 15 000 zł (art. 22p PIT) oraz sankcje MSWiA/UE.
+      </p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <form hx-post="/aml/verify-month" hx-target="#aml-table-container" hx-indicator="#verify-month-spinner">
+        <input type="hidden" name="force" value="true">
+        <button type="submit" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer">
+          <span>🔍 Sprawdź faktury z tego miesiąca</span>
+        </button>
+      </form>
+      <div id="verify-month-spinner" class="htmx-indicator text-xs text-blue-600 font-medium">
+        ⏳ Badanie rejestrów...
+      </div>
+    </div>
+  </div>
+
+  <!-- Sekcja 1: Kalkulator Weryfikacji Ad-Hoc (Domyślnie zwinięty - AML Zadanie 1) -->
+  <div x-data="{ adHocOpen: false }" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all">
+    
+    <!-- Cienki pasek zwinięty / nagłówek rozwijalny -->
+    <div @click="adHocOpen = !adHocOpen" 
+         class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none">
+      <div class="flex items-center space-x-3">
+        <span class="text-lg">🔍</span>
+        <div>
+          <h2 class="text-xs font-bold text-slate-900 flex items-center space-x-2">
+            <span>Szybka Weryfikacja Ad-Hoc Kontrahenta</span>
+            <span class="text-[10px] text-slate-400 font-normal font-mono">• Sprawdź NIP i rachunek bankowy przed zleceniem przelewu</span>
+          </h2>
+          <p x-show="!adHocOpen" class="text-[11px] text-slate-500 mt-0.5">
+            Kliknij, aby rozwinąć formularz sprawdzania Białej Listy MF, sankcji MSWiA i UE dla dowolnego podmiotu.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">Biała Lista MF • MSWiA • UE</span>
+        <button type="button" class="text-xs px-2.5 py-1 rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium transition-colors">
+          <span x-text="adHocOpen ? 'Zwiń formularz ▲' : 'Rozwiń formularz ▼'"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Rozwinięty formularz HTMX -->
+    <div x-show="adHocOpen" x-cloak style="display: none;" x-transition class="p-6 pt-2 border-t border-slate-100 space-y-4">
+      <form hx-post="/aml/verify" 
+            hx-target="#aml-result-container" 
+            hx-indicator="#aml-spinner" 
+            class="space-y-4">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          
+          <!-- NIP -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              NIP Kontrahenta <span class="text-red-500">*</span>
+            </label>
+            <input type="text" 
+                   name="nip" 
+                   required 
+                   placeholder="np. 5252545285" 
+                   class="w-full text-xs font-mono border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+
+          <!-- Numer Rachunku Bankowego -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Numer Konta Bankowego (opcjonalny)
+            </label>
+            <input type="text" 
+                   name="rachunek" 
+                   placeholder="26 cyfr lub IBAN PL..." 
+                   class="w-full text-xs font-mono border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Wymagane dla transakcji powyżej 15 000 zł</span>
+          </div>
+
+          <!-- Kwota Brutto -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Kwota Transakcji Brutto PLN (opcjonalna)
+            </label>
+            <input type="text" 
+                   name="kwota" 
+                   placeholder="np. 18500.00" 
+                   class="w-full text-xs font-mono border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Sprawdzenie progu art. 22p PIT</span>
+          </div>
+
+        </div>
+
+        <!-- Opcje i Przycisk Submit -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-slate-100 gap-3">
+          <label class="inline-flex items-center text-xs text-slate-600 cursor-pointer">
+            <input type="checkbox" name="force" value="true" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-2">
+            <span>Wymuś odpytanie rejestrów na żywo (pomiń lokalny cache na dysku <code>--force</code>)</span>
+          </label>
+          
+          <div class="flex items-center space-x-3">
+            <div id="aml-spinner" class="htmx-indicator text-xs text-blue-600 font-medium">
+              ⏳ Weryfikacja w API MF i bazach sankcyjnych...
+            </div>
+            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow transition-colors flex items-center space-x-1">
+              <span>🔍 Sprawdź kontrahenta</span>
+            </button>
+          </div>
+        </div>
+
+      </form>
+
+      <!-- Kontener na wynik HTMX -->
+      <div id="aml-result-container" class="pt-2"></div>
+    </div>
+  </div>
+
+  <!-- Sekcja 2: Miesięczny Rejestr Należytej Staranności (odpowiedni odstęp - Zadanie AML 1) -->
+  <div class="space-y-4 mt-8 pt-2">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <span>📋 Rejestr Należytej Staranności za Okres 2026-10</span>
+        </h2>
+        <p class="text-xs text-slate-500">Zarchiwizowane dowody weryfikacji kontrahentów z faktur wystawionych i otrzymanych w tym miesiącu.</p>
+      </div>
+    </div>
+
+    <!-- Tabela Kontrahentów Miesiąca -->
+    <!-- Miesięczny Rejestr Weryfikacji AML (HTMX partial) -->
+<div id="aml-table-container" class="space-y-4">
+  
+  
+    
+    
+    <!-- Baner Nagłówka Zbiorczego Raportu (Standard Executive Compliance) -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-md border border-slate-800 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🏛️</span>
+          <h3 class="text-sm font-bold uppercase tracking-wide text-white">
+            ZBIORCZY RAPORT WERYFIKACJI KONTRAHENTÓW
+          </h3>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/30 text-blue-300 border border-blue-400/30">
+            Należyta Staranność VAT & AML
+          </span>
+        </div>
+        <p class="text-xs text-slate-300">
+          Urzędowa dokumentacja audytowa dla Krajowej Administracji Skarbowej (KAS) i MF • Obowiązkowa retencja: <strong>5 lat</strong>.
+        </p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <a href="reports/raport-weryfikacji-2026-10.pdf" target="_blank" 
+           target="_blank"
+           class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 cursor-pointer border border-blue-400/40">
+          <span>📑</span>
+          <span>Pobierz Zbiorczy Raport PDF</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Kafelki Statystyk Miesiąca -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center text-xs">
+      <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+        <span class="text-xs text-slate-500 block">Łącznie podmiotów</span>
+        <span class="text-xl font-black text-slate-900 font-mono">9</span>
+        <span class="text-[10px] text-slate-400 block mt-0.5">sprzedaż & koszty</span>
+      </div>
+      <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 shadow-2xs">
+        <span class="text-xs block text-emerald-700 font-bold">🟢 Niskie ryzyko</span>
+        <span class="text-xl font-black font-mono text-emerald-800">8</span>
+        <span class="text-[10px] text-emerald-600 block mt-0.5">akceptacja do rozliczenia</span>
+      </div>
+      <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 shadow-2xs">
+        <span class="text-xs block text-amber-700 font-bold">🟡 Średnie ryzyko</span>
+        <span class="text-xl font-black font-mono text-amber-800">0</span>
+        <span class="text-[10px] text-amber-600 block mt-0.5">wymaga uwagi / wyjaśnienia</span>
+      </div>
+      <div class="p-3 bg-orange-50 rounded-xl border border-orange-200 text-orange-900 shadow-2xs">
+        <span class="text-xs block text-orange-700 font-bold">🟠 Wysokie ryzyko</span>
+        <span class="text-xl font-black font-mono text-orange-800">1</span>
+        <span class="text-[10px] text-orange-600 block mt-0.5">wykreślony / nieaktywny</span>
+      </div>
+      <div class="p-3 bg-red-50 rounded-xl border border-red-200 text-red-900 shadow-2xs">
+        <span class="text-xs block text-red-700 font-bold">🛑 Sankcje STOP</span>
+        <span class="text-xl font-black font-mono text-red-800">0</span>
+        <span class="text-[10px] text-red-600 block mt-0.5">bezwzględna blokada</span>
+      </div>
+    </div>
+
+    <!-- Alert błędu sieci / offline w statystykach -->
+    
+
+    <!-- Tabela Kontrahentów -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+              <th class="p-3">NIP</th>
+              <th class="p-3">Nazwa Kontrahenta</th>
+              <th class="p-3">Status VAT</th>
+              <th class="p-3">Rachunek MF</th>
+              <th class="p-3">Sankcje</th>
+              <th class="p-3">Poziom Ryzyka</th>
+              <th class="p-3 text-right">Akcja</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">8971793639</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">PL. GRUNWALDZKI 23, 50-365 WROCŁAW</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-slate-400">⚪ Nie dotyczy</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/8971793639-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">IE6388047V</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">Google Ireland Limited</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">Gordon House, Barrow Street, Dublin 4, Ireland</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-slate-400">⚪ Nie dotyczy</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/IE6388047V-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">5270005984</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">&#34;EURO NET&#34; SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">MUSZKIETERÓW 15, 02-273 WARSZAWA</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Zgłoszony</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/5270005984-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">5252674797</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">ALLEGRO SP. Z O.O.</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">ul. Wierzbięcice 1B, 61-569 Poznań</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Zgłoszony</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/5252674797-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">9512120077</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">&#39;P4 SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ&#39;</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">WYNALAZEK 1, 02-677 WARSZAWA</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Zgłoszony</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/9512120077-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">7740001454</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">ORLEN SPÓŁKA AKCYJNA</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">CHEMIKÓW 7, 09-411 PŁOCK</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Zgłoszony</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/7740001454-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">LU26375245</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">Amazon Web Services EMEA SARL</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">38 Avenue John F. Kennedy, L-1855 Luxembourg</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-slate-400">⚪ Nie dotyczy</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/LU26375245-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">9990001122</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">FAST-NET CLOUD SP. Z O.O.</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">ul. Fikcyjna 12, 00-001 Warszawa</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-slate-600">Niezarejestrowany w wykazie MF</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-rose-700 font-semibold" title="Rachunek nie figuruje w wykazie Białej Listy MF">⚠️ Poza listą</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800">
+                      🟠 WYSOKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/9990001122-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">5341531304</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">MICHAŁ SZYMUSIK</div>
+                  <div class="text-[11px] text-slate-400 truncate max-w-xs">OKOPOWA 7, 05-802 PRUSZKÓW</div>
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Zgłoszony</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  
+                </td>
+                <td class="p-3">
+                  
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  
+                </td>
+                <td class="p-3 text-right">
+                  <a href="reports/5341531304-karta.pdf" target="_blank" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Stopka Tabeli -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <span class="text-slate-500">
+          Data wygenerowania rejestru: <strong>2026-11-20 18:31</strong>
+        </span>
+        <div class="flex items-center space-x-2">
+          <a href="reports/raport-weryfikacji-2026-10.pdf" target="_blank" 
+             target="_blank"
+             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors flex items-center space-x-1">
+            <span>📑 Pobierz Zbiorczy Raport PDF (A4 Pejzaż)</span>
+          </a>
+          <a href="reports/raport-weryfikacji-2026-10.md" target="_blank" 
+             target="_blank"
+             class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-semibold text-xs transition-colors">
+            Markdown
+          </a>
+        </div>
+      </div>
+    </div>
+
+  
+
+</div>
+
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 3. ZAKOŃCZENIE KROKU 3 & PRZEJŚCIE DO KROKU 4 (KSIĘGOWANIE) -->
+  <!-- ======================================================== -->
+  <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-lg space-y-4 border border-slate-800 mt-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <span class="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded uppercase">Krok 3 Zakończony</span>
+          <h2 class="text-base font-bold text-white flex items-center space-x-2">
+            <span>Procedura Należytej Staranności & AML Zweryfikowana</span>
+          </h2>
+        </div>
+        <p class="text-xs text-slate-300 max-w-xl">
+          Wszyscy kontrahenci z bieżącego okresu zostali sprawdzeni w rejestrach Ministerstwa Finansów (Biała Lista) oraz na listach sankcyjnych (MSWiA, UE). Karty audytowe zostały zarchiwizowane. Możesz bezpiecznie przejść do oficjalnego zaksięgowania miesiąca.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <a href="ksiegowanie.html" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2">
+          <span>📑 Przejdź do Kroku 4: Księgowanie & Deklaracje &rarr;</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-slate-400 gap-2">
+      <div class="flex items-center space-x-2">
+        <span class="text-emerald-400">✓</span>
+        <span>Pobrane karty weryfikacji i raport zbiorczy PDF stanowią urzędowy dowód dochowania należytej staranności (5 lat archiwizacji).</span>
+      </div>
+      <a href="przeglad.html" class="text-slate-400 hover:text-white underline text-[11px] transition-colors">
+        &larr; Wróć do Kroku 2: Przegląd i Kwalifikacja
+      </a>
+    </div>
+  </div>
+
+</div>
+
+    </main>
+
+    <!-- Global Modal Podglądu Faktur (KSeF / Non-KSeF) -->
+    <div id="invoice-modal-wrapper"
+         class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+         style="display: none;"
+         onclick="if (event.target === this) closeInvoiceModal()"
+         role="dialog"
+         aria-modal="true">
+
+        <div id="invoice-modal-container"
+             class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[85vh] min-h-[520px] max-h-[90vh] my-auto"
+             onclick="event.stopPropagation()">
+            <!-- Treść podglądu ładowana dynamicznie przez HTMX z /api/invoices/preview -->
+            <div class="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
+              <span class="animate-spin inline-block text-4xl">⏳</span>
+              <p class="text-sm font-bold text-slate-800">Ładowanie podglądu faktury...</p>
+              <p class="text-xs text-slate-400">Pobieranie danych źródłowych i parsowanie formatów JSON/XML</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Copilot Drawer -->
+    <!-- AI Copilot Drawer (Boczny panel wysuwany Alpine.js) -->
+<div x-cloak x-show="copilotOpen" class="relative z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div x-show="copilotOpen" 
+       x-transition:enter="ease-in-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="ease-in-out duration-300"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="copilotOpen = false"
+       class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full transition-all duration-300"
+           :class="copilotMaximized ? 'w-full pl-0' : 'pl-10'">
+        
+        <!-- Panel content -->
+        <div x-show="copilotOpen" 
+             x-transition:enter="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="pointer-events-auto bg-white shadow-2xl flex flex-col transition-all duration-300 ease-in-out"
+             :class="copilotMaximized ? 'w-screen max-w-full' : 'w-screen max-w-md sm:max-w-lg'">
+          
+          <!-- Drawer Header -->
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <h2 class="text-sm font-bold tracking-tight">TaxPilot AI Assistant</h2>
+                <p class="text-xs text-slate-400">
+                  
+                    <span class="text-amber-400 font-semibold">Tryb Deterministyczny (Zero-LLM)</span>
+                  
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button hx-post="/api/copilot/reset" 
+                      hx-target="#copilot-chat-container" 
+                      hx-swap="innerHTML"
+                      title="Zrestartuj sesję AI dla bieżącej firmy (przerywa proces w tle i czyści kontekst)"
+                      class="px-2 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>🔄 Nowa sesja</span>
+              </button>
+
+              <!-- Przycisk maksymalizacji / przywrócenia normalnego rozmiaru -->
+              <button @click="copilotMaximized = !copilotMaximized" 
+                      :title="copilotMaximized ? 'Zmniejsz panel (przywróć standardową szerokość)' : 'Maksymalizuj na cały ekran (pełny widok tabel i wykresów)'"
+                      class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Maksymalizuj / Zmniejsz okno">
+                <!-- Ikona Pełnego ekranu -->
+                <svg x-show="!copilotMaximized" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <!-- Ikona Zmniejszenia -->
+                <svg x-show="copilotMaximized" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v5H4m0 0l5-5M15 4v5h5m0 0l-5-5M9 20v-5H4m0 0l5 5m6 0l5-5m-5 5v-5h5" />
+                </svg>
+              </button>
+
+              <button @click="copilotOpen = false" 
+                      title="Zamknij panel asystenta"
+                      class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-header: Aktywny wątek, edycja nazwy & Przycisk Historii -->
+          <div class="px-4 py-2 bg-slate-800 text-slate-200 border-b border-slate-700 flex items-center justify-between text-xs">
+            <!-- Dynamiczny tytuł aktywnej rozmowy i formularz szybkiej edycji -->
+            <div id="copilot-active-session-title-container"
+                 hx-get="/api/copilot/active-title"
+                 hx-trigger="load, copilot-refresh-title from:body"
+                 class="flex items-center space-x-2 flex-1 min-w-0 mr-2">
+              <span class="text-blue-400 flex-shrink-0">💬</span>
+              <span class="font-medium text-slate-300 truncate">Wczytywanie rozmowy...</span>
+            </div>
+
+            <!-- Przyciski: Historia rozmów oraz Nowy wątek -->
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              <button type="button"
+                      @click="historyOpen = !historyOpen" 
+                      :class="historyOpen ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600'"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Przeglądaj historię rozmów firmy">
+                <span>📜 Historia</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/copilot/sessions/new"
+                      hx-target="#copilot-chat-container"
+                      hx-swap="innerHTML"
+                      @click="historyOpen = false"
+                      class="px-2.5 py-1 text-[11px] font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Rozpocznij nowy, czysty wątek rozmowy">
+                <span>➕ Nowa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel Historii Rozmów (wysuwana lista archiwalnych sesji) -->
+          <div x-cloak x-show="historyOpen" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="bg-slate-900 border-b border-slate-700 p-3 max-h-72 overflow-y-auto shadow-inner text-xs space-y-2 z-10">
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                🗂️ Zapisane rozmowy firmy (kliknij, aby wczytać lub kontynuować)
+              </span>
+              <button type="button" @click="historyOpen = false" class="text-slate-400 hover:text-white text-xs cursor-pointer">
+                ✕ Zamknij
+              </button>
+            </div>
+            <div id="copilot-sessions-list"
+                 hx-get="/api/copilot/sessions"
+                 hx-trigger="load, copilot-refresh-sessions from:body"
+                 class="space-y-1.5">
+              <div class="text-center py-4 text-slate-500 text-xs">Ładowanie historii rozmów...</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50" id="copilot-messages">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full space-y-4' : 'space-y-4'">
+              <!-- Powitanie -->
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
+                  TP
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
+                  <p class="font-semibold text-slate-900">Cześć!</p>
+                  <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">CloudTech Solutions Jan Kowalski</strong>.</p>
+                  <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">2026-10</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
+                </div>
+              </div>
+
+              <!-- Kontener dynamicznych wiadomości z trwałą sesją -->
+              <div id="copilot-chat-container" 
+                   hx-get="/api/copilot/history" 
+                   hx-trigger="load, copilot-refresh from:body"
+                   class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Drawer Footer / Input -->
+          <div class="p-3 bg-white border-t border-slate-200">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full' : ''">
+              <form id="copilot-form"
+                    hx-post="/api/copilot/chat" 
+                    hx-target="#copilot-chat-container" 
+                    hx-swap="beforeend"
+                    onsubmit="return onCopilotSubmit(this);"
+                    class="flex items-center space-x-2"
+                    autocomplete="off">
+                <input type="text" 
+                       id="copilot-input"
+                       name="message" 
+                       required 
+                       placeholder="Zadaj pytanie asystentowi..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                  <span>Wyślij</span>
+                </button>
+              </form>
+              <div class="mt-1.5 text-center text-[10px] text-slate-400">
+                
+                  Tryb Deterministyczny (Zero-LLM) • Zero-Hallucination
+                
+              </div>
+            </div>
+          </div>
+
+          <script>
+            function onCopilotSubmit(form) {
+              const input = form.querySelector('input[name="message"]');
+              const msg = input.value.trim();
+              if (!msg) return false;
+
+              const messagesBox = document.getElementById('copilot-messages');
+              setTimeout(() => { input.value = ''; }, 10);
+              setTimeout(() => { if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight; }, 60);
+              return true;
+            }
+
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+              const messagesBox = document.getElementById('copilot-messages');
+              if (messagesBox && (evt.detail.target.id === 'copilot-chat-container' || evt.detail.target.closest('#copilot-messages'))) {
+                setTimeout(() => { messagesBox.scrollTop = messagesBox.scrollHeight; }, 30);
+              }
+            });
+          </script>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Toast Notifications -->
+    <!-- Toast Notifications Container -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none">
+  <!-- Dynamiczne toasty wstrzykiwane przez zdarzenia HTMX -->
+</div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+            <div class="flex items-center space-x-2">
+                <strong>TaxPilot AI</strong>
+                
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs" title="Wersja aplikacji (git tag)">
+                        v0.1.0
+                    </span>
+                
+                <span class="text-slate-400">•</span>
+                <span>Deterministyczna Księgowość i Podatki JDG &copy; 2026.</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Stos: FastAPI + HTMX + TailwindCSS</span>
+                <span>•</span>
+                <span>Zasada: Zero-Hallucination (`Decimal`)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Globalne skróty klawiszowe (Ctrl+K dla Asystenta) i integracja HTMX + Alpine -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const body = document.querySelector('body');
+                if (window.Alpine) {
+                    const data = Alpine.$data(body);
+                    if (data) {
+                        data.copilotOpen = !data.copilotOpen;
+                    }
+                }
+            }
+        });
+
+        // Globalne funkcje sterujące modalem podglądu faktury
+        function openInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'flex', 'important');
+            wrapper.classList.remove('hidden');
+            wrapper.classList.add('flex');
+        }
+
+        function closeInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'none', 'important');
+            wrapper.classList.add('hidden');
+            wrapper.classList.remove('flex');
+        }
+
+        function switchInvoiceTab(tab) {
+            ['summary', 'json', 'xml'].forEach(t => {
+                const el = document.getElementById('invoice-tab-' + t);
+                const btn = document.getElementById('invoice-tab-btn-' + t);
+                if (el) {
+                    el.style.display = (t === tab) ? 'block' : 'none';
+                }
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = 'border-b-2 border-blue-600 text-blue-600 pb-2.5 cursor-pointer font-bold';
+                    } else {
+                        btn.className = 'text-slate-500 hover:text-slate-800 pb-2.5 cursor-pointer font-bold';
+                    }
+                }
+            });
+        }
+
+        window.openInvoiceModal = openInvoiceModal;
+        window.closeInvoiceModal = closeInvoiceModal;
+        window.switchInvoiceTab = switchInvoiceTab;
+
+        window.addEventListener('open-invoice-modal', openInvoiceModal);
+        document.addEventListener('open-invoice-modal', openInvoiceModal);
+        window.addEventListener('close-invoice-modal', closeInvoiceModal);
+        document.addEventListener('close-invoice-modal', closeInvoiceModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeInvoiceModal();
+        });
+
+        // Inicjalizacja komponentów Alpine.js i otwarcie modalu po wstrzyknięciu treści przez HTMX
+        document.addEventListener('htmx:afterSwap', (evt) => {
+            if (evt.detail && evt.detail.target && evt.detail.target.id === 'invoice-modal-container') {
+                openInvoiceModal();
+                if (window.Alpine) {
+                    try {
+                        window.Alpine.initTree(evt.detail.target);
+                    } catch (err) {
+                        console.warn('Alpine.initTree warning:', err);
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- TaxPilot AI Demo Offline Scripts -->
+    <script src="static/js/demo-data.js"></script>
+    <script src="static/js/demo.js"></script>
+    
+</body>
+</html>

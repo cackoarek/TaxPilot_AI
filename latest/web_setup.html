@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodaj nową firmę do księgowania – TaxPilot AI</title>
+    <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                900: '#1e3a8a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/custom.css?v=20261114_1">
+
+    <!-- HTMX 2.x -->
+    <script src="static/js/htmx.min.js"></script>
+
+    <!-- Alpine.js 3.x (with x-cloak style) -->
+    <style>[x-cloak] { display: none !important; }</style>
+    <script defer src="static/js/alpine.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased" x-data="{ copilotOpen: false, copilotMaximized: false, historyOpen: false, editingTitle: false }">
+
+<!-- TaxPilot AI Demo Banner -->
+<div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 shadow-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-white/20 text-white uppercase tracking-wider">Demo Showcase</span>
+      <span class="font-medium text-slate-100 hidden sm:inline">
+        Statyczna wersja demonstracyjna dla GitHub Pages. Dane testowe: <strong class="text-white">CloudTech Solutions Jan Kowalski</strong> (okres: 2026-10).
+      </span>
+    </div>
+    <div class="flex items-center space-x-3 shrink-0">
+      <span class="text-xs text-indigo-200 hidden md:inline">100% Deterministyczna Księgowość & KSeF 2.0</span>
+      <a href="https://github.com/cackoarek/TaxPilot_AI" target="_blank" class="px-2.5 py-1 bg-white text-slate-900 hover:bg-slate-100 rounded-md font-bold text-[11px] transition-colors flex items-center space-x-1 shadow-xs">
+        <span>⭐ GitHub</span>
+      </a>
+    </div>
+  </div>
+</div>
+<!-- End TaxPilot AI Demo Banner -->
+
+
+    <!-- Header & Navigation -->
+    <!-- Top Header & Navigation Bar -->
+<header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo & Tenant Selector -->
+      <div class="flex items-center space-x-4">
+        <a href="index.html" class="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors">
+          <span class="text-2xl font-black tracking-tight text-blue-500">TaxPilot</span>
+          <span class="text-xs uppercase px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white">AI</span>
+        </a>
+
+        <!-- Tenant Switcher Dropdown -->
+        <form action="#" onsubmit="return false;" method="POST" class="inline-flex items-center">
+          <input type="hidden" name="redirect_url" value="/firmy/nowa">
+          <div class="relative inline-block text-left">
+            <select name="nip" onchange="if(this.value==='__NEW__'){ window.location.href='firmy_nowa.html'; } else { this.form.submit(); }" 
+                    style="color-scheme: dark;"
+                    class="dark-select bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+              <optgroup label="Zarejestrowane firmy" class="bg-slate-900 text-slate-400 font-semibold">
+                
+                  <option value="7770001122" class="bg-slate-800 text-slate-100 py-1" selected>
+                    🏢 CloudTech Solutions Jan Kowalski (NIP: 7770001122)
+                  </option>
+                
+              </optgroup>
+              <optgroup label="Zarządzanie firmami" class="bg-slate-900 text-slate-400 font-semibold">
+                <option value="__NEW__" class="bg-blue-950 text-blue-300 font-bold py-1.5">
+                  ➕ Dodaj nową firmę do księgowania...
+                </option>
+              </optgroup>
+            </select>
+          </div>
+          <a href="firmy_nowa.html" 
+             title="Dodaj nową firmę do księgowania" 
+             class="ml-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 p-1.5 rounded-lg transition-colors inline-flex items-center text-xs font-bold" 
+             aria-label="Dodaj nową firmę">
+            ➕
+          </a>
+        </form>
+      </div>
+
+      <!-- Period Switcher & LLM Status & Copilot Toggle -->
+      <div class="flex items-center space-x-4">
+        
+        <!-- Period Switcher (Rok / Miesiąc) -->
+        <form action="#" onsubmit="return false;" method="POST" class="flex items-center space-x-1.5 bg-slate-800/90 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 shadow-inner">
+          <input type="hidden" name="redirect_url" value="/firmy/nowa">
+          <span class="text-blue-400 text-xs select-none">📅</span>
+          <select name="rok" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            <option value="2027" class="bg-slate-800 text-slate-100 font-semibold py-1" >2027</option>
+            <option value="2026" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>2026</option>
+            <option value="2025" class="bg-slate-800 text-slate-100 font-semibold py-1" >2025</option>
+            <option value="2024" class="bg-slate-800 text-slate-100 font-semibold py-1" >2024</option>
+          </select>
+          <span class="text-slate-500 text-xs font-bold select-none">/</span>
+          <select name="miesiac" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            
+            
+              <option value="01" class="bg-slate-800 text-slate-100 font-semibold py-1" >01 - Styczeń</option>
+            
+              <option value="02" class="bg-slate-800 text-slate-100 font-semibold py-1" >02 - Luty</option>
+            
+              <option value="03" class="bg-slate-800 text-slate-100 font-semibold py-1" >03 - Marzec</option>
+            
+              <option value="04" class="bg-slate-800 text-slate-100 font-semibold py-1" >04 - Kwiecień</option>
+            
+              <option value="05" class="bg-slate-800 text-slate-100 font-semibold py-1" >05 - Maj</option>
+            
+              <option value="06" class="bg-slate-800 text-slate-100 font-semibold py-1" >06 - Czerwiec</option>
+            
+              <option value="07" class="bg-slate-800 text-slate-100 font-semibold py-1" >07 - Lipiec</option>
+            
+              <option value="08" class="bg-slate-800 text-slate-100 font-semibold py-1" >08 - Sierpień</option>
+            
+              <option value="09" class="bg-slate-800 text-slate-100 font-semibold py-1" >09 - Wrzesień</option>
+            
+              <option value="10" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>10 - Październik</option>
+            
+              <option value="11" class="bg-slate-800 text-slate-100 font-semibold py-1" >11 - Listopad</option>
+            
+              <option value="12" class="bg-slate-800 text-slate-100 font-semibold py-1" >12 - Grudzień</option>
+            
+          </select>
+        </form>
+
+        <!-- Dynamiczny Badge LLM -->
+        <div>
+          
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700" title="System działa w 100% lokalnie w trybie deterministycznym (Zero-LLM)">
+              ⚙️ Deterministyczny (Zero-LLM)
+            </span>
+          
+        </div>
+
+        <!-- Copilot Drawer Button -->
+        <button @click="copilotOpen = !copilotOpen" 
+                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <span>💬 Asystent AI</span>
+          <span class="ml-1.5 text-indigo-200 text-xs">Ctrl+K</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Główny Pasek Zakładek (Sub-Nav) -->
+  <div class="bg-slate-800/90 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-6 text-sm font-medium overflow-x-auto">
+        <a href="index.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📊 Pulpit & Przelewy
+        </a>
+        <a href="faktury.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📁 Faktury & KSeF 2.0
+        </a>
+        <a href="przeglad.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📝 Przegląd i Kwalifikacja
+        </a>
+        <a href="aml.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          🛡️ Compliance AML & VAT
+        </a>
+        <a href="ksiegowanie.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📑 Księgowanie
+        </a>
+        <a href="doradca.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          💡 Doradca Podatkowy
+        </a>
+        <a href="ustawienia.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          ⚙️ Ustawienia Firmy
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+<div class="max-w-4xl mx-auto space-y-6" x-data="{
+  forma: 'RYCZALT',
+  loadingMf: false,
+  lookupStatus: '',
+  lookupError: '',
+  lookupSource: '',
+  fetchMfData() {
+    const nipVal = document.getElementById('nip_input').value.replace(/[^0-9]/g, '');
+    if (nipVal.length !== 10) {
+      this.lookupError = 'Wpisz poprawny 10-cyfrowy NIP przed pobraniem danych.';
+      this.lookupStatus = '';
+      return;
+    }
+    this.loadingMf = true;
+    this.lookupStatus = '';
+    this.lookupError = '';
+    
+    fetch('/firmy/lookup-nip?nip=' + encodeURIComponent(nipVal), {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      this.loadingMf = false;
+      if (data.success && data.data) {
+        const d = data.data;
+        if (d.nazwa) document.getElementById('nazwa_input').value = d.nazwa;
+        if (d.adres) document.getElementById('adres_input').value = d.adres;
+        if (d.regon) document.getElementById('regon_input').value = d.regon;
+        if (d.kody_pkd) document.getElementById('kody_pkd_input').value = d.kody_pkd;
+        
+        const vatCheckbox = document.getElementById('platnik_vat_input');
+        if (vatCheckbox) vatCheckbox.checked = d.platnik_vat;
+        
+        this.lookupStatus = 'Pomyślnie pobrano oficjalne dane z rejestru: ' + (d.zrodlo || 'Biała Lista MF');
+        this.lookupSource = d.status_vat || 'Czynny podatnik VAT';
+      } else {
+        this.lookupError = data.error || 'Nie znaleziono firmy w publicznym wykazie MF/CEIDG. Możesz wpisać dane ręcznie.';
+      }
+    })
+    .catch(err => {
+      this.loadingMf = false;
+      this.lookupError = 'Błąd połączenia z rejestrem MF (tryb offline / brak sieci). Wpisz dane firmy ręcznie.';
+    });
+  }
+}">
+
+  <!-- Breadcrumbs & Nagłówek -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+        <a href="index.html" class="hover:text-blue-600 transition-colors">Pulpit</a>
+        <span>/</span>
+        <span class="text-slate-700 font-semibold">Dodaj nową firmę</span>
+      </div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center space-x-2">
+        <span class="text-blue-600">🏢</span>
+        <span>Dodaj nową firmę do księgowania</span>
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">
+        Skonfiguruj profil jednoosobowej działalności gospodarczej (JDG), formę opodatkowania, parametry ZUS oraz integrację KSeF 2.0.
+      </p>
+    </div>
+    
+    <a href="index.html" class="inline-flex items-center text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors self-start">
+      ← Wróć do pulpitu
+    </a>
+  </div>
+
+  <!-- Komunikaty Błędów / Sukcesu -->
+  
+
+  <!-- Główny Formularz Onboardingu Firmy -->
+  <form action="/firmy/nowa" method="POST" class="space-y-6">
+
+    <!-- Sekcja 1: Dane Rejestrowe & Auto-Lookup -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">1</span>
+          <h2 class="text-sm font-bold text-slate-900">Dane Rejestrowe z Ministerstwa Finansów (MF) i CEIDG</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">Rejestry Publiczne</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label for="nip_input" class="block text-xs font-bold text-slate-700 mb-1">
+            Numer NIP działalności <span class="text-rose-500">*</span>
+          </label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <input type="text" 
+                     id="nip_input" 
+                     name="nip" 
+                     required
+                     maxlength="13"
+                     value=""
+                     placeholder="np. 7770001122" 
+                     @keydown.enter.prevent="fetchMfData()"
+                     class="w-full px-3.5 py-2 text-sm font-mono font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+            </div>
+            <button type="button" 
+                    @click="fetchMfData()" 
+                    :disabled="loadingMf"
+                    class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50">
+              <span x-show="!loadingMf">🔍 Pobierz dane z MF / CEIDG</span>
+              <span x-show="loadingMf" x-cloak class="inline-flex items-center space-x-1">
+                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>Odpytywanie rejestrów...</span>
+              </span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">
+            Wpisz 10 cyfr i kliknij przycisk – pobierzemy oficjalną nazwę, adres, REGON i status VAT prosto z Białej Listy MF.
+          </p>
+
+          <!-- Baner statusu wyszukiwania MF -->
+          <div x-show="lookupStatus" x-cloak class="mt-2.5 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span>✅</span>
+              <span x-text="lookupStatus" class="font-semibold"></span>
+            </div>
+            <span x-text="lookupSource" class="bg-emerald-200/70 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full"></span>
+          </div>
+
+          <div x-show="lookupError" x-cloak class="mt-2.5 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center space-x-2">
+            <span>ℹ️</span>
+            <span x-text="lookupError"></span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div>
+            <label for="nazwa_input" class="block text-xs font-bold text-slate-700 mb-1">
+              Pełna oficjalna nazwa firmy <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" 
+                   id="nazwa_input" 
+                   name="nazwa" 
+                   required
+                   value=""
+                   placeholder="np. CloudTech Solutions Jan Kowalski" 
+                   class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          </div>
+
+          <div>
+            <label for="regon_input" class="block text-xs font-bold text-slate-700 mb-1">
+              Numer REGON
+            </label>
+            <input type="text" 
+                   id="regon_input" 
+                   name="regon" 
+                   maxlength="14"
+                   value=""
+                   placeholder="np. 389123456" 
+                   class="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+
+        <div>
+          <label for="adres_input" class="block text-xs font-bold text-slate-700 mb-1">
+            Adres rejestrowy (siedziba działalności)
+          </label>
+          <input type="text" 
+                 id="adres_input" 
+                 name="adres" 
+                 value=""
+                 placeholder="np. ul. Roosevelta 22, 60-829 Poznań" 
+                 class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 2: Forma Opodatkowania & Podatek VAT -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">2</span>
+          <h2 class="text-sm font-bold text-slate-900">Forma Opodatkowania & Podatek VAT</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">Podatki Dochód / VAT</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-2">
+            Wybierz formę opodatkowania dochodu:
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            
+            <!-- Ryczałt -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition-all"
+                   :class="forma === 'RYCZALT' ? 'border-blue-600 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">Ryczałt ewidencjonowany</span>
+                <input type="radio" name="forma_opodatkowania" value="RYCZALT" x-model="forma" class="text-blue-600 focus:ring-blue-500">
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1">PIT-28 (najpopularniejszy dla IT i B2B)</span>
+              <span class="text-[10px] text-blue-700 font-semibold mt-2 inline-block">Rekomendowane</span>
+            </label>
+
+            <!-- Liniowy -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition-all"
+                   :class="forma === 'LINIOWY' ? 'border-blue-600 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">Podatek Liniowy</span>
+                <input type="radio" name="forma_opodatkowania" value="LINIOWY" x-model="forma" class="text-blue-600 focus:ring-blue-500">
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1">Stała stawka 19% od dochodu (PIT-36L)</span>
+            </label>
+
+            <!-- Skala -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition-all"
+                   :class="forma === 'SKALA' ? 'border-blue-600 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">Skala Podatkowa</span>
+                <input type="radio" name="forma_opodatkowania" value="SKALA" x-model="forma" class="text-blue-600 focus:ring-blue-500">
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1">12% / 32% (Kwota wolna 30 000 zł)</span>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Domyślna stawka ryczałtu (widoczna gdy wybrano RYCZALT) -->
+        <div x-show="forma === 'RYCZALT'" x-transition class="p-3.5 bg-blue-50/50 rounded-xl border border-blue-100">
+          <label for="stawka_ryczaltu_select" class="block text-xs font-bold text-blue-900 mb-1">
+            Domyślna stawka ryczałtu dla Twoich usług:
+          </label>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <select id="stawka_ryczaltu_select" 
+                    name="domyslna_stawka_ryczaltu"
+                    class="px-3 py-2 text-xs font-bold bg-white border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800">
+              <option value="0.12" selected>12% – Usługi IT, programistyczne, architektura cloud, DevOps (PKWiU 62.01)</option>
+              <option value="0.085" >8.5% – Działalność usługowa ogólna, doradztwo operacyjne</option>
+              <option value="0.15" >15% – Pośrednictwo handlowe, zarządzanie i marketing</option>
+              <option value="0.17" >17% – Wolne zawody (adwokaci, lekarze, tłumacze)</option>
+              <option value="0.055" >5.5% – Wytwórczość, roboty budowlane</option>
+              <option value="0.03" >3% – Gastronomia i działalność handlowa</option>
+            </select>
+            <span class="text-[11px] text-blue-700">Dla poszczególnych kontrahentów możesz przypisać inne stawki w regułach sprzedaży.</span>
+          </div>
+        </div>
+
+        <!-- Checkbox VAT -->
+        <div class="pt-2">
+          <label class="flex items-start space-x-3 cursor-pointer select-none">
+            <input type="checkbox" 
+                   id="platnik_vat_input" 
+                   name="platnik_vat" 
+                   value="true"
+                   checked
+                   class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 mt-0.5">
+            <div>
+              <span class="text-xs font-bold text-slate-800">Firma jest czynnym podatnikiem podatku VAT (VAT-7 / JPK_V7M)</span>
+              <p class="text-[11px] text-slate-500">
+                Zaznacz, jeśli wystawiasz faktury z podatkiem VAT i odliczasz VAT od wydatków firmowych. Odznacz, jeśli korzystasz ze zwolnienia podmiotowego (art. 113 ust. 1).
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 3: Schemat Składek ZUS -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">3</span>
+          <h2 class="text-sm font-bold text-slate-900">Ubezpieczenia Społeczne i Składka Zdrowotna ZUS</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">ZUS Podatnika</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="zus_typ_select" class="block text-xs font-bold text-slate-700 mb-1">
+              Aktualny schemat składek ZUS:
+            </label>
+            <select id="zus_typ_select" 
+                    name="zus_typ"
+                    class="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800">
+              <option value="PELNY_ZUS" selected>Pełny ZUS (Duży ZUS – standardowa podstawa 60% prognozowanego)</option>
+              <option value="MALY_ZUS_PLUS" >Mały ZUS Plus / Preferencyjny (obniżona podstawa 30% minimalnego)</option>
+              <option value="ULGA_NA_START" >Ulga na Start (0 zł na składki społeczne przez pierwsze 6 miesięcy)</option>
+              <option value="TYLKO_ZDROWOTNA" >Tylko Zdrowotna (np. zbieg tytułów, etat powyżej pensji minimalnej)</option>
+            </select>
+          </div>
+
+          <div class="flex items-center pt-5 sm:pt-4">
+            <label class="flex items-start space-x-3 cursor-pointer select-none">
+              <input type="checkbox" 
+                     name="chorobowe_dobrowolne" 
+                     value="true"
+                     checked
+                     class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 mt-0.5">
+              <div>
+                <span class="text-xs font-bold text-slate-800">Dobrowolne ubezpieczenie chorobowe</span>
+                <p class="text-[11px] text-slate-500">
+                  Daje prawo do świadczeń i zasiłków chorobowych/macierzyńskich ZUS.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 4: Kody PKD & KSeF 2.0 -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">4</span>
+          <h2 class="text-sm font-bold text-slate-900">Kody PKD (Ochrona Kosztów) & Integracja KSeF 2.0</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">Compliance & Integracje</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label for="kody_pkd_input" class="block text-xs font-bold text-slate-700 mb-1">
+            Kody PKD działalności (oddzielone przecinkami):
+          </label>
+          <input type="text" 
+                 id="kody_pkd_input" 
+                 name="kody_pkd" 
+                 value="62.01.Z, 62.02.Z"
+                 placeholder="np. 62.01.Z, 62.02.Z, 63.11.Z" 
+                 class="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          <p class="text-[11px] text-slate-500 mt-1">
+            💡 <strong>Dlaczego to ważne?</strong> Rejestracja kodów PKD w profilu pozwala silnikowi AI automatycznie kwalifikować zakupy biznesowe (np. serwery chmurowe AWS, licencje oprogramowania, sprzęt) jako w 100% koszty uzyskania przychodów (KUP) zgodnie z art. 22 ust. 1 ustawy o PIT.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          <div>
+            <label for="srodowisko_ksef_select" class="block text-xs font-bold text-slate-700 mb-1">
+              Środowisko KSeF 2.0:
+            </label>
+            <select id="srodowisko_ksef_select" 
+                    name="srodowisko_ksef"
+                    class="w-full px-3 py-2 text-xs font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800">
+              <option value="PROD" selected>PROD – Środowisko Produkcyjne (rzeczywiste e-Faktury)</option>
+              <option value="TEST" >TEST – Środowisko Testowe MF (bezpieczny sandbox)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="token_ksef_input" class="block text-xs font-bold text-slate-700 mb-1">
+              Token autoryzacyjny KSeF <span class="text-slate-400 font-normal">(opcjonalny na start)</span>:
+            </label>
+            <input type="password" 
+                   id="token_ksef_input" 
+                   name="token_ksef" 
+                   value=""
+                   placeholder="Wklej token KSeF lub uzupełnij go później w Ustawieniach" 
+                   class="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ukryty parametr auto_fetch -->
+    <input type="hidden" name="auto_fetch" value="true">
+
+    <!-- Pasek Akcji i Zatwierdzenia -->
+    <div class="flex items-center justify-between pt-2">
+      <a href="index.html" class="text-xs font-bold text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+        Anuluj
+      </a>
+
+      <button type="submit" 
+              class="px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2">
+        <span>Utwórz firmę i przejdź do księgowania</span>
+        <span class="text-base">🚀</span>
+      </button>
+    </div>
+
+  </form>
+
+</div>
+
+    </main>
+
+    <!-- Global Modal Podglądu Faktur (KSeF / Non-KSeF) -->
+    <div id="invoice-modal-wrapper"
+         class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+         style="display: none;"
+         onclick="if (event.target === this) closeInvoiceModal()"
+         role="dialog"
+         aria-modal="true">
+
+        <div id="invoice-modal-container"
+             class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[85vh] min-h-[520px] max-h-[90vh] my-auto"
+             onclick="event.stopPropagation()">
+            <!-- Treść podglądu ładowana dynamicznie przez HTMX z /api/invoices/preview -->
+            <div class="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
+              <span class="animate-spin inline-block text-4xl">⏳</span>
+              <p class="text-sm font-bold text-slate-800">Ładowanie podglądu faktury...</p>
+              <p class="text-xs text-slate-400">Pobieranie danych źródłowych i parsowanie formatów JSON/XML</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Copilot Drawer -->
+    <!-- AI Copilot Drawer (Boczny panel wysuwany Alpine.js) -->
+<div x-cloak x-show="copilotOpen" class="relative z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div x-show="copilotOpen" 
+       x-transition:enter="ease-in-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="ease-in-out duration-300"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="copilotOpen = false"
+       class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full transition-all duration-300"
+           :class="copilotMaximized ? 'w-full pl-0' : 'pl-10'">
+        
+        <!-- Panel content -->
+        <div x-show="copilotOpen" 
+             x-transition:enter="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="pointer-events-auto bg-white shadow-2xl flex flex-col transition-all duration-300 ease-in-out"
+             :class="copilotMaximized ? 'w-screen max-w-full' : 'w-screen max-w-md sm:max-w-lg'">
+          
+          <!-- Drawer Header -->
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <h2 class="text-sm font-bold tracking-tight">TaxPilot AI Assistant</h2>
+                <p class="text-xs text-slate-400">
+                  
+                    <span class="text-amber-400 font-semibold">Tryb Deterministyczny (Zero-LLM)</span>
+                  
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button hx-post="/api/copilot/reset" 
+                      hx-target="#copilot-chat-container" 
+                      hx-swap="innerHTML"
+                      title="Zrestartuj sesję AI dla bieżącej firmy (przerywa proces w tle i czyści kontekst)"
+                      class="px-2 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>🔄 Nowa sesja</span>
+              </button>
+
+              <!-- Przycisk maksymalizacji / przywrócenia normalnego rozmiaru -->
+              <button @click="copilotMaximized = !copilotMaximized" 
+                      :title="copilotMaximized ? 'Zmniejsz panel (przywróć standardową szerokość)' : 'Maksymalizuj na cały ekran (pełny widok tabel i wykresów)'"
+                      class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Maksymalizuj / Zmniejsz okno">
+                <!-- Ikona Pełnego ekranu -->
+                <svg x-show="!copilotMaximized" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <!-- Ikona Zmniejszenia -->
+                <svg x-show="copilotMaximized" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v5H4m0 0l5-5M15 4v5h5m0 0l-5-5M9 20v-5H4m0 0l5 5m6 0l5-5m-5 5v-5h5" />
+                </svg>
+              </button>
+
+              <button @click="copilotOpen = false" 
+                      title="Zamknij panel asystenta"
+                      class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-header: Aktywny wątek, edycja nazwy & Przycisk Historii -->
+          <div class="px-4 py-2 bg-slate-800 text-slate-200 border-b border-slate-700 flex items-center justify-between text-xs">
+            <!-- Dynamiczny tytuł aktywnej rozmowy i formularz szybkiej edycji -->
+            <div id="copilot-active-session-title-container"
+                 hx-get="/api/copilot/active-title"
+                 hx-trigger="load, copilot-refresh-title from:body"
+                 class="flex items-center space-x-2 flex-1 min-w-0 mr-2">
+              <span class="text-blue-400 flex-shrink-0">💬</span>
+              <span class="font-medium text-slate-300 truncate">Wczytywanie rozmowy...</span>
+            </div>
+
+            <!-- Przyciski: Historia rozmów oraz Nowy wątek -->
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              <button type="button"
+                      @click="historyOpen = !historyOpen" 
+                      :class="historyOpen ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600'"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Przeglądaj historię rozmów firmy">
+                <span>📜 Historia</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/copilot/sessions/new"
+                      hx-target="#copilot-chat-container"
+                      hx-swap="innerHTML"
+                      @click="historyOpen = false"
+                      class="px-2.5 py-1 text-[11px] font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Rozpocznij nowy, czysty wątek rozmowy">
+                <span>➕ Nowa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel Historii Rozmów (wysuwana lista archiwalnych sesji) -->
+          <div x-cloak x-show="historyOpen" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="bg-slate-900 border-b border-slate-700 p-3 max-h-72 overflow-y-auto shadow-inner text-xs space-y-2 z-10">
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                🗂️ Zapisane rozmowy firmy (kliknij, aby wczytać lub kontynuować)
+              </span>
+              <button type="button" @click="historyOpen = false" class="text-slate-400 hover:text-white text-xs cursor-pointer">
+                ✕ Zamknij
+              </button>
+            </div>
+            <div id="copilot-sessions-list"
+                 hx-get="/api/copilot/sessions"
+                 hx-trigger="load, copilot-refresh-sessions from:body"
+                 class="space-y-1.5">
+              <div class="text-center py-4 text-slate-500 text-xs">Ładowanie historii rozmów...</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50" id="copilot-messages">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full space-y-4' : 'space-y-4'">
+              <!-- Powitanie -->
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
+                  TP
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
+                  <p class="font-semibold text-slate-900">Cześć!</p>
+                  <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">CloudTech Solutions Jan Kowalski</strong>.</p>
+                  <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">2026-10</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
+                </div>
+              </div>
+
+              <!-- Kontener dynamicznych wiadomości z trwałą sesją -->
+              <div id="copilot-chat-container" 
+                   hx-get="/api/copilot/history" 
+                   hx-trigger="load, copilot-refresh from:body"
+                   class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Drawer Footer / Input -->
+          <div class="p-3 bg-white border-t border-slate-200">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full' : ''">
+              <form id="copilot-form"
+                    hx-post="/api/copilot/chat" 
+                    hx-target="#copilot-chat-container" 
+                    hx-swap="beforeend"
+                    onsubmit="return onCopilotSubmit(this);"
+                    class="flex items-center space-x-2"
+                    autocomplete="off">
+                <input type="text" 
+                       id="copilot-input"
+                       name="message" 
+                       required 
+                       placeholder="Zadaj pytanie asystentowi..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                  <span>Wyślij</span>
+                </button>
+              </form>
+              <div class="mt-1.5 text-center text-[10px] text-slate-400">
+                
+                  Tryb Deterministyczny (Zero-LLM) • Zero-Hallucination
+                
+              </div>
+            </div>
+          </div>
+
+          <script>
+            function onCopilotSubmit(form) {
+              const input = form.querySelector('input[name="message"]');
+              const msg = input.value.trim();
+              if (!msg) return false;
+
+              const messagesBox = document.getElementById('copilot-messages');
+              setTimeout(() => { input.value = ''; }, 10);
+              setTimeout(() => { if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight; }, 60);
+              return true;
+            }
+
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+              const messagesBox = document.getElementById('copilot-messages');
+              if (messagesBox && (evt.detail.target.id === 'copilot-chat-container' || evt.detail.target.closest('#copilot-messages'))) {
+                setTimeout(() => { messagesBox.scrollTop = messagesBox.scrollHeight; }, 30);
+              }
+            });
+          </script>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Toast Notifications -->
+    <!-- Toast Notifications Container -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none">
+  <!-- Dynamiczne toasty wstrzykiwane przez zdarzenia HTMX -->
+</div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+            <div class="flex items-center space-x-2">
+                <strong>TaxPilot AI</strong>
+                
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs" title="Wersja aplikacji (git tag)">
+                        v0.1.0
+                    </span>
+                
+                <span class="text-slate-400">•</span>
+                <span>Deterministyczna Księgowość i Podatki JDG &copy; 2026.</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Stos: FastAPI + HTMX + TailwindCSS</span>
+                <span>•</span>
+                <span>Zasada: Zero-Hallucination (`Decimal`)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Globalne skróty klawiszowe (Ctrl+K dla Asystenta) i integracja HTMX + Alpine -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const body = document.querySelector('body');
+                if (window.Alpine) {
+                    const data = Alpine.$data(body);
+                    if (data) {
+                        data.copilotOpen = !data.copilotOpen;
+                    }
+                }
+            }
+        });
+
+        // Globalne funkcje sterujące modalem podglądu faktury
+        function openInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'flex', 'important');
+            wrapper.classList.remove('hidden');
+            wrapper.classList.add('flex');
+        }
+
+        function closeInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'none', 'important');
+            wrapper.classList.add('hidden');
+            wrapper.classList.remove('flex');
+        }
+
+        function switchInvoiceTab(tab) {
+            ['summary', 'json', 'xml'].forEach(t => {
+                const el = document.getElementById('invoice-tab-' + t);
+                const btn = document.getElementById('invoice-tab-btn-' + t);
+                if (el) {
+                    el.style.display = (t === tab) ? 'block' : 'none';
+                }
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = 'border-b-2 border-blue-600 text-blue-600 pb-2.5 cursor-pointer font-bold';
+                    } else {
+                        btn.className = 'text-slate-500 hover:text-slate-800 pb-2.5 cursor-pointer font-bold';
+                    }
+                }
+            });
+        }
+
+        window.openInvoiceModal = openInvoiceModal;
+        window.closeInvoiceModal = closeInvoiceModal;
+        window.switchInvoiceTab = switchInvoiceTab;
+
+        window.addEventListener('open-invoice-modal', openInvoiceModal);
+        document.addEventListener('open-invoice-modal', openInvoiceModal);
+        window.addEventListener('close-invoice-modal', closeInvoiceModal);
+        document.addEventListener('close-invoice-modal', closeInvoiceModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeInvoiceModal();
+        });
+
+        // Inicjalizacja komponentów Alpine.js i otwarcie modalu po wstrzyknięciu treści przez HTMX
+        document.addEventListener('htmx:afterSwap', (evt) => {
+            if (evt.detail && evt.detail.target && evt.detail.target.id === 'invoice-modal-container') {
+                openInvoiceModal();
+                if (window.Alpine) {
+                    try {
+                        window.Alpine.initTree(evt.detail.target);
+                    } catch (err) {
+                        console.warn('Alpine.initTree warning:', err);
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- TaxPilot AI Demo Offline Scripts -->
+    <script src="static/js/demo-data.js"></script>
+    <script src="static/js/demo.js"></script>
+    
+</body>
+</html>
