@@ -9,6 +9,20 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Bezpieczeństwo
+- **SEC-1**: Eliminacja podatności XSS (CWE-79) w module Markdown Copilota za pomocą bezpiecznej sanitizacji HTML (`bleach`) z białą listą dozwolonych tagów i ucieczką atrybutów (`tests/test_xss_prevention.py`).
+- **SEC-2**: Utwardzenie uploadu dokumentów (`invoices.py`): wprowadzenie limitów rozmiaru (15 MB na plik, 50 MB na paczkę), weryfikacji nagłówków binarnych (*magic bytes* dla PDF, PNG, JPEG, JSON) oraz sanityzacji nazw plików.
+- **NET-1**: Zabezpieczenie sieciowe wdrożenia – bindowanie kontenera Docker wyłącznie do pętli zwrotnej `127.0.0.1:8000`, opcjonalna autoryzacja tokenem (`TAXPILOT_ACCESS_TOKEN`) lub Basic Auth oraz doprecyzowanie architektury aplikacji jako Local-First Personal AI Assistant w `README.md`.
+
+### Zmienione
+- **TAX-1**: Wdrożenie zasady ostrożności podatkowej w `settlement_service.py` – pozycje faktur bez audytu otrzymują status `⚠️ DO_WYJASNIENIA` i 0.00 zł VAT do odliczenia (zamiast domyślnego 100% firmowego). Usunięcie kategorycznych obietnic ("100% bezpieczny") i dodanie standardowej klauzuli informacyjnej do raportów.
+- **IO-1**: Wprowadzenie atomowego zapisu plików dyskowych `src/core/io.py` (`atomic_write_json`, `atomic_write_text` z użyciem unikalnych plików tymczasowych, `fsync` i atomowego `os.replace`) dla profili firm, reguł kosztowych, rejestrów i historii czatu.
+- **ARCH-1**: Modularyzacja silnika rozliczeń `SettlementService` – wyodrębnienie generatorów raportów do dedykowanego pakietu `src/level_3_tax_settlement/reports/` (`SettlementMarkdownReporter`, `LedgerMarkdownReporter`, `AuditMarkdownReporter`), redukując `settlement_service.py` o ponad 700 linii.
+
+### Jakość Kodu i Testy (QA)
+- **QA-1**: Wdrożenie lintera i formatera `ruff` w konfiguracji projektu `pyproject.toml` oraz w potoku CI `.github/workflows/ci.yml`.
+- **QA-1**: Pełna hermetyzacja i izolacja testów jednostkowych – testowe profile firm tworzone w izolowanych katalogach tymczasowych (`tempfile.mkdtemp`), eliminując współdzielony stan i kolizje danych testowych.
+
 ---
 
 ## [0.1.0] – 2026-11-20
