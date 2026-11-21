@@ -156,6 +156,50 @@ class InvoiceStorage:
         return clean_invoices
 
     @classmethod
+    def list_sales_invoices_for_pit(
+        cls, profile: CompanyProfile, rok: str, miesiac: str
+    ) -> List[Invoice]:
+        """
+        Zwraca faktury sprzedaży podlegające ujęciu w Ewidencji Przychodów (PIT-28) za dany miesiąc.
+        Zgodnie z art. 14 ust. 1m ustawy o PIT w zw. z art. 12 ust. 11 ustawy o zryczałtowanym podatku:
+        - Korekta przychodu spowodowana błędem rachunkowym koryguje przychód wstecznie w okresie
+          pierwotnym (miesiąc faktury korygowanej / daty sprzedaży), a nie w miesiącu jej wystawienia.
+        - Dlatego z bieżącego miesiąca wykluczamy korekty wsteczne dotyczące innych miesięcy,
+          a dołączamy korekty wsteczne wystawione w późniejszych miesiącach roku, których okres korygowany to ten miesiąc.
+        """
+        rok_str = str(rok)
+        miesiac_str = str(miesiac).zfill(2)
+        m_int = int(miesiac_str)
+
+        # 1. Faktury sprzedaży z bieżącego miesiąca
+        current_invoices = cls.list_invoices(profile, rok=rok_str, miesiac=miesiac_str, typ=InvoiceType.SPRZEDAZ)
+        result: List[Invoice] = []
+        seen_numbers = set()
+
+        for inv in current_invoices:
+            if inv.czy_korekta and inv.czy_korekta_wsteczna_pit:
+                # Jeśli korekta wsteczna dotyczy INNEGO miesiąca niż bieżący, pomijamy ją w PIT za ten miesiąc
+                if inv.okres_rozliczeniowy_pit != (rok_str, miesiac_str):
+                    continue
+            result.append(inv)
+            seen_numbers.add(inv.numer)
+
+        # 2. Poszukiwanie korekt wstecznych wystawionych w późniejszych miesiącach tego samego roku
+        year_dir = profile.katalog_firmy / "faktury" / rok_str
+        if year_dir.exists():
+            for m in range(m_int + 1, 13):
+                m_future_str = f"{m:02d}"
+                future_invoices = cls.list_invoices(profile, rok=rok_str, miesiac=m_future_str, typ=InvoiceType.SPRZEDAZ)
+                for inv in future_invoices:
+                    if inv.czy_korekta and inv.czy_korekta_wsteczna_pit:
+                        if inv.okres_rozliczeniowy_pit == (rok_str, miesiac_str):
+                            if inv.numer not in seen_numbers:
+                                result.append(inv)
+                                seen_numbers.add(inv.numer)
+
+        return result
+
+    @classmethod
     def get_duplicate_anomalies(
         cls, profile: CompanyProfile, rok: str, miesiac: str, typ: Optional[InvoiceType] = None
     ) -> List[DuplicateAnomaly]:

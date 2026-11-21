@@ -1,0 +1,96 @@
+<!-- partials/rules_list.html: Tabela zapisanych reguł firmy -->
+<div id="rules-list-inner" class="space-y-3 pt-2 text-xs">
+  {% if komunikat %}
+    <div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span>ℹ️</span>
+        <span class="font-medium">{{ komunikat }}</span>
+      </div>
+      <button type="button" onclick="this.parentElement.remove()" class="text-amber-500 hover:text-amber-700 font-bold">&times;</button>
+    </div>
+  {% endif %}
+
+  <div class="flex items-center justify-between text-slate-600 font-medium pb-1">
+    <div class="flex items-center space-x-2">
+      <span class="font-bold text-slate-800">Aktualne reguły firmy:</span>
+      <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono text-[11px] font-bold">
+        {{ reguly|length }}
+      </span>
+    </div>
+    <span class="text-[11px] text-slate-400">Reguły są stosowane automatycznie przy każdym rozliczeniu</span>
+  </div>
+
+  {% if reguly and reguly|length > 0 %}
+    <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-2xs">
+      <table class="w-full text-left border-collapse bg-white">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+            <th class="p-2.5">Typ & Kontrahent</th>
+            <th class="p-2.5">Wzorzec w opisie</th>
+            <th class="p-2.5">Kwalifikacja</th>
+            <th class="p-2.5">Uzasadnienie</th>
+            <th class="p-2.5 text-center">Data</th>
+            <th class="p-2.5 text-center">Akcja</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          {% for r in reguly %}
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="p-2.5 font-medium whitespace-nowrap">
+                {% if r.typ == 'KONTRAHENT' %}
+                  <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono text-[11px]">
+                    <span>🏢</span>
+                    <span>NIP: {{ r.nip_kontrahenta }}</span>
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 text-[11px]">
+                    <span>🌐</span>
+                    <span>Globalna</span>
+                  </span>
+                {% endif %}
+              </td>
+              <td class="p-2.5 font-mono font-semibold text-slate-900">
+                "{{ r.wzorzec }}"
+              </td>
+              <td class="p-2.5 whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold
+                             {% if r.kwalifikacja == 'FIRMOWY_100' %}bg-emerald-50 text-emerald-800 border border-emerald-200
+                             {% elif r.kwalifikacja == 'SAMOCHOD_50' %}bg-blue-50 text-blue-800 border border-blue-200
+                             {% elif r.kwalifikacja == 'PRYWATNY_0' %}bg-rose-50 text-rose-800 border border-rose-200
+                             {% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
+                  {{ r.kwalifikacja_label }}
+                </span>
+              </td>
+              <td class="p-2.5 text-slate-500 max-w-xs truncate" title="{{ r.uzasadnienie }}">
+                {{ r.uzasadnienie or '—' }}
+              </td>
+              <td class="p-2.5 text-slate-400 font-mono text-[11px] text-center whitespace-nowrap">
+                {{ r.data_utworzenia or '—' }}
+              </td>
+              <td class="p-2.5 text-center whitespace-nowrap">
+                <form hx-post="/api/rules/delete"
+                      hx-target="#rules-list-container"
+                      hx-swap="innerHTML"
+                      hx-confirm="Czy na pewno chcesz usunąć regułę dla wzorca '{{ r.wzorzec }}'?"
+                      class="inline-block">
+                  <input type="hidden" name="wzorzec" value="{{ r.wzorzec }}">
+                  <input type="hidden" name="sprzedawca_nip" value="{{ r.nip_kontrahenta }}">
+                  <button type="submit"
+                          class="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded font-semibold transition-colors cursor-pointer text-[11px] inline-flex items-center space-x-1"
+                          title="Usuń tę regułę">
+                    <span>🗑️</span>
+                    <span>Usuń</span>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="p-4 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-center text-slate-500 italic">
+      Brak zdefiniowanych reguł w pliku <code>reguly_kosztowe.json</code>. Dodaj nową regułę formularzem powyżej lub kliknij przycisk "💾 Reguła" w tabeli kosztów.
+    </div>
+  {% endif %}
+</div>

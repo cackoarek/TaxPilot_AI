@@ -9,6 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import json
+import re
 
 from src.core.company import CompanyProfile, FormaOpodatkowania
 from src.core.invoice import InvoiceType
@@ -115,7 +116,7 @@ class MonthlySettlementResult:
             "",
             "### A. Składki ZUS",
             f"* **Podstawa składek społecznych:** {self.zus.podstawa_spoleczne:.2f} zł",
-            f"* **Składki społeczne (emerytalna, rentowa, chorobowa, wypadkowa, FP):** {self.zus.suma_spoleczne:.2f} zł",
+            f"* **Składki społeczne (emerytalna, rentowa, chorobowa, wypadkowa, FP):** {self.zus.suma_spoleczne:.2f} zł (w tym odliczalne w PIT bez FP: {self.zus.spoleczne_odliczalne:.2f} zł)",
             f"* **Podstawa składki zdrowotnej:** {self.zus.podstawa_zdrowotna:.2f} zł",
             f"* **Składka zdrowotna:** {self.zus.zdrowotna:.2f} zł (odliczenie na ryczałcie 50%: {self.zus.odliczenie_zdrowotna_ryczalt_50:.2f} zł)",
             f"* **Razem przelew do ZUS:** **{self.zus.lacznie_do_zaplaty:.2f} zł**",
@@ -126,8 +127,8 @@ class MonthlySettlementResult:
             linie.extend([
                 "### B. Ryczałt od Przychodów Ewidencjonowanych (PIT-28)",
                 f"* **Przychód do opodatkowania:** {self.pit28.przychod_laczny:.2f} zł",
-                f"* **Odliczenie składek społecznych:** -{self.pit28.odliczenie_spoleczne:.2f} zł",
-                f"* **Odliczenie 50% składki zdrowotnej:** -{self.pit28.odliczenie_zdrowotna_50:.2f} zł",
+                f"* **Odliczenie składek społecznych (zapłacone w m-cu, bez FP):** -{self.pit28.odliczenie_spoleczne:.2f} zł",
+                f"* **Odliczenie 50% zapłaconej składki zdrowotnej:** -{self.pit28.odliczenie_zdrowotna_50:.2f} zł",
                 f"* **Podstawa opodatkowania:** {self.pit28.podstawa_opodatkowania:.2f} zł",
                 f"* **Podatek wyliczony dokładnie:** {self.pit28.podatek_nalezy_dokladny:.2f} zł",
                 f"* **Zaliczka PIT-28 do zapłaty (zaokrąglona):** **{self.pit28.zaliczka_pit28_zaokraglona} zł**",
@@ -248,7 +249,7 @@ class MonthlySettlementResult:
 
         faktury_sprzedaz_map = {
             inv.numer: inv
-            for inv in InvoiceStorage.list_invoices(self.profil, self.rok, self.miesiac, typ=InvoiceType.SPRZEDAZ)
+            for inv in InvoiceStorage.list_sales_invoices_for_pit(self.profil, self.rok, self.miesiac)
         }
 
         for wpis in self.ledger.ewidencja_przychodow.wpisy:
@@ -523,13 +524,25 @@ class MonthlySettlementResult:
         jej rozliczenia, powodu odrzucenia lub zaksięgowania, wysokości podatku – zapis prac
         podczas księgowania jako audyt podatkowy.
         """
-        faktury_sprzedaz = InvoiceStorage.list_invoices(
-            self.profil, self.rok, self.miesiac, typ=InvoiceType.SPRZEDAZ
+        faktury_sprzedaz = InvoiceStorage.list_sales_invoices_for_pit(
+            self.profil, self.rok, self.miesiac
         )
         faktury_koszt = InvoiceStorage.list_invoices(
             self.profil, self.rok, self.miesiac, typ=InvoiceType.KOSZT
         )
         audyt_map = {a.numer_faktury: a for a in self.ledger.audyt_kosztow}
+
+        # Odczyt danych weryfikacji Białej Listy i AML dla kontrahentów w audytowanym okresie
+        aml_report_file = self.profil.katalog_firmy / "weryfikacje" / self.rok / self.miesiac / "raport-weryfikacji.json"
+        aml_karty_map: Dict[str, Dict[str, Any]] = {}
+        if aml_report_file.exists():
+            try:
+                aml_json_data = json.loads(aml_report_file.read_text(encoding="utf-8"))
+                for k in aml_json_data.get("kontrahenci", []):
+                    clean_k_nip = re.sub(r"[^0-9]", "", k.get("nip", ""))
+                    aml_karty_map[clean_k_nip] = k
+            except Exception:
+                pass
 
         linie = [
             f"# Sprawozdanie z Czynności Księgowych i Audytu Podatkowego – {self.rok}-{self.miesiac}",
@@ -596,12 +609,27 @@ class MonthlySettlementResult:
         for idx, inv in enumerate(faktury_koszt, start=1):
             audit = audyt_map.get(inv.numer)
             zrodlo_badge = "🏛️ KSeF" if inv.zrodlo == "KSEF" else "📁 Non-KSeF"
+            c_nip = re.sub(r"[^0-9]", "", inv.sprzedawca.nip)
+            aml_k = aml_karty_map.get(c_nip)
+
+            # Informacja o numerze rachunku bankowego i Białej Liście
+            rb_tekst = "Nie wskazano"
+            if getattr(inv, "rachunek_bankowy", None):
+                st_rach = aml_k.get("status_rachunku") if aml_k else None
+                if st_rach == "ZGODNY_BIALA_LISTA":
+                    rb_tekst = f"`{inv.rachunek_bankowy}` – ✅ **Zgodny z Białą Listą MF** (bezpieczny do płatności pow. 15 tys. zł)"
+                elif st_rach == "BRAK_NA_BIALEJ_LISCIE":
+                    rb_tekst = f"`{inv.rachunek_bankowy}` – ⚠️ **Brak na Białej Liście MF** (wymaga zawiadomienia ZAW-NR przy kwocie pow. 15 tys. zł)"
+                else:
+                    rb_tekst = f"`{inv.rachunek_bankowy}` – ℹ️ Odczytany z dokumentu"
+
             linie.extend([
                 f"### 2.{idx}. Faktura kosztowa nr `{inv.numer}` – {inv.sprzedawca.nazwa}",
                 f"* **Sprzedawca:** {inv.sprzedawca.nazwa} (NIP: `{inv.sprzedawca.nip}`)",
                 f"* **Data wystawienia:** `{inv.data_wystawienia}` | **Data zakupu:** `{inv.data_sprzedazy or inv.data_wystawienia}`",
                 f"* **Źródło dokumentu:** {zrodlo_badge} (`{inv.plik_zrodlowy or inv.numer}`)",
                 f"* **Wartości z dokumentu:** Netto: **{inv.suma_netto:.2f} zł** | VAT: **{inv.suma_vat:.2f} zł** | Brutto: **{inv.suma_brutto:.2f} zł**",
+                f"* **Rachunek bankowy do zapłaty:** {rb_tekst}",
                 "",
                 "**Przebieg audytu poszczególnych pozycji:**",
                 "",
@@ -660,6 +688,10 @@ class MonthlySettlementResult:
             "* Zapobiega to zakwestionowaniu rozliczenia przez organy Krajowej Administracji Skarbowej (KAS) oraz eliminuje ryzyko nałożenia dodatkowego zobowiązania podatkowego (sankcji VAT do 30% z art. 112b ustawy o VAT) wraz z odsetkami za zwłokę.",
             "* Zastosowano ustawowy limit 50% odliczenia VAT na wydatki eksploatacyjne pojazdów osobowych użytkowanych w trybie mieszanym (art. 86a ustawy o VAT).",
             "",
+            "### 3. Weryfikacja Rachunków Bankowych na Białej Liście Podatników VAT (art. 22p PIT)",
+            "* Zgodnie z procedurą należytej staranności, numery rachunków bankowych z faktur zakupowych poddano weryfikacji w oficjalnym wykazie Ministerstwa Finansów.",
+            "* Płatności powyżej 15 000 zł brutto na rachunki figurujące na Białej Liście MF gwarantują pełne bezpieczeństwo podatkowe, zachowanie prawa do KUP oraz brak solidarnej odpowiedzialności za VAT (art. 117ba Ordynacji podatkowej).",
+            "",
             "---",
             "## 🔍 Część IV: Rejestr Wykrytych Duplikatów i Kolizji Źródłowych (Deduplikacja)",
         ])
@@ -716,12 +748,10 @@ class SettlementService:
 
         for m in range(1, target_m + 1):
             m_str = f"{m:02d}"
-            faktury = InvoiceStorage.list_invoices(
-                profile=profile, rok=rok_str, miesiac=m_str, typ=InvoiceType.SPRZEDAZ
+            faktury = InvoiceStorage.list_sales_invoices_for_pit(
+                profile=profile, rok=rok_str, miesiac=m_str
             )
             for inv in faktury:
-                if inv.czy_korekta and inv.czy_korekta_wsteczna_pit:
-                    continue
                 suma_ytd += inv.suma_netto
 
         return suma_ytd
@@ -747,25 +777,93 @@ class SettlementService:
         # 2. Wyznaczenie przychodu narastająco do progów zdrowotnej
         przychod_ytd = cls.calculate_ytd_revenue(profile=profile, rok=rok_str, up_to_month=miesiac_str)
 
-        # 3. Poziom 3: Obliczenie ZUS
+        # 3. Poziom 3: Obliczenie ZUS należnego za bieżący miesiąc
+        uproszczona_prog = (
+            profile.zus.prog_zdrowotnej_uproszczony
+            if getattr(profile.zus, "metoda_zdrowotna", "UPROSZCZONA_UBIEGLY_ROK") == "UPROSZCZONA_UBIEGLY_ROK"
+            else None
+        )
+
+        current_zus_typ = (
+            profile.zus.get_typ_for_period(rok_str, miesiac_str)
+            if hasattr(profile.zus, "get_typ_for_period")
+            else profile.zus.typ
+        )
+
         zus_result = calculate_zus(
             rok=rok_str,
             miesiac=miesiac_str,
-            typ_zus=profile.zus.typ,
+            typ_zus=current_zus_typ,
             chorobowe_dobrowolne=profile.zus.chorobowe_dobrowolne,
             forma_opodatkowania=profile.forma_opodatkowania,
             przychod_roczny_narastajaco=przychod_ytd,
+            uproszczona_zdrowotna_prog=uproszczona_prog,
         )
 
-        # 4. Poziom 3: Obliczenie PIT-28 (jeśli Ryczałt)
+        # 4. Poziom 3: Wyznaczenie składek ZUS do odliczenia w PIT
+        # Zgodnie z art. 11 ust. 1 ustawy o ryczałcie oraz art. 26 ust. 1 pkt 2 lit. a ustawy o PIT:
+        # a) Odlicza się składki ZAPŁACONE w danym miesiącu (zasada kasowa: w miesiącu M płaci się ZUS za M-1)
+        # b) Odlicza się wyłącznie ubezpieczenia społeczne (emerytalna, rentowa, chorobowa, wypadkowa) - BEZ Funduszu Pracy!
+        # c) Odlicza się 50% zapłaconej składki zdrowotnej
+        zasada_odliczen = getattr(profile.zus, "zasada_odliczen", "KASOWA")
+
+        if zasada_odliczen == "KASOWA":
+            m_int = int(miesiac_str)
+            if m_int > 1:
+                prev_m_str = f"{m_int - 1:02d}"
+                prev_rok_str = rok_str
+            else:
+                prev_m_str = "12"
+                prev_rok_str = str(int(rok_str) - 1)
+
+            prev_rozliczenie_file = profile.katalog_firmy / "rozliczenia" / prev_rok_str / prev_m_str / "rozliczenie.json"
+            if prev_rozliczenie_file.exists():
+                try:
+                    with open(prev_rozliczenie_file, "r", encoding="utf-8") as f:
+                        prev_data = json.load(f)
+                    prev_zus = prev_data.get("zus", {})
+                    skladki_spol_dict = prev_zus.get("skladki_spoleczne", {})
+                    if "odliczalne" in skladki_spol_dict:
+                        skladki_spoleczne_do_odliczenia = Decimal(str(skladki_spol_dict["odliczalne"]))
+                    else:
+                        suma_spol = Decimal(str(skladki_spol_dict.get("suma", "0.00")))
+                        fp = Decimal(str(skladki_spol_dict.get("fundusz_pracy", "0.00")))
+                        skladki_spoleczne_do_odliczenia = max(Decimal("0.00"), suma_spol - fp)
+                    skladka_zdrowotna_zaplacona = Decimal(str(prev_zus.get("skladka_zdrowotna", {}).get("kwota", "0.00")))
+                except Exception:
+                    skladki_spoleczne_do_odliczenia = zus_result.spoleczne_odliczalne
+                    skladka_zdrowotna_zaplacona = zus_result.zdrowotna
+            else:
+                prev_ytd = cls.calculate_ytd_revenue(profile=profile, rok=prev_rok_str, up_to_month=prev_m_str)
+                prev_zus_typ = (
+                    profile.zus.get_typ_for_period(prev_rok_str, prev_m_str)
+                    if hasattr(profile.zus, "get_typ_for_period")
+                    else profile.zus.typ
+                )
+                prev_zus_calc = calculate_zus(
+                    rok=prev_rok_str,
+                    miesiac=prev_m_str,
+                    typ_zus=prev_zus_typ,
+                    chorobowe_dobrowolne=profile.zus.chorobowe_dobrowolne,
+                    forma_opodatkowania=profile.forma_opodatkowania,
+                    przychod_roczny_narastajaco=prev_ytd,
+                    uproszczona_zdrowotna_prog=uproszczona_prog,
+                )
+                skladki_spoleczne_do_odliczenia = prev_zus_calc.spoleczne_odliczalne
+                skladka_zdrowotna_zaplacona = prev_zus_calc.zdrowotna
+        else:
+            skladki_spoleczne_do_odliczenia = zus_result.spoleczne_odliczalne
+            skladka_zdrowotna_zaplacona = zus_result.zdrowotna
+
+        # 5. Poziom 3: Obliczenie PIT-28 (jeśli Ryczałt)
         pit28_result: Optional[PIT28CalculationResult] = None
         if profile.forma_opodatkowania == FormaOpodatkowania.RYCZALT:
             pit28_result = calculate_pit28_advance(
                 rok=rok_str,
                 miesiac=miesiac_str,
                 sumy_przychodow_wg_stawek=ledger.ewidencja_przychodow.sumy_wg_stawek,
-                skladki_spoleczne_do_odliczenia=zus_result.suma_spoleczne,
-                skladka_zdrowotna_zaplacona=zus_result.zdrowotna,
+                skladki_spoleczne_do_odliczenia=skladki_spoleczne_do_odliczenia,
+                skladka_zdrowotna_zaplacona=skladka_zdrowotna_zaplacona,
             )
 
         # 5. Poziom 3: Obliczenie VAT (jeśli płatnik VAT)

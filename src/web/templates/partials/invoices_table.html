@@ -1,0 +1,202 @@
+<!-- Fragment tabeli faktur: partials/invoices_table.html -->
+<div id="invoices-table-container" 
+     {% if table_swap_oob %}hx-swap-oob="true"{% endif %}
+     class="space-y-4"
+     hx-get="/faktury/table?tab={{ tab or 'all' }}" 
+     hx-trigger="invoices-refresh from:body" 
+     hx-swap="outerHTML">
+  
+  {% if upload_alert %}
+    {{ upload_alert|safe }}
+  {% endif %}
+
+  <!-- Tabela Dokumentów -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Pasek nagłówka tabeli i statystyk -->
+    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center space-x-2">
+        <span class="font-bold text-slate-800">Dokumenty w wybranym okresie:</span>
+        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold">
+          {{ summary.invoices|length if summary else 0 }} łącznie
+        </span>
+        <span class="text-slate-400">•</span>
+        <span class="text-slate-600">🏛️ KSeF: <strong>{{ summary.ksef_count if summary else 0 }}</strong></span>
+        <span class="text-slate-400">•</span>
+        <span class="text-slate-600">📁 Non-KSeF: <strong>{{ summary.non_ksef_count if summary else 0 }}</strong></span>
+      </div>
+
+      <!-- Filtry zakładek -->
+      <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-lg">
+        <a href="/faktury?tab=all" class="px-2.5 py-1 rounded text-xs font-semibold {% if tab == 'all' %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %} transition-colors">
+          Wszystkie ({{ summary.invoices|length if summary else 0 }})
+        </a>
+        <a href="/faktury?tab=sprzedaz" class="px-2.5 py-1 rounded text-xs font-semibold {% if tab == 'sprzedaz' %}bg-white text-emerald-800 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %} transition-colors">
+          Sprzedaż ({{ summary.sprzedaz|length if summary else 0 }})
+        </a>
+        <a href="/faktury?tab=koszty" class="px-2.5 py-1 rounded text-xs font-semibold {% if tab == 'koszty' %}bg-white text-blue-800 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %} transition-colors">
+          Koszty ({{ summary.koszty|length if summary else 0 }})
+        </a>
+      </div>
+    </div>
+
+    <!-- Tabela główna -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+            <th class="p-3 text-center">LP</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Numer Faktury</th>
+            <th class="p-3">Druga Strona (Kontrahent)</th>
+            <th class="p-3 text-center">Kategoria</th>
+            <th class="p-3 text-center">Źródło</th>
+            <th class="p-3 text-right">Netto</th>
+            <th class="p-3 text-right">VAT</th>
+            <th class="p-3 text-right">Brutto</th>
+            <th class="p-3 text-center">Plik</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% if summary and summary.invoices %}
+            {% for inv in summary.invoices %}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">{{ loop.index }}</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">{{ inv.data_wystawienia }}</td>
+                <td class="p-3 font-mono font-medium text-slate-900">
+                  {{ inv.numer }}
+                  {% if inv.ksef_numer_referencyjny %}
+                    <div class="text-[9px] text-slate-400 font-mono truncate max-w-xs" title="{{ inv.ksef_numer_referencyjny }}">
+                      KSeF: {{ inv.ksef_numer_referencyjny }}
+                    </div>
+                  {% endif %}
+                </td>
+                <td class="p-3">
+                  {% if inv.typ.value == 'sprzedaz' %}
+                    <div class="font-bold text-slate-900">{{ inv.nabywca.nazwa }}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: {{ inv.nabywca.nip }}</div>
+                  {% else %}
+                    <div class="font-bold text-slate-900">{{ inv.sprzedawca.nazwa }}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">NIP: {{ inv.sprzedawca.nip }}</div>
+                  {% endif %}
+                </td>
+                <td class="p-3 text-center">
+                  {% if inv.typ.value == 'sprzedaz' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Sprzedaż
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Zakup (Koszt)
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  {% if inv.zrodlo == 'KSEF' or inv.ksef_numer_referencyjny %}
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
+                      🏛️ KSeF
+                    </span>
+                  {% else %}
+                    <span class="px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                      📁 Non-KSeF
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="p-3 font-mono text-right font-semibold text-slate-900">
+                  {{ "%.2f"|format(inv.suma_netto|float) }} zł
+                </td>
+                <td class="p-3 font-mono text-right text-slate-600">
+                  {{ "%.2f"|format(inv.suma_vat|float) }} zł
+                </td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">
+                  {{ "%.2f"|format(inv.suma_brutto|float) }} zł
+                </td>
+                <td class="p-3 text-center">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer={{ inv.numer|urlencode }}&typ={{ inv.typ.value }}"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      {% if inv.plik_zrodlowy %}
+                        {{ inv.plik_zrodlowy.replace('\\', '/').split('/')[-1] }}
+                      {% else %}
+                        XML KSeF
+                      {% endif %}
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="10" class="p-8 text-center text-slate-400 italic">
+                Brak faktur dla wybranego filtru w miesiącu {{ rok }}-{{ miesiac }}.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pasek sum na dole -->
+    {% if summary and summary.invoices %}
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
+        <div class="flex items-center space-x-6">
+          <div>
+            <span class="text-slate-500 block text-[10px] uppercase font-sans">Suma Sprzedaży Netto:</span>
+            <span class="text-sm font-bold text-emerald-800">{{ "%.2f"|format(summary.suma_sprzedaz_netto|float) }} zł</span>
+          </div>
+          <div class="border-l border-slate-200 pl-6">
+            <span class="text-slate-500 block text-[10px] uppercase font-sans">Suma Kosztów Netto:</span>
+            <span class="text-sm font-bold text-slate-900">{{ "%.2f"|format(summary.suma_koszty_netto|float) }} zł</span>
+          </div>
+          <div class="border-l border-slate-200 pl-6">
+            <span class="text-slate-500 block text-[10px] uppercase font-sans">VAT Kosztowy:</span>
+            <span class="text-sm font-bold text-blue-700">{{ "%.2f"|format(summary.suma_koszty_vat|float) }} zł</span>
+          </div>
+        </div>
+
+        <div class="text-slate-400 text-[11px] font-sans">
+          Archiwum: <code class="text-slate-600">firmy/{{ profile.nip }}/faktury/{{ rok }}/{{ miesiac }}/</code>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% if is_ksef_sync_response %}
+  <div id="ksef-last-sync-status" hx-swap-oob="true" class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
+    <div>
+      <span class="text-slate-500">Ostatnia synchronizacja:</span>
+      {% if last_sync %}
+        <span class="font-bold {% if last_sync.status == 'SUKCES' %}text-emerald-700{% else %}text-rose-600{% endif %}">
+          {{ last_sync.timestamp }} ({{ last_sync.status }})
+        </span>
+        <div class="text-[10px] text-slate-500">
+          Pobrano: {{ last_sync.lacznie_sprzedaz }} sprzedaży, {{ last_sync.lacznie_kosztow }} kosztów
+        </div>
+      {% else %}
+        <span class="text-slate-400 font-medium">Brak prób w tym okresie</span>
+      {% endif %}
+    </div>
+    {% if sync_history %}
+      <button type="button" @click="historyModalOpen = true" class="text-blue-600 hover:text-blue-800 font-semibold underline text-[11px] self-start sm:self-auto cursor-pointer">
+        Historia synchronizacji ({{ sync_history|length }}) &rarr;
+      </button>
+    {% endif %}
+  </div>
+
+  <div id="ksef-history-modal-body" hx-swap-oob="true" class="flex-1 overflow-y-auto">
+    {% include "partials/ksef_history_modal_body.html" %}
+  </div>
+{% endif %}
+
+{% if banner_swap_oob %}
+  {% include "partials/unprocessed_invoices_banner.html" %}
+{% endif %}

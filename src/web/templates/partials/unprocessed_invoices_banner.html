@@ -1,0 +1,170 @@
+<div id="unprocessed-banner-container" {% if banner_swap_oob %}hx-swap-oob="true"{% endif %} class="transition-all">
+  {% if extraction_status and extraction_status.status == 'running' %}
+    <!-- BANNER: PROCES EKSTRAKCJI W TOKU (BACKGROUND TASK) -->
+    <div class="bg-blue-50 border border-blue-300 rounded-xl p-4 shadow-sm text-xs text-blue-900 space-y-3"
+         hx-get="/faktury/extract-status" 
+         hx-trigger="every 1500ms" 
+         hx-target="#unprocessed-banner-container" 
+         hx-swap="outerHTML">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start space-x-3">
+          <svg class="animate-spin h-5 w-5 text-blue-600 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <div>
+            <h4 class="font-bold text-sm text-blue-950 flex items-center space-x-2">
+              <span>⏳ Trwa wyciąganie danych z faktur przez silnik AI...</span>
+              <span class="px-2 py-0.5 text-[10px] bg-blue-200 text-blue-800 rounded font-semibold uppercase">Zadanie w tle</span>
+            </h4>
+            <p class="text-xs text-blue-800 mt-0.5">
+              {{ extraction_status.message or 'Przetwarzanie dokumentów graficznych w tle. Każdy dokument podlega niezależnej analizie.' }}
+            </p>
+          </div>
+        </div>
+        {% if extraction_status.total and extraction_status.total > 0 %}
+          <div class="text-right shrink-0">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-200 text-blue-900 border border-blue-300">
+              {{ extraction_status.current or 1 }} / {{ extraction_status.total }} ({{ extraction_status.percent or 0 }}%)
+            </span>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- PASEK POSTĘPU -->
+      <div class="space-y-1">
+        <div class="flex justify-between items-center text-[11px] text-blue-800 font-medium">
+          <span>
+            {% if extraction_status.current_file %}
+              Aktualnie analizowany: <strong class="font-mono text-blue-950">{{ extraction_status.current_file }}</strong>
+            {% else %}
+              Postęp analizy wsadowej
+            {% endif %}
+          </span>
+          <span class="font-bold text-blue-950">{{ extraction_status.percent or 0 }}%</span>
+        </div>
+        <div class="w-full bg-blue-200 rounded-full h-2.5 overflow-hidden shadow-inner">
+          <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
+               style="width: {{ extraction_status.percent if (extraction_status.percent and extraction_status.percent > 4) else 5 }}%"></div>
+        </div>
+      </div>
+    </div>
+
+  {% elif extraction_status and extraction_status.status == 'completed' %}
+    <!-- BANNER: ZAKOŃCZONO POMYŚLNIE -->
+    <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-4 shadow-sm text-xs text-emerald-900 flex items-center justify-between gap-3"
+         x-init="if (window.htmx) { htmx.trigger('body', 'invoices-refresh'); }">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl text-emerald-600">✅</span>
+        <div>
+          <h4 class="font-bold text-sm text-emerald-950">Zakończono wyciąganie danych z faktury!</h4>
+          <p class="text-xs text-emerald-800 mt-0.5">
+            {{ extraction_status.message or 'Wszystkie dokumenty zostały pomyślnie odczytane i zaksięgowane. Rejestry zostały zaktualizowane.' }}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button hx-post="/faktury/extract-status/dismiss"
+                hx-target="#unprocessed-banner-container"
+                hx-swap="outerHTML"
+                class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+          ✕ Zamknij
+        </button>
+      </div>
+    </div>
+
+    <!-- Bezpośredni OOB swap tabeli dokumentów z nowo wyciągniętymi danymi -->
+    {% if table_swap_oob and summary %}
+      {% include "partials/invoices_table.html" %}
+    {% endif %}
+
+  {% elif extraction_status and extraction_status.status == 'error' %}
+    <!-- BANNER: BŁĄD EKSTRAKCJI -->
+    <div class="bg-rose-50 border border-rose-300 rounded-xl p-4 shadow-sm text-xs text-rose-900 flex items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl text-rose-600">⚠️</span>
+        <div>
+          <h4 class="font-bold text-sm text-rose-950">Błąd podczas wyciągania danych</h4>
+          <p class="text-xs text-rose-800 mt-0.5">
+            {{ extraction_status.message or 'Nie udało się zakończyć procesu analizy dokumentów.' }}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button hx-post="/faktury/extract-ai"
+                hx-target="#unprocessed-banner-container"
+                hx-swap="outerHTML"
+                class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+          🔄 Spróbuj ponownie
+        </button>
+        <button hx-post="/faktury/extract-status/dismiss"
+                hx-target="#unprocessed-banner-container"
+                hx-swap="outerHTML"
+                class="px-2.5 py-1.5 bg-rose-200 hover:bg-rose-300 text-rose-800 font-semibold rounded-lg text-xs transition-colors cursor-pointer">
+          ✕
+        </button>
+      </div>
+    </div>
+
+  {% elif unprocessed_invoices and unprocessed_invoices|length > 0 %}
+    <!-- BANNER: OSTRZEŻENIE O NIEPRZETWORZONYCH DOKUMENTACH + PRZYCISK AI -->
+    <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-sm text-xs text-amber-950 space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-start space-x-3">
+          <span class="text-2xl text-amber-600 select-none">⚠️</span>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h4 class="font-bold text-sm text-amber-950">
+                Nie wszystkie faktury dostarczone przez użytkownika zostały prawidłowo przetworzone!
+              </h4>
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-200 text-amber-900 border border-amber-300">
+                {{ unprocessed_count }} {{ 'dokument' if unprocessed_count == 1 else 'dokumenty' if unprocessed_count < 5 else 'dokumentów' }}
+              </span>
+            </div>
+            <p class="text-xs text-amber-900 mt-1">
+              Wykryto pliki, z których system nie odczytał kwot ani danych kontrahenta (kwoty 0,00 zł lub brak NIP). 
+              Dokumenty te <strong>nie zostaną uwzględnione</strong> w odliczeniach VAT ani kosztach do czasu wyciągnięcia danych:
+            </p>
+            <div class="mt-2 p-2.5 bg-amber-100/90 rounded-lg border border-amber-300/80 flex items-start space-x-2 text-xs text-amber-950">
+              <span class="text-base leading-none select-none">💡</span>
+              <div>
+                <strong>Wskazówka:</strong> Jeśli posiadasz więcej dokumentów do wgrania w tym miesiącu, 
+                <strong>dodaj najpierw wszystkie pliki</strong>. Ekstrakcję AI zaleca się uruchomić 
+                <strong>po dodaniu kompletu dokumentów</strong>, aby przeanalizować wszystkie faktury za jednym razem.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="shrink-0 self-start sm:self-center">
+          <button hx-post="/faktury/extract-ai"
+                  hx-target="#unprocessed-banner-container"
+                  hx-swap="outerHTML"
+                  class="inline-flex items-center space-x-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer">
+            <span class="text-sm">🤖</span>
+            <span>Wyciągnij dane z faktury (AI)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista plików wymagających odczytania -->
+      <div class="bg-amber-100/70 border border-amber-200 rounded-lg p-2.5 space-y-1">
+        <div class="font-semibold text-[11px] text-amber-900 uppercase tracking-wider">Dokumenty do przetworzenia:</div>
+        <ul class="divide-y divide-amber-200/60 text-xs">
+          {% for doc in unprocessed_invoices %}
+            <li class="py-1 flex items-center justify-between text-amber-950">
+              <span class="flex items-center space-x-1.5 font-mono">
+                <span>📄</span>
+                <strong>{{ doc.plik }}</strong>
+                <span class="text-[10px] text-amber-800 font-sans">({{ doc.typ }})</span>
+              </span>
+              <span class="text-[11px] text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded font-medium">
+                {{ doc.powod_skrot }}
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% endif %}
+</div>

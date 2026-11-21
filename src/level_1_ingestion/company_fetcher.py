@@ -18,11 +18,51 @@ class CompanyFetcher:
     """
 
     MF_API_URL = "https://wl-api.mf.gov.pl/api/search/nip"
+    MF_CHECK_URL = "https://wl-api.mf.gov.pl/api/check/nip"
     CEIDG_API_URL = "https://dane.biznes.gov.pl/api/ceidg/v2/firmy"
 
     @staticmethod
     def clean_nip(nip: str) -> str:
         return re.sub(r"[^0-9]", "", nip)
+
+    @classmethod
+    def check_bank_account_mf(
+        cls, nip: str, account: str, date_str: Optional[str] = None, timeout: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Weryfikuje powiązanie pary NIP + numer rachunku w dedykowanym endpoincie API MF:
+        GET /api/check/nip/{nip}/bank-account/{bankAccount}?date={date}
+        
+        Kluczowe dla rachunków wirtualnych (subkont masowych płatności, np. Play, Orange, PGE),
+        które NIE są publikowane w wykazie ogólnym /api/search/nip, lecz są potwierdzane
+        przez algorytmy bankowe zintegrowane z API MF.
+        """
+        clean_nip = cls.clean_nip(nip)
+        clean_acc = re.sub(r"[^0-9]", "", account or "")
+        if not clean_nip or len(clean_nip) != 10 or not clean_acc or len(clean_acc) != 26:
+            return {"assigned": False, "blad_polaczenia": False}
+
+        if not date_str:
+            date_str = datetime.now().strftime("%Y-%m-%d")
+
+        url = f"{cls.MF_CHECK_URL}/{clean_nip}/bank-account/{clean_acc}?date={date_str}"
+        headers = {"User-Agent": "TaxPilot_AI/1.0"}
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                assigned = data.get("result", {}).get("accountAssigned") == "TAK"
+                return {
+                    "assigned": assigned,
+                    "request_id": data.get("result", {}).get("requestId"),
+                    "blad_polaczenia": False,
+                }
+            return {"assigned": False, "blad_polaczenia": False}
+        except requests.RequestException:
+            return {"assigned": False, "blad_polaczenia": True}
+        except Exception:
+            return {"assigned": False, "blad_polaczenia": True}
 
     @classmethod
     def fetch_from_mf_biala_lista(cls, nip: str, date_str: Optional[str] = None, timeout: int = 5) -> Optional[Dict[str, Any]]:
@@ -74,23 +114,28 @@ class CompanyFetcher:
                     "zrodlo": "MF_BIALA_LISTA"
                 }
 
-            status_vat = subject.get("statusVat", "").strip().lower()
+            status_vat_raw = subject.get("statusVat") or ""
+            status_vat = status_vat_raw.strip().lower()
             platnik_vat = (status_vat == "czynny")
 
             adres = subject.get("workingAddress") or subject.get("residenceAddress") or ""
 
-            krs = subject.get("krs", "")
-            krs = krs.strip() if krs else None
+            krs_val = subject.get("krs")
+            krs = krs_val.strip() if krs_val else None
+
+            nazwa = (subject.get("name") or "").strip()
+            regon_val = subject.get("regon")
+            regon = regon_val.strip() if regon_val else None
 
             return {
                 "nip": clean_nip,
-                "nazwa": subject.get("name", "").strip(),
-                "regon": subject.get("regon", "").strip(),
+                "nazwa": nazwa,
+                "regon": regon,
                 "krs": krs,
-                "adres": adres.strip(),
+                "adres": adres.strip() if adres else "",
                 "status_vat": subject.get("statusVat", ""),
                 "platnik_vat": platnik_vat,
-                "rachunki_bankowe": subject.get("accountNumbers", []),
+                "rachunki_bankowe": subject.get("accountNumbers") or [],
                 "zrodlo": "MF_BIALA_LISTA",
                 "blad_polaczenia": False
             }

@@ -127,12 +127,214 @@ class RegulyKosztoweFirmy:
         uzasadnienie: str,
         nip_kontrahenta: Optional[str] = None
     ):
-        regula = RegulaPozycji(wzorzec=wzorzec.lower(), kwalifikacja=kwalifikacja, uzasadnienie=uzasadnienie)
+        wzorzec_clean = wzorzec.strip().lower()
+        wz_norm = CostClassifier.normalize_desc(wzorzec_clean)
+        regula = RegulaPozycji(wzorzec=wzorzec_clean, kwalifikacja=kwalifikacja, uzasadnienie=uzasadnienie)
         if nip_kontrahenta:
-            self.reguly_kontrahentow.setdefault(nip_kontrahenta, []).append(regula)
+            nip_clean = re.sub(r"[^0-9]", "", nip_kontrahenta)
+            regs = self.reguly_kontrahentow.setdefault(nip_clean, [])
+            # Usuń wcześniejsze reguły o tym samym wzorcu, aby nowa decyzja użytkownika miała natychmiastowy priorytet
+            self.reguly_kontrahentow[nip_clean] = [
+                r for r in regs if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
+            ]
+            self.reguly_kontrahentow[nip_clean].insert(0, regula)
         else:
-            self.reguly_globalne.append(regula)
+            self.reguly_globalne = [
+                r for r in self.reguly_globalne if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
+            ]
+            self.reguly_globalne.insert(0, regula)
         self.save(profile)
+
+    def usun_regule(
+        self,
+        profile: CompanyProfile,
+        wzorzec: str,
+        nip_kontrahenta: Optional[str] = None
+    ) -> bool:
+        wzorzec_clean = wzorzec.strip().lower()
+        wz_norm = CostClassifier.normalize_desc(wzorzec_clean)
+        zmieniono = False
+
+        if nip_kontrahenta:
+            nip_clean = re.sub(r"[^0-9]", "", nip_kontrahenta)
+            if nip_clean in self.reguly_kontrahentow:
+                pocz_len = len(self.reguly_kontrahentow[nip_clean])
+                self.reguly_kontrahentow[nip_clean] = [
+                    r for r in self.reguly_kontrahentow[nip_clean]
+                    if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
+                ]
+                if len(self.reguly_kontrahentow[nip_clean]) < pocz_len:
+                    zmieniono = True
+                if not self.reguly_kontrahentow[nip_clean]:
+                    del self.reguly_kontrahentow[nip_clean]
+        else:
+            pocz_len = len(self.reguly_globalne)
+            self.reguly_globalne = [
+                r for r in self.reguly_globalne
+                if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
+            ]
+            if len(self.reguly_globalne) < pocz_len:
+                zmieniono = True
+
+        if zmieniono:
+            self.save(profile)
+        return zmieniono
+
+    def pobierz_wszystkie_reguly(self) -> List[Dict[str, Any]]:
+        wyniki: List[Dict[str, Any]] = []
+        labels = {
+            KwalifikacjaKosztu.FIRMOWY_100: "✅ 100% Firmowy",
+            KwalifikacjaKosztu.SAMOCHOD_50: "🚗 50% Samochód",
+            KwalifikacjaKosztu.PRYWATNY_0: "⛔ 0% Prywatny",
+            KwalifikacjaKosztu.DO_WYJASNIENIA: "⚠️ Do wyjaśnienia",
+        }
+        # 1. Reguły przypisane do kontrahentów
+        for nip, reguly in self.reguly_kontrahentow.items():
+            for r in reguly:
+                wyniki.append({
+                    "typ": "KONTRAHENT",
+                    "nip_kontrahenta": nip,
+                    "wzorzec": r.wzorzec,
+                    "kwalifikacja": r.kwalifikacja.value,
+                    "kwalifikacja_label": labels.get(r.kwalifikacja, r.kwalifikacja.value),
+                    "uzasadnienie": r.uzasadnienie,
+                    "data_utworzenia": r.data_utworzenia,
+                })
+        # 2. Reguły globalne
+        for r in self.reguly_globalne:
+            wyniki.append({
+                "typ": "GLOBALNA",
+                "nip_kontrahenta": "",
+                "wzorzec": r.wzorzec,
+                "kwalifikacja": r.kwalifikacja.value,
+                "kwalifikacja_label": labels.get(r.kwalifikacja, r.kwalifikacja.value),
+                "uzasadnienie": r.uzasadnienie,
+                "data_utworzenia": r.data_utworzenia,
+            })
+        return wyniki
+
+
+class ReczneKwalifikacjeService:
+    """
+    Zarządza miesięcznymi decyzjami przedsiębiorcy (manual overrides) w widoku przeglądu.
+    Wybór w selektorze okresowym zapisuje decyzję dla konkretnej faktury / pozycji w danym miesiącu,
+    nie modyfikując ogólnych reguł firmy w reguly_kosztowe.json.
+    """
+    @classmethod
+    def sciezka_pliku(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
+        m_pad = str(miesiac).zfill(2)
+        return profile.katalog_firmy / "rozliczenia" / str(rok) / m_pad / "reczne_kwalifikacje.json"
+
+    @classmethod
+    def load_overrides(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Dict[str, Dict[str, Any]]:
+        path = cls.sciezka_pliku(profile, rok, miesiac)
+        if not path.exists():
+            return {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    @classmethod
+    def save_override(
+        cls,
+        profile: CompanyProfile,
+        rok: str,
+        miesiac: str,
+        numer_faktury: str,
+        kwalifikacja: KwalifikacjaKosztu,
+        opis_pozycji: Optional[str] = None
+    ) -> Path:
+        path = cls.sciezka_pliku(profile, rok, miesiac)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        overrides = cls.load_overrides(profile, rok, miesiac)
+
+        num_clean = numer_faktury.strip()
+        if opis_pozycji and opis_pozycji.strip():
+            klucz = f"{num_clean}::{CostClassifier.normalize_desc(opis_pozycji.strip())}"
+        else:
+            klucz = num_clean
+
+        overrides[klucz] = {
+            "kwalifikacja": kwalifikacja.value,
+            "numer_faktury": num_clean,
+            "opis_pozycji": opis_pozycji.strip() if opis_pozycji else None,
+            "data_zapisu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(overrides, f, indent=2, ensure_ascii=False)
+        return path
+
+    @classmethod
+    def save_bulk_overrides(
+        cls,
+        profile: CompanyProfile,
+        rok: str,
+        miesiac: str,
+        numer_faktury: str,
+        kwalifikacja: KwalifikacjaKosztu,
+        opisy_pozycji: List[str]
+    ) -> Path:
+        """
+        Zapisuje zbiorczą decyzję ręczną dla wszystkich pozycji wskazanej faktury w jednym zapisie.
+        """
+        path = cls.sciezka_pliku(profile, rok, miesiac)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        overrides = cls.load_overrides(profile, rok, miesiac)
+
+        num_clean = numer_faktury.strip()
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Zapis dla samej faktury (agregat)
+        overrides[num_clean] = {
+            "kwalifikacja": kwalifikacja.value,
+            "numer_faktury": num_clean,
+            "opis_pozycji": None,
+            "data_zapisu": now_str,
+        }
+
+        # Zapis dla każdej pozycji faktury
+        for opis in opisy_pozycji:
+            if opis and opis.strip():
+                klucz = f"{num_clean}::{CostClassifier.normalize_desc(opis.strip())}"
+                overrides[klucz] = {
+                    "kwalifikacja": kwalifikacja.value,
+                    "numer_faktury": num_clean,
+                    "opis_pozycji": opis.strip(),
+                    "data_zapisu": now_str,
+                }
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(overrides, f, indent=2, ensure_ascii=False)
+        return path
+
+    @classmethod
+    def clear_override(
+        cls,
+        profile: CompanyProfile,
+        rok: str,
+        miesiac: str,
+        numer_faktury: str,
+        opis_pozycji: Optional[str] = None
+    ) -> bool:
+        path = cls.sciezka_pliku(profile, rok, miesiac)
+        if not path.exists():
+            return False
+        overrides = cls.load_overrides(profile, rok, miesiac)
+        num_clean = numer_faktury.strip()
+        if opis_pozycji and opis_pozycji.strip():
+            klucz = f"{num_clean}::{CostClassifier.normalize_desc(opis_pozycji.strip())}"
+        else:
+            klucz = num_clean
+
+        if klucz in overrides:
+            del overrides[klucz]
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(overrides, f, indent=2, ensure_ascii=False)
+            return True
+        return False
 
 
 @dataclass
@@ -170,6 +372,56 @@ class CostClassifier:
     Ekspert klasyfikacji kosztów podatkowych.
     """
 
+    @staticmethod
+    def normalize_desc(text: str) -> str:
+        """Ujednolica myślniki, pauzy, białe znaki i kropki na końcu tekstu."""
+        if not text:
+            return ""
+        t = text.strip().lower()
+        t = re.sub(r"[\u2010\u2011\u2012\u2013\u2014\u2015\-]+", "-", t)
+        t = re.sub(r"\s+", " ", t)
+        return t.rstrip(".")
+
+    @classmethod
+    def _find_best_matching_rule(cls, rules: List[RegulaPozycji], desc: str) -> Optional[RegulaPozycji]:
+        """
+        Wybiera najlepiej dopasowaną regułę kosztową według ściśle zdefiniowanej hierarchii:
+        1. Dokładne dopasowanie (Exact Match - najwyższy priorytet).
+        2. Najdłuższe dopasowanie podciągu (Longest Substring Match - bardziej specyficzny wzorzec wygrywa).
+        3. Wildcard ('*' lub pusty wzorzec).
+        """
+        if not rules:
+            return None
+        d_norm = cls.normalize_desc(desc)
+        if not d_norm:
+            return None
+
+        # Poziom 1: Dokładne dopasowanie (Exact Match)
+        for r in rules:
+            w_norm = cls.normalize_desc(r.wzorzec)
+            if w_norm and w_norm == d_norm:
+                return r
+
+        # Poziom 2: Dopasowanie podciągu (Longest Substring Match)
+        # Np. "usługi telekomunikacyjne – tv" ma wyższy priorytet niż ogólne "usługi telekomunikacyjne"
+        candidates = []
+        for idx, r in enumerate(rules):
+            w_norm = cls.normalize_desc(r.wzorzec)
+            if w_norm and w_norm != "*" and w_norm in d_norm:
+                candidates.append((len(w_norm), -idx, r))
+
+        if candidates:
+            candidates.sort(reverse=True)
+            return candidates[0][2]
+
+        # Poziom 3: Wildcard ('*' lub pusty)
+        for r in rules:
+            w_norm = cls.normalize_desc(r.wzorzec)
+            if w_norm == "*" or not w_norm:
+                return r
+
+        return None
+
     @classmethod
     def classify_item(
         cls,
@@ -181,15 +433,16 @@ class CostClassifier:
         desc_clean = item.opis.strip().lower()
 
         # 1. Sprawdź specyficzne reguły dla danego kontrahenta
-        if seller_nip in reguly_firmy.reguly_kontrahentow:
-            for reg in reguly_firmy.reguly_kontrahentow[seller_nip]:
-                if reg.wzorzec in desc_clean:
-                    return cls._build_result(item, reg.kwalifikacja, reg.uzasadnienie, "REGULA_KONTRAHENTA")
+        clean_seller = re.sub(r"[^0-9]", "", seller_nip)
+        if clean_seller in reguly_firmy.reguly_kontrahentow:
+            matched_reg = cls._find_best_matching_rule(reguly_firmy.reguly_kontrahentow[clean_seller], item.opis)
+            if matched_reg:
+                return cls._build_result(item, matched_reg.kwalifikacja, matched_reg.uzasadnienie, "REGULA_KONTRAHENTA")
 
         # 2. Sprawdź reguły globalne firmy
-        for reg in reguly_firmy.reguly_globalne:
-            if reg.wzorzec in desc_clean:
-                return cls._build_result(item, reg.kwalifikacja, reg.uzasadnienie, "REGULA_GLOBALNA")
+        matched_reg = cls._find_best_matching_rule(reguly_firmy.reguly_globalne, item.opis)
+        if matched_reg:
+            return cls._build_result(item, matched_reg.kwalifikacja, matched_reg.uzasadnienie, "REGULA_GLOBALNA")
 
         # 3. Sprawdź heurystyki wbudowane
         # 3a. Niepewne ogólniki (wymagają pytania do użytkownika)
@@ -323,16 +576,36 @@ def audit_invoice_expense(
     invoice: Invoice,
     reguly_firmy: RegulyKosztoweFirmy,
     kody_pkd: Optional[List[str]] = None,
+    reczne_overrides: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> InvoiceTaxAuditReport:
     """
     Przeprowadza szczegółowy audyt pozycji faktury kosztowej.
+    Ręczne decyzje przedsiębiorcy z danego miesiąca (reczne_overrides) mają bezwzględny
+    priorytet nad regułami ogólnymi i heurystykami.
     """
     pozycje_wyniki: List[PozycjaKwalifikacjaResult] = []
     pytania: List[str] = []
+    overrides = reczne_overrides or {}
+    inv_num_clean = invoice.numer.strip()
 
     if invoice.pozycje:
         for p in invoice.pozycje:
-            res = CostClassifier.classify_item(p, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
+            key_pos = f"{inv_num_clean}::{CostClassifier.normalize_desc(p.opis)}"
+            ov = overrides.get(key_pos)
+            if not ov:
+                ov = overrides.get(inv_num_clean)
+
+            if ov:
+                target_kwal = KwalifikacjaKosztu(ov["kwalifikacja"])
+                res = CostClassifier._build_result(
+                    p,
+                    target_kwal,
+                    "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+                    "DECYZJA_RECZNA"
+                )
+            else:
+                res = CostClassifier.classify_item(p, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
+
             pozycje_wyniki.append(res)
             if res.kwalifikacja == KwalifikacjaKosztu.DO_WYJASNIENIA:
                 pytania.append(
@@ -346,7 +619,17 @@ def audit_invoice_expense(
             kwota_vat=invoice.suma_vat,
             wartosc_brutto=invoice.suma_brutto
         )
-        res = CostClassifier.classify_item(dummy_item, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
+        ov = overrides.get(inv_num_clean)
+        if ov:
+            target_kwal = KwalifikacjaKosztu(ov["kwalifikacja"])
+            res = CostClassifier._build_result(
+                dummy_item,
+                target_kwal,
+                "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+                "DECYZJA_RECZNA"
+            )
+        else:
+            res = CostClassifier.classify_item(dummy_item, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
         pozycje_wyniki.append(res)
 
     # Weryfikacja spójności kwalifikacji pozycji:

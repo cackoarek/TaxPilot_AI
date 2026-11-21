@@ -1,0 +1,213 @@
+<!-- AI Copilot Drawer (Boczny panel wysuwany Alpine.js) -->
+<div x-cloak x-show="copilotOpen" class="relative z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div x-show="copilotOpen" 
+       x-transition:enter="ease-in-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="ease-in-out duration-300"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="copilotOpen = false"
+       class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full transition-all duration-300"
+           :class="copilotMaximized ? 'w-full pl-0' : 'pl-10'">
+        
+        <!-- Panel content -->
+        <div x-show="copilotOpen" 
+             x-transition:enter="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="pointer-events-auto bg-white shadow-2xl flex flex-col transition-all duration-300 ease-in-out"
+             :class="copilotMaximized ? 'w-screen max-w-full' : 'w-screen max-w-md sm:max-w-lg'">
+          
+          <!-- Drawer Header -->
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <h2 class="text-sm font-bold tracking-tight">TaxPilot AI Assistant</h2>
+                <p class="text-xs text-slate-400">
+                  {% if llm_available %}
+                    Model: <span class="text-emerald-400 font-semibold">{{ llm.label }}</span>
+                  {% else %}
+                    <span class="text-amber-400 font-semibold">Tryb Deterministyczny (Zero-LLM)</span>
+                  {% endif %}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button hx-post="/api/copilot/reset" 
+                      hx-target="#copilot-chat-container" 
+                      hx-swap="innerHTML"
+                      title="Zrestartuj sesję AI dla bieżącej firmy (przerywa proces w tle i czyści kontekst)"
+                      class="px-2 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>🔄 Nowa sesja</span>
+              </button>
+
+              <!-- Przycisk maksymalizacji / przywrócenia normalnego rozmiaru -->
+              <button @click="copilotMaximized = !copilotMaximized" 
+                      :title="copilotMaximized ? 'Zmniejsz panel (przywróć standardową szerokość)' : 'Maksymalizuj na cały ekran (pełny widok tabel i wykresów)'"
+                      class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Maksymalizuj / Zmniejsz okno">
+                <!-- Ikona Pełnego ekranu -->
+                <svg x-show="!copilotMaximized" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <!-- Ikona Zmniejszenia -->
+                <svg x-show="copilotMaximized" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v5H4m0 0l5-5M15 4v5h5m0 0l-5-5M9 20v-5H4m0 0l5 5m6 0l5-5m-5 5v-5h5" />
+                </svg>
+              </button>
+
+              <button @click="copilotOpen = false" 
+                      title="Zamknij panel asystenta"
+                      class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-header: Aktywny wątek, edycja nazwy & Przycisk Historii -->
+          <div class="px-4 py-2 bg-slate-800 text-slate-200 border-b border-slate-700 flex items-center justify-between text-xs">
+            <!-- Dynamiczny tytuł aktywnej rozmowy i formularz szybkiej edycji -->
+            <div id="copilot-active-session-title-container"
+                 hx-get="/api/copilot/active-title"
+                 hx-trigger="load, copilot-refresh-title from:body"
+                 class="flex items-center space-x-2 flex-1 min-w-0 mr-2">
+              <span class="text-blue-400 flex-shrink-0">💬</span>
+              <span class="font-medium text-slate-300 truncate">Wczytywanie rozmowy...</span>
+            </div>
+
+            <!-- Przyciski: Historia rozmów oraz Nowy wątek -->
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              <button type="button"
+                      @click="historyOpen = !historyOpen" 
+                      :class="historyOpen ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600'"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Przeglądaj historię rozmów firmy">
+                <span>📜 Historia</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/copilot/sessions/new"
+                      hx-target="#copilot-chat-container"
+                      hx-swap="innerHTML"
+                      @click="historyOpen = false"
+                      class="px-2.5 py-1 text-[11px] font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Rozpocznij nowy, czysty wątek rozmowy">
+                <span>➕ Nowa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel Historii Rozmów (wysuwana lista archiwalnych sesji) -->
+          <div x-cloak x-show="historyOpen" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="bg-slate-900 border-b border-slate-700 p-3 max-h-72 overflow-y-auto shadow-inner text-xs space-y-2 z-10">
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                🗂️ Zapisane rozmowy firmy (kliknij, aby wczytać lub kontynuować)
+              </span>
+              <button type="button" @click="historyOpen = false" class="text-slate-400 hover:text-white text-xs cursor-pointer">
+                ✕ Zamknij
+              </button>
+            </div>
+            <div id="copilot-sessions-list"
+                 hx-get="/api/copilot/sessions"
+                 hx-trigger="load, copilot-refresh-sessions from:body"
+                 class="space-y-1.5">
+              <div class="text-center py-4 text-slate-500 text-xs">Ładowanie historii rozmów...</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50" id="copilot-messages">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full space-y-4' : 'space-y-4'">
+              <!-- Powitanie -->
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
+                  TP
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
+                  <p class="font-semibold text-slate-900">Cześć!</p>
+                  <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">{{ profile.nazwa if profile else 'TaxPilot' }}</strong>.</p>
+                  <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">{{ rok }}-{{ miesiac }}</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
+                </div>
+              </div>
+
+              <!-- Kontener dynamicznych wiadomości z trwałą sesją -->
+              <div id="copilot-chat-container" 
+                   hx-get="/api/copilot/history" 
+                   hx-trigger="load, copilot-refresh from:body"
+                   class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Drawer Footer / Input -->
+          <div class="p-3 bg-white border-t border-slate-200">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full' : ''">
+              <form id="copilot-form"
+                    hx-post="/api/copilot/chat" 
+                    hx-target="#copilot-chat-container" 
+                    hx-swap="beforeend"
+                    onsubmit="return onCopilotSubmit(this);"
+                    class="flex items-center space-x-2"
+                    autocomplete="off">
+                <input type="text" 
+                       id="copilot-input"
+                       name="message" 
+                       required 
+                       placeholder="Zadaj pytanie asystentowi..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                  <span>Wyślij</span>
+                </button>
+              </form>
+              <div class="mt-1.5 text-center text-[10px] text-slate-400">
+                {% if llm_available %}
+                  Silnik: <strong class="text-slate-600">{{ llm.label }}</strong> • Zero-Hallucination Policy
+                {% else %}
+                  Tryb Deterministyczny (Zero-LLM) • Zero-Hallucination
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <script>
+            function onCopilotSubmit(form) {
+              const input = form.querySelector('input[name="message"]');
+              const msg = input.value.trim();
+              if (!msg) return false;
+
+              const messagesBox = document.getElementById('copilot-messages');
+              setTimeout(() => { input.value = ''; }, 10);
+              setTimeout(() => { if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight; }, 60);
+              return true;
+            }
+
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+              const messagesBox = document.getElementById('copilot-messages');
+              if (messagesBox && (evt.detail.target.id === 'copilot-chat-container' || evt.detail.target.closest('#copilot-messages'))) {
+                setTimeout(() => { messagesBox.scrollTop = messagesBox.scrollHeight; }, 30);
+              }
+            });
+          </script>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

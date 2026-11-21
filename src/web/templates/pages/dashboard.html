@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Pulpit & Paczka Przelewów – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{ qrModalOpen: false, copiedAccount: false, copiedAmount: false, copiedTitle: false, guideOpen: false }">
+
+  {% if request.query_params.get("nowa_firma") == "1" %}
+  <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3.5 rounded-2xl flex items-center justify-between shadow-xs animate-fade-in">
+    <div class="flex items-center space-x-3">
+      <span class="text-2xl">🎉</span>
+      <div>
+        <h3 class="text-sm font-bold text-emerald-900">Nowa firma została pomyślnie dodana i aktywowana!</h3>
+        <p class="text-xs text-emerald-700 mt-0.5">
+          Jesteś teraz w profilu firmy <strong>{{ profile.nazwa }}</strong> (NIP: <code class="font-mono font-bold">{{ profile.nip }}</code>). Możesz rozpocząć pobieranie faktur z KSeF lub zaimportować dokumenty kosztowe.
+        </p>
+      </div>
+    </div>
+    <a href="/" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold px-2 py-1 rounded-lg hover:bg-emerald-100 transition-colors">
+      ✕ Zamknij
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Baner Pomocy i Przewodnik po module -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-white shadow-sm transition-all duration-200">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">💡</span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Przewodnik: Pulpit Przedsiębiorcy & Paczka Przelewów</h2>
+          <p class="text-xs text-slate-400">Centrum dowodzenia rozliczeniami podatkowymi JDG, kwotami zobowiązań ZUS/US i kodami QR do przelewów.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Umożliwia błyskawiczne opłacenie podatków za pomocą dedykowanych kodów QR przelewu (dla aplikacji bankowych mBank, PKO, Santander, ING) lub skopiowanie numerów indywidualnych rachunków ZUS (NRS) i mikrorachunku podatkowego US.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Terminy płatności:</strong> ZUS oraz zaliczka PIT do 20. dnia kolejnego miesiąca, podatek VAT-7 do 25. dnia.</li>
+          <li><strong>Mikrorachunek US:</strong> Indywidualny rachunek przypisany do Twojego NIP (PIT i VAT wpłaca się na ten sam numer).</li>
+          <li><strong>Kody QR:</strong> Zeskanuj aparatem w telefonie, aby wyeliminować błędy w kwotach i numerach rachunków.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Baner Stanu Rozliczenia -->
+  {% if settlement %}
+    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl shadow-xs flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">🟢</span>
+        <div>
+          <h3 class="text-sm font-bold text-emerald-900">Rozliczenie za okres {{ rok }}-{{ miesiac }} zostało sfinalizowane</h3>
+          <p class="text-xs text-emerald-700">Wszystkie dokumenty zostały zaksięgowane, a podatki deterministycznie przeliczone. Poniżej znajduje się oficjalna Paczka Przelewów.</p>
+        </div>
+      </div>
+      <div class="flex space-x-2">
+        <a href="/przeglad" class="px-3 py-1.5 bg-white border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-lg hover:bg-emerald-100 transition-colors">
+          Zobacz ewidencję
+        </a>
+      </div>
+    </div>
+  {% else %}
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-xs flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">🟡</span>
+        <div>
+          <h3 class="text-sm font-bold text-amber-900">Miesiąc {{ rok }}-{{ miesiac }} wymaga weryfikacji i akceptacji</h3>
+          <p class="text-xs text-amber-700">Przejrzyj faktury sprzedaży i zakwalifikuj koszty w procedurze Wstępnego Przeglądu (Krok 2), aby zamknąć miesiąc.</p>
+        </div>
+      </div>
+      <a href="/przeglad" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow transition-colors">
+        Rozpocznij przegląd dokumentów &rarr;
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- Sekcja: Paczka Przelewów Podatnika -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <span>📦 Paczka Przelewów Podatnika</span>
+          <span class="text-xs font-normal text-slate-500">({{ rok }}-{{ miesiac }})</span>
+        </h2>
+        <p class="text-xs text-slate-500">Deterministyczne wyliczenia Python Decimal – kwoty do zapłaty w banku.</p>
+      </div>
+      {% if settlement %}
+        <div class="text-right">
+          <span class="text-xs text-slate-500">Suma wszystkich zobowiązań:</span>
+          <span class="block text-base font-black text-slate-900">{{ "%.2f"|format(settlement.suma_zobowiazan_lacznie|float) if settlement.suma_zobowiazan_lacznie else '0.00' }} zł</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 3 Kafelki Przelewów -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      
+      <!-- Kafelek 1: Urząd Skarbowy - PIT-28 -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">🏛️ Urząd Skarbowy</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800">PIT-28</span>
+          </div>
+          <div>
+            <span class="text-2xl font-black text-slate-900">
+              {% if settlement and settlement.pit28 %}
+                {{ settlement.pit28.zaliczka_pit28_zaokraglona }} zł
+              {% else %}
+                0 zł
+              {% endif %}
+            </span>
+            <span class="block text-xs font-semibold text-slate-600 mt-1">
+              Termin płatności: <strong class="text-red-600">20.{{ "%02d"|format(miesiac|int + 1 if miesiac|int < 12 else 1) }}.{{ rok }}</strong>
+            </span>
+          </div>
+          <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-200">
+            <span class="block text-[10px] text-slate-400 uppercase font-bold">Mikrorachunek Podatkowy US:</span>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-800">
+              <span class="truncate">PL 10 1010 0055 0225 {{ profile.nip }} 000</span>
+              <button onclick="navigator.clipboard.writeText('PL10101000550225{{ profile.nip }}000')" title="Kopiuj numer konta" class="text-blue-600 hover:text-blue-800 ml-1">📋</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <button hx-get="/api/settlement/qr/pit28" hx-target="#qr-modal-content" @click="qrModalOpen = true"
+                  class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors cursor-pointer">
+            <span>📱 Pokaż Kod QR Przelewu</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Kafelek 2: Urząd Skarbowy - VAT-7 -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">🏛️ Urząd Skarbowy</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-800">VAT-7</span>
+          </div>
+          <div>
+            <span class="text-2xl font-black text-slate-900">
+              {% if settlement and settlement.vat %}
+                {{ settlement.vat.vat_do_zaplaty_zaokraglony }} zł
+              {% else %}
+                0 zł
+              {% endif %}
+            </span>
+            <span class="block text-xs font-semibold text-slate-600 mt-1">
+              Termin płatności: <strong class="text-red-600">25.{{ "%02d"|format(miesiac|int + 1 if miesiac|int < 12 else 1) }}.{{ rok }}</strong>
+            </span>
+          </div>
+          <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-200">
+            <span class="block text-[10px] text-slate-400 uppercase font-bold">Mikrorachunek Podatkowy US:</span>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-800">
+              <span class="truncate">PL 10 1010 0055 0225 {{ profile.nip }} 000</span>
+              <button onclick="navigator.clipboard.writeText('PL10101000550225{{ profile.nip }}000')" title="Kopiuj numer konta" class="text-blue-600 hover:text-blue-800 ml-1">📋</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <button hx-get="/api/settlement/qr/vat7" hx-target="#qr-modal-content" @click="qrModalOpen = true"
+                  class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors cursor-pointer">
+            <span>📱 Pokaż Kod QR Przelewu</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Kafelek 3: ZUS - Społeczne + Zdrowotna -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">🛡️ ZUS</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-teal-100 text-teal-800">NRS Składki</span>
+          </div>
+          <div>
+            <span class="text-2xl font-black text-slate-900">
+              {% if settlement and settlement.zus %}
+                {{ "%.2f"|format(settlement.zus.lacznie_do_zaplaty|float) }} zł
+              {% else %}
+                0.00 zł
+              {% endif %}
+            </span>
+            <span class="block text-xs font-semibold text-slate-600 mt-1">
+              Termin płatności: <strong class="text-red-600">20.{{ "%02d"|format(miesiac|int + 1 if miesiac|int < 12 else 1) }}.{{ rok }}</strong>
+            </span>
+          </div>
+          <div class="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-lg border border-slate-200">
+            <span class="block text-[10px] text-slate-400 uppercase font-bold">Indywidualny Rachunek NRS ZUS:</span>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-800">
+              <span class="truncate">PL 83 1010 1023 0000 2613 9510 0000</span>
+              <button onclick="navigator.clipboard.writeText('PL83101010230000261395100000')" title="Kopiuj numer konta" class="text-teal-600 hover:text-teal-800 ml-1">📋</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <button hx-get="/api/settlement/qr/zus" hx-target="#qr-modal-content" @click="qrModalOpen = true"
+                  class="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors cursor-pointer">
+            <span>📱 Pokaż Kod QR Przelewu</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Podsumowanie Wyników i Compliance -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    <!-- Wyniki Finansowe -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+      <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+        <span>📈 Wyniki Finansowe za {{ rok }}-{{ miesiac }}</span>
+      </h3>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">Przychody Netto:</span>
+          <span class="text-base font-bold text-slate-900">
+            {% if settlement and settlement.ewidencja and settlement.ewidencja.ewidencja_przychodow %}
+              {{ "%.2f"|format(settlement.ewidencja.ewidencja_przychodow.laczny_przychod_netto|float) }} zł
+            {% else %}
+              0.00 zł
+            {% endif %}
+          </span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">Koszty Zakupów Netto:</span>
+          <span class="text-base font-bold text-slate-900">
+            {% if settlement and settlement.ewidencja and settlement.ewidencja.rejestr_vat and settlement.ewidencja.rejestr_vat.zakupy %}
+              {{ "%.2f"|format(settlement.ewidencja.rejestr_vat.zakupy.suma_netto|float) }} zł
+            {% else %}
+              0.00 zł
+            {% endif %}
+          </span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">Podatek VAT Należny:</span>
+          <span class="text-base font-bold text-slate-900">
+            {% if settlement and settlement.vat %}
+              {{ "%.2f"|format(settlement.vat.vat_nalezy|float) }} zł
+            {% else %}
+              0.00 zł
+            {% endif %}
+          </span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-500 block">VAT Odliczony (Naliczony):</span>
+          <span class="text-base font-bold text-slate-900">
+            {% if settlement and settlement.vat %}
+              {{ "%.2f"|format(settlement.vat.vat_naliczony|float) }} zł
+            {% else %}
+              0.00 zł
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Należytej Staranności AML -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <span>🛡️ Compliance & AML (Biała Lista)</span>
+        </h3>
+        <a href="/aml" class="text-xs text-blue-600 hover:text-blue-800 font-semibold">Pełny rejestr &rarr;</a>
+      </div>
+      {% if aml_stats %}
+        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="p-2.5 bg-green-50 text-green-800 rounded-lg border border-green-200">
+            <span class="text-xl font-bold block">{{ aml_stats.get('niski_ryzyko_akceptacja', 0) if aml_stats.get else (aml_stats.niski_ryzyko_akceptacja or 0) }}</span>
+            <span class="text-[10px] uppercase font-bold">🟢 Czystych</span>
+          </div>
+          <div class="p-2.5 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">
+            <span class="text-xl font-bold block">{{ aml_stats.get('srednie_ryzyko_uwaga', 0) if aml_stats.get else (aml_stats.srednie_ryzyko_uwaga or 0) }}</span>
+            <span class="text-[10px] uppercase font-bold">🟡 Uwagi</span>
+          </div>
+          <div class="p-2.5 bg-red-50 text-red-800 rounded-lg border border-red-200">
+            <span class="text-xl font-bold block">{{ aml_stats.get('krytyczne_stop_sankcje', 0) if aml_stats.get else (aml_stats.krytyczne_stop_sankcje or 0) }}</span>
+            <span class="text-[10px] uppercase font-bold">🔴 Sankcje</span>
+          </div>
+        </div>
+        <!-- Status Weryfikacji Kont Bankowych (Biała Lista) -->
+        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-center justify-between">
+          <span class="flex items-center space-x-1 font-medium">
+            <span>🏦 Rachunki na Białej Liście:</span>
+          </span>
+          <span class="font-mono text-xs">
+            {% if aml_stats and aml_stats.get('rachunki_sprawdzone', 0) > 0 %}
+              <span class="text-emerald-700 font-bold">✅ {{ aml_stats.get('rachunki_zgodne', 0) }} zgodnych</span>
+              {% if aml_stats.get('rachunki_niezgodne', 0) > 0 %}
+                <span class="text-amber-600 font-bold ml-1">/ ⚠️ {{ aml_stats.get('rachunki_niezgodne', 0) }} poza listą</span>
+              {% endif %}
+            {% else %}
+              <span class="text-slate-400">Brak rachunków w dokumentach</span>
+            {% endif %}
+          </span>
+        </div>
+
+        {% if aml_stats.get and aml_stats.get('bledy_polaczenia_offline', 0) > 0 %}
+          <div class="p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center space-x-2">
+            <span>⚠️</span>
+            <span>Wykryto <strong>{{ aml_stats.get('bledy_polaczenia_offline', 0) }}</strong> weryfikacji offline (błąd połączenia z API MF). Zalecane ponowienie online.</span>
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="text-xs text-slate-500 py-3">Brak danych weryfikacji AML za ten miesiąc.</p>
+      {% endif %}
+      <div class="pt-2 flex justify-between items-center text-xs text-slate-500">
+        <span>Zweryfikowano łącznie: <strong>{{ aml_stats.get('lacznie_kontrahentow', 0) if aml_stats and aml_stats.get else (aml_stats.lacznie_kontrahentow if aml_stats else 0) }}</strong></span>
+        <a href="/aml" class="text-blue-600 font-semibold underline">Generuj raport PDF</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Szybkie Akcje -->
+  <div class="bg-slate-100 rounded-xl p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+    <span class="font-bold text-slate-700 uppercase tracking-wider text-[11px]">Szybkie Akcje:</span>
+    <div class="flex flex-wrap gap-2">
+      <a href="/faktury" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        🔄 Synchronizuj z KSeF 2.0
+      </a>
+      <a href="/faktury" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        📥 Wgraj fakturę PDF/skan
+      </a>
+      <a href="/aml" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        🔍 Sprawdź kontrahenta NIP
+      </a>
+      <a href="/doradca" class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-lg font-semibold text-slate-800 shadow-xs transition-colors">
+        💡 Porównaj formy opodatkowania
+      </a>
+    </div>
+  </div>
+
+  <!-- Modal Kodu QR Przelewu Bankowego -->
+  <div x-cloak x-show="qrModalOpen" class="relative z-50" role="dialog" aria-modal="true">
+    <div x-show="qrModalOpen" 
+         x-transition:enter="ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click="qrModalOpen = false" 
+         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+      <div class="flex min-h-full items-center justify-center p-4 text-center">
+        <div x-show="qrModalOpen"
+             x-transition:enter="ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             @click.away="qrModalOpen = false"
+             id="qr-modal-content"
+             class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl border border-slate-200">
+          <div class="p-8 text-center text-slate-500 text-xs">
+            Ładowanie danych przelewu i generowanie kodu QR...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -224,10 +224,38 @@ def cmd_extract_non_ksef(args):
         typ_filter = InvoiceType.KOSZT
 
     print(f"Rozpoczynam ekstrakcję dokumentów non-ksef-raw ({args.typ}) dla {profile.nazwa} za {rok_str}-{miesiac_str}...")
+    use_ai = getattr(args, "ai", False)
+    if use_ai:
+        from src.level_1_ingestion.ai_document_extractor import AIDocumentExtractor
+        print("🤖 Uruchamiam zaawansowaną ekstrakcję multimodalną przez agenta AI...")
+        invoices = AIDocumentExtractor.extract_unprocessed(profile, rok_str, miesiac_str)
+        print(f"✅ Zakończono ekstrakcję AI! Odczytano i zaktualizowano {len(invoices)} faktur w non-ksef-extracted/.")
+        for inv in invoices:
+            print(f" * Zapisano: {inv.typ.value}/non-ksef-extracted/{Path(inv.plik_zrodlowy or inv.numer).stem}.json ({inv.suma_brutto} {inv.waluta})")
+        return
+
     extracted = NonKSeFExtractor.extract_all(profile, rok_str, miesiac_str, typ=typ_filter, force=args.force)
     print(f"✅ Zakończono ekstrakcję non-KSeF! Przetworzono i zaktualizowano {len(extracted)} faktur w non-ksef-extracted/.")
     for p in extracted:
         print(f" * Zapisano: {p.parent.parent.name}/{p.parent.name}/{p.name}")
+
+
+def cmd_extract_ai(args):
+    """Uruchamia ekstrakcję dokumentów graficznych i nieprzetworzonych za pomocą AI."""
+    profile = CompanyProfile.load_by_nip(args.nip)
+    if not profile:
+        print(f"Błąd: Nie znaleziono profilu firmy dla NIP: {args.nip}")
+        sys.exit(1)
+
+    from src.level_1_ingestion.ai_document_extractor import AIDocumentExtractor
+    rok_str = str(args.rok)
+    miesiac_str = str(args.miesiac).zfill(2)
+
+    print(f"🤖 Uruchamiam ekstrakcję AI nieodczytanych faktur dla {profile.nazwa} za {rok_str}-{miesiac_str}...")
+    invoices = AIDocumentExtractor.extract_unprocessed(profile, rok_str, miesiac_str)
+    print(f"✅ Zakończono ekstrakcję AI! Pomyślnie przetworzono {len(invoices)} dokumentów.")
+    for inv in invoices:
+        print(f" * Zapisano: {inv.typ.value}/non-ksef-extracted/{Path(inv.plik_zrodlowy or inv.numer).stem}.json: {inv.sprzedawca.nazwa} -> {inv.suma_brutto} {inv.waluta}")
 
 
 def cmd_weryfikuj(args):
@@ -309,9 +337,7 @@ def cmd_weryfikuj_miesiac(args):
 
 def cmd_init_company(args):
     """Inicjalizuje profil nowej firmy, tworzy katalogi oraz reguły podatkowe."""
-    from src.level_1_ingestion.company_fetcher import CompanyFetcher
-    from src.skills.cost_classifier import RegulyKosztoweFirmy, RegulaPozycji, KwalifikacjaKosztu
-    from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
+    from src.core.company import initialize_company
 
     nip_clean = re.sub(r"[^0-9]", "", args.nip)
     if len(nip_clean) != 10:
@@ -325,81 +351,31 @@ def cmd_init_company(args):
         print("Użyj flagi --force, jeśli chcesz nadpisać profil.")
         return
 
-    nazwa = args.nazwa
-    adres = args.adres
-    regon = args.regon
-    platnik_vat = not args.zwolniony_z_vat
-    kody_pkd = [p.strip().upper() for p in args.pkd.split(",") if p.strip()] if args.pkd else []
+    pkd_list = [p.strip().upper() for p in args.pkd.split(",") if p.strip()] if args.pkd else []
 
-    # 1. Automatyczne pobranie danych z rejestrów publicznych
-    if not args.no_fetch:
-        print(f"🔍 Wyszukiwanie danych firmy w rejestrach publicznych (Biała Lista MF / CEIDG) dla NIP: {nip_clean}...")
-        public_data = CompanyFetcher.fetch_company_info(nip_clean, ceidg_token=args.ceidg_token)
-        if public_data.get("nazwa") and not nazwa:
-            nazwa = public_data["nazwa"]
-            print(f" * Pobrano oficjalną nazwę: {nazwa}")
-        if public_data.get("adres") and not adres:
-            adres = public_data["adres"]
-            print(f" * Pobrano adres rejestrowy: {adres}")
-        if public_data.get("regon") and not regon:
-            regon = public_data["regon"]
-            print(f" * Pobrano REGON: {regon}")
-        if "platnik_vat" in public_data and not args.zwolniony_z_vat:
-            platnik_vat = public_data["platnik_vat"]
-            status_txt = "Czynny podatnik VAT" if platnik_vat else "Zwolniony z VAT"
-            print(f" * Status VAT w MF: {status_txt}")
-        if public_data.get("kody_pkd") and not kody_pkd:
-            kody_pkd = public_data["kody_pkd"]
-            print(f" * Pobrano kody PKD z CEIDG: {', '.join(kody_pkd)}")
-
-    if not nazwa:
-        nazwa = f"Firma {nip_clean}"
-
-    forma = FormaOpodatkowania(args.forma.upper())
-    zus_typ = TypZUS(args.zus.upper())
-    chorobowe = not args.bez_chorobowego
-
-    profile = CompanyProfile(
-        nip=nip_clean,
-        nazwa=nazwa,
-        forma_opodatkowania=forma,
-        domyslna_stawka_ryczaltu=float(args.stawka_ryczaltu),
-        platnik_vat=platnik_vat,
-        zus=ZUSConfig(typ=zus_typ, chorobowe_dobrowolne=chorobowe),
-        ksef=KSeFConfig(srodowisko=args.srodowisko.upper(), token=args.token),
-        kody_pkd=kody_pkd,
-        regon=regon,
-        adres=adres
-    )
-    profil_path = profile.save()
-
-    # 2. Generowanie wstępnych reguł kosztowych
-    reguly = RegulyKosztoweFirmy(nip_firmy=nip_clean)
-    reguly.reguly_globalne.append(
-        RegulaPozycji(wzorzec="paliwo", kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50, uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)")
-    )
-    is_it = any(code.startswith(("62.", "58.2", "63.")) for code in kody_pkd)
-    if is_it or not kody_pkd:
-        reguly.reguly_globalne.extend([
-            RegulaPozycji(wzorzec="hosting", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Infrastruktura serwerowa i chmurowa"),
-            RegulaPozycji(wzorzec="cloud", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Usługi chmurowe"),
-            RegulaPozycji(wzorzec="serwer", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Serwery i bazy danych"),
-            RegulaPozycji(wzorzec="oprogramowanie", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Licencje na oprogramowanie"),
-        ])
-    reguly.save(profile)
-
-    # 3. Puste reguły sprzedaży
-    reguly_sprz = RegulySprzedazyFirmy(nip_firmy=nip_clean)
-    reguly_sprz.save(profile)
-
-    # 4. Inicjalizacja struktury katalogów na faktury i rozliczenia
-    rok_akt = str(datetime.now().year)
-    for m in range(1, 13):
-        m_str = f"{m:02d}"
-        for kierunek in ["sprzedaz", "koszty"]:
-            for sub in ["ksef", "non-ksef-raw", "non-ksef-extracted"]:
-                (profile.katalog_firmy / "faktury" / rok_akt / m_str / kierunek / sub).mkdir(parents=True, exist_ok=True)
-    (profile.katalog_firmy / "rozliczenia").mkdir(parents=True, exist_ok=True)
+    try:
+        profile = initialize_company(
+            nip=nip_clean,
+            nazwa=args.nazwa,
+            adres=args.adres,
+            regon=args.regon,
+            forma_opodatkowania=args.forma.upper(),
+            domyslna_stawka_ryczaltu=float(args.stawka_ryczaltu),
+            platnik_vat=not args.zwolniony_z_vat,
+            zus_typ=args.zus.upper(),
+            chorobowe_dobrowolne=not args.bez_chorobowego,
+            kody_pkd=pkd_list,
+            srodowisko_ksef=args.srodowisko.upper(),
+            token_ksef=args.token,
+            auto_fetch=not args.no_fetch,
+            ceidg_token=args.ceidg_token,
+            force=args.force,
+        )
+        print(f"✅ Pomyślnie utworzono profil firmy: {profile.nazwa} (NIP: {profile.nip})")
+        print(f"📁 Ścieżka katalogu: {profile.katalog_firmy}")
+        print(f"📄 Profil zapisany: {profile.katalog_firmy / 'profil.json'}")
+    except ValueError as e:
+        print(f"Błąd inicjalizacji: {e}")
 
     print("\n🎉 Firma została pomyślnie zainicjowana!")
     print(f" * NIP: {profile.nip}")
@@ -417,9 +393,66 @@ def cmd_init_company(args):
         print(f"   python -m src.cli set-token --nip {profile.nip} --token \"<TWOJ_TOKEN>\" --srodowisko {profile.ksef.srodowisko}")
 
 
+def cmd_web(args):
+    import uvicorn
+    host = args.host or "127.0.0.1"
+    port = args.port or 8000
+    reload = args.reload
+    print(f"🚀 Uruchamianie TaxPilot AI Web UI...")
+    print(f"📍 Adres: http://{host}:{port}")
+    uvicorn.run("src.web.app:app", host=host, port=port, reload=reload)
+
+
+def cmd_agregat_vat(args):
+    """Agreguje odliczenia podatku VAT wg kategorii podatkowych i branżowych."""
+    from src.skills.vat_aggregator import VATAggregator
+    profile = CompanyProfile.load_by_nip(args.nip)
+    nip_val = profile.nip if profile else args.nip
+    rok_val = str(args.rok)
+    miesiace_val = [m.strip().zfill(2) for m in args.miesiace.split(",")] if getattr(args, "miesiace", None) else None
+
+    rep = VATAggregator.aggregate("firmy", nip_val, rok=rok_val, miesiace=miesiace_val)
+    print("\n" + rep.to_markdown())
+
+    if getattr(args, "zapisz", False) and profile:
+        out_dir = profile.katalog_firmy / "rozliczenia" / rok_val
+        out_dir.mkdir(parents=True, exist_ok=True)
+        md_path = out_dir / "agregat-vat.md"
+        json_path = out_dir / "agregat-vat.json"
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(rep.to_markdown())
+        import json
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(rep.to_dict(), f, indent=2, ensure_ascii=False)
+        print(f"\n📂 Zapisano raport agregacji VAT w:")
+        print(f" * {md_path}")
+        print(f" * {json_path}")
+
+
+
 def main():
-    parser = argparse.ArgumentParser(description="TaxPilot AI - Autonomiczny Asystent Podatkowy JDG")
+    from src.version import get_display_version
+    app_ver = get_display_version()
+
+    parser = argparse.ArgumentParser(description=f"TaxPilot AI ({app_ver}) - Autonomiczny Asystent Podatkowy JDG")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"TaxPilot AI {app_ver}",
+        help="Pokaż wersję aplikacji i zakończ",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # Polecenie version (wersja aplikacji)
+    p_ver = subparsers.add_parser("version", help="Wyświetl wersję aplikacji")
+    p_ver.set_defaults(func=lambda args: print(f"TaxPilot AI {get_display_version()}"))
+
+    # Polecenie web (interfejs webowy)
+    p_web = subparsers.add_parser("web", aliases=["serve", "gui"], help="Uruchom interfejs webowy (FastAPI + Jinja2 + HTMX)")
+    p_web.add_argument("--host", default="127.0.0.1", help="Host (domyślnie 127.0.0.1)")
+    p_web.add_argument("--port", type=int, default=8000, help="Port (domyślnie 8000)")
+    p_web.add_argument("--no-reload", dest="reload", action="store_false", help="Wyłącz auto-reload")
+    p_web.set_defaults(func=cmd_web, reload=True)
 
     # Polecenie sync
     p_sync = subparsers.add_parser("sync", help="Synchronizuj faktury z KSeF za dany miesiąc")
@@ -482,7 +515,15 @@ def main():
     p_ext.add_argument("--miesiac", required=True, help="Miesiąc (01-12)")
     p_ext.add_argument("--typ", choices=["sprzedaz", "koszty", "all"], default="all", help="Typ faktur do ekstrakcji (sprzedaz, koszty lub all)")
     p_ext.add_argument("--force", action="store_true", help="Wymuś ponowną ekstrakcję nawet jeśli plik już istnieje")
+    p_ext.add_argument("--ai", action="store_true", help="Wymuś zaawansowaną analizę i ekstrakcję przez agenta AI (Vision / OCR)")
     p_ext.set_defaults(func=cmd_extract_non_ksef)
+
+    # Polecenie extract-ai (dedykowana ekstrakcja przez agenta AI)
+    p_ext_ai = subparsers.add_parser("extract-ai", help="Wyciągnij dane z nieodczytanych faktur i paragonów przez agenta AI (Vision & OCR)")
+    p_ext_ai.add_argument("--nip", default="7770001122", help="NIP rozliczanej firmy")
+    p_ext_ai.add_argument("--rok", default="2026", help="Rok podatkowy")
+    p_ext_ai.add_argument("--miesiac", required=True, help="Miesiąc (01-12)")
+    p_ext_ai.set_defaults(func=cmd_extract_ai)
 
     # Polecenie regula
     p_reg = subparsers.add_parser("regula", help="Zapisz trwałą regułę kwalifikacji pozycji kosztowej")
@@ -509,7 +550,7 @@ def main():
     p_init.add_argument("--forma", default="RYCZALT", choices=["RYCZALT", "LINIOWY", "SKALA"], help="Forma opodatkowania")
     p_init.add_argument("--stawka-ryczaltu", type=float, default=0.12, help="Domyślna stawka ryczałtu (np. 0.12)")
     p_init.add_argument("--zwolniony-z-vat", action="store_true", help="Oznacz, jeśli firma jest zwolniona z VAT")
-    p_init.add_argument("--zus", default="PELNY_ZUS", choices=["PELNY_ZUS", "MALY_ZUS_PLUS", "ULGA_NA_START"], help="Schemat składek ZUS")
+    p_init.add_argument("--zus", default="PELNY_ZUS", choices=["PELNY_ZUS", "MALY_ZUS_PLUS", "ULGA_NA_START", "TYLKO_ZDROWOTNA"], help="Schemat składek ZUS")
     p_init.add_argument("--bez-chorobowego", action="store_true", help="Wyłącz dobrowolne ubezpieczenie chorobowe ZUS")
     p_init.add_argument("--pkd", default=None, help="Kody PKD po przecinku (np. '62.01.Z,62.02.Z')")
     p_init.add_argument("--token", default=None, help="Token autoryzacyjny KSeF")
@@ -538,6 +579,14 @@ def main():
     p_wer_m.add_argument("--miesiac", required=True, help="Miesiąc (01-12)")
     p_wer_m.add_argument("--force", action="store_true", help="Wymuś świeże odpytanie API rejestrów z pominięciem cache")
     p_wer_m.set_defaults(func=cmd_weryfikuj_miesiac)
+
+    # Polecenie agregat-vat
+    p_vat_agg = subparsers.add_parser("agregat-vat", aliases=["vat-kategorie", "vat-sumy"], help="Agregacja odliczeń podatku VAT wg kategorii podatkowych i branżowych")
+    p_vat_agg.add_argument("--nip", default="7770001122", help="NIP rozliczanej firmy")
+    p_vat_agg.add_argument("--rok", default="2026", help="Rok podatkowy (domyślnie 2026)")
+    p_vat_agg.add_argument("--miesiace", help="Opcjonalna lista miesięcy oddzielonych przecinkami (np. 01,02,03)")
+    p_vat_agg.add_argument("--zapisz", action="store_true", help="Zapisz raport agregacji do rozliczenia/{rok}/agregat-vat.md i .json")
+    p_vat_agg.set_defaults(func=cmd_agregat_vat)
 
     args = parser.parse_args()
     args.func(args)

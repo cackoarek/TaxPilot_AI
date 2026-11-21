@@ -1,0 +1,98 @@
+<!-- Modal Kodu QR Przelewu Bankowego (Standard ZBP) -->
+<div class="p-6 space-y-5">
+  
+  <!-- Nagłówek modala -->
+  <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div class="flex items-center space-x-2">
+      <span class="text-2xl">
+        {% if 'PIT' in qr.typ %}🏛️{% elif 'VAT' in qr.typ %}🏛️{% else %}🛡️{% endif %}
+      </span>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">
+          Przelew {{ qr.typ }} – Paczka Przelewów Podatnika
+        </h3>
+        <p class="text-xs text-slate-500">
+          Zeskanuj kod QR aplikacją banku na smartfonie, aby opłacić natychmiast bez ręcznego wpisywania.
+        </p>
+      </div>
+    </div>
+    <button @click="qrModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg text-lg focus:outline-none">
+      ✕
+    </button>
+  </div>
+
+  <!-- Główna zawartość: Kod QR + Szczegóły -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+    
+    <!-- Obraz Kodu QR -->
+    <div class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
+      <img src="{{ qr.qr_data_uri }}" alt="Kod QR Przelewu {{ qr.typ }}" class="w-48 h-48 rounded-xl shadow-xs border border-white">
+      <span class="mt-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+        <span>📱 Standard ZBP / Elixir</span>
+      </span>
+    </div>
+
+    <!-- Dane Przelewu z przyciskami kopiowania -->
+    <div class="space-y-3 text-xs">
+      
+      <!-- Odbiorca -->
+      <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+        <span class="block text-[10px] text-slate-400 uppercase font-bold">Odbiorca:</span>
+        <div class="font-medium text-slate-800">{{ qr.odbiorca }}</div>
+      </div>
+
+      <!-- Rachunek docelowy -->
+      <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400 uppercase font-bold">Numer Rachunku (IBAN):</span>
+          <button @click="navigator.clipboard.writeText('{{ qr.rachunek }}'); copiedAccount = true; setTimeout(() => copiedAccount = false, 2000)"
+                  class="text-blue-600 hover:text-blue-800 font-semibold text-[11px] flex items-center space-x-1">
+            <span x-text="copiedAccount ? '✅ Skopiowano!' : '📋 Kopiuj'"></span>
+          </button>
+        </div>
+        <div class="font-mono font-bold text-slate-900 mt-0.5 break-all">
+          {{ qr.rachunek_sformatowany }}
+        </div>
+      </div>
+
+      <!-- Kwota -->
+      <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400 uppercase font-bold">Kwota do zapłaty:</span>
+          <button @click="navigator.clipboard.writeText('{{ qr.kwota }}'); copiedAmount = true; setTimeout(() => copiedAmount = false, 2000)"
+                  class="text-blue-600 hover:text-blue-800 font-semibold text-[11px] flex items-center space-x-1">
+            <span x-text="copiedAmount ? '✅ Skopiowano!' : '📋 Kopiuj'"></span>
+          </button>
+        </div>
+        <div class="font-mono text-base font-black text-slate-900 mt-0.5">
+          {{ qr.kwota }} zł
+        </div>
+      </div>
+
+      <!-- Tytuł przelewu -->
+      <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400 uppercase font-bold">Tytuł przelewu:</span>
+          <button @click="navigator.clipboard.writeText('{{ qr.tytul }}'); copiedTitle = true; setTimeout(() => copiedTitle = false, 2000)"
+                  class="text-blue-600 hover:text-blue-800 font-semibold text-[11px] flex items-center space-x-1">
+            <span x-text="copiedTitle ? '✅ Skopiowano!' : '📋 Kopiuj'"></span>
+          </button>
+        </div>
+        <div class="font-mono text-slate-700 mt-0.5 break-all">
+          {{ qr.tytul }}
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Stopka modala -->
+  <div class="pt-3 border-t border-slate-100 flex justify-end">
+    <button @click="qrModalOpen = false" 
+            class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors">
+      Zamknij
+    </button>
+  </div>
+
+</div>

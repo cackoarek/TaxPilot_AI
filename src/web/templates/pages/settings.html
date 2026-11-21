@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}Ustawienia Firmy & KSeF & AI – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-5xl">
+
+  <!-- Baner Pomocy i Przewodnik po module -->
+  <div x-data="{ guideOpen: false }" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-white shadow-sm transition-all duration-200">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">💡</span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Przewodnik: Ustawienia Firmy, KSeF & Modele AI</h2>
+          <p class="text-xs text-slate-400">Zarządzanie parametrami podatkowymi JDG, tokenem KSeF 2.0 oraz konfiguracją modeli LLM.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Umożliwia weryfikację i edycję kluczowych parametrów profilu firmy (stawka ryczałtu, rodzaj ZUS, mikrorachunek US), bezpieczną konfigurację środowiska KSeF 2.0 (PROD/TEST) oraz dobór modeli AI do asysty.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Token KSeF:</strong> Zapisywany lokalnie w profilu firmy (`profil.json`) – nigdy nie trafia do repozytorium gita.</li>
+          <li><strong>Modele AI:</strong> Obsługa Multi-Provider (OpenAI, Anthropic, Gemini, DeepSeek oraz lokalna Ollama).</li>
+          <li><strong>Zero-Hallucination:</strong> Zmiana modelu AI wpływa na konwersację asystenta, ale wszystkie kwoty podatków zawsze liczy deterministyczny kod Python.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nagłówek Ustawień -->
+  <div class="border-b border-slate-200 pb-4">
+    <div class="flex items-center space-x-2">
+      <span class="px-2 py-0.5 bg-slate-100 text-slate-800 text-xs font-bold rounded">KONFIGURACJA</span>
+      <h1 class="text-xl font-bold text-slate-900">
+        Ustawienia Firmy & Integracje
+      </h1>
+    </div>
+    <p class="text-xs text-slate-500 mt-1">
+      Profil podatnika, token Krajowego Systemu e-Faktur oraz wybór silnika sztucznej inteligencji (Multi-Provider).
+    </p>
+  </div>
+
+  <!-- 1. Karta Profilu Podatnika -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🏢 Profil Podatnika (JDG)</span>
+        </h2>
+        <p class="text-xs text-slate-500">Dane rejestrowe firmy oraz konfiguracja formy opodatkowania i ubezpieczeń ZUS.</p>
+      </div>
+      <span class="text-xs font-mono text-slate-400">firmy/{{ profile.nip }}/profil.json</span>
+    </div>
+
+    <!-- Dane Rejestrowe (Tylko do odczytu) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Pełna Nazwa Firmy:</span>
+        <span class="font-bold text-slate-900 text-sm mt-0.5 block">{{ profile.nazwa }}</span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Numer NIP:</span>
+        <span class="font-mono font-bold text-slate-900 text-sm mt-0.5 block">{{ profile.nip }}</span>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">Kody PKD:</span>
+        <span class="font-mono text-slate-700 mt-0.5 block">
+          {{ profile.kody_pkd|join(', ') if profile.kody_pkd else '62.01.Z' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Formularz Zmiennych Parametrów Podatkowych i ZUS -->
+    <div class="border-t border-slate-100 pt-4">
+      <div class="mb-3">
+        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center space-x-1.5">
+          <span>⚙️ Zmienne Parametry Podatkowo-Składkowe</span>
+        </h3>
+        <p class="text-[11px] text-slate-500">
+          Wybierz obowiązującą stawkę ryczałtu, rodzaj ZUS oraz status VAT. Zmiany natychmiast wpływają na kalkulacje w module Księgowanie.
+        </p>
+      </div>
+
+      <form hx-post="/ustawienia/podatki" 
+            hx-target="#tax-settings-result" 
+            class="space-y-4 text-xs">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <!-- Stawka Ryczałtu -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">
+              Domyślna Stawka Ryczałtu (PIT-28):
+            </label>
+            <select name="stawka_ryczaltu" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+              <option value="0.17" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 17.0 %}selected{% endif %}>
+                17% – Wolne zawody (tłumacze, adwokaci, notariusze)
+              </option>
+              <option value="0.15" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 15.0 %}selected{% endif %}>
+                15% – Usługi doradcze, reklamowe, zarządzanie
+              </option>
+              <option value="0.14" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 14.0 %}selected{% endif %}>
+                14% – Usługi architektoniczne, inżynierskie, badania techniczne
+              </option>
+              <option value="0.12" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 12.0 %}selected{% endif %}>
+                12% – Usługi IT / Software (programowanie, analiza, sieci)
+              </option>
+              <option value="0.10" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 10.0 %}selected{% endif %}>
+                10% – Kupno i sprzedaż nieruchomości na własny rachunek
+              </option>
+              <option value="0.085" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 8.5 %}selected{% endif %}>
+                8.5% – Usługi ogólne, gastronomiczne, rękodzieło
+              </option>
+              <option value="0.055" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 5.5 %}selected{% endif %}>
+                5.5% – Działalność wytwórcza i roboty budowlane
+              </option>
+              <option value="0.03" {% if (profile.domyslna_stawka_ryczaltu * 100)|round(1) == 3.0 %}selected{% endif %}>
+                3.0% – Działalność usługowa w zakresie handlu
+              </option>
+            </select>
+            <span class="text-[10px] text-slate-400 mt-1 block">
+              Stawka stosowana domyślnie dla przychodów ze sprzedaży, jeśli brak reguły per kontrahent.
+            </span>
+          </div>
+
+          <!-- Pakiet Składek ZUS -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">
+              Pakiet Ubezpieczeń ZUS:
+            </label>
+            <select name="typ_zus" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+              <option value="PELNY_ZUS" {% if profile.zus.typ.value == 'PELNY_ZUS' %}selected{% endif %}>
+                Pełny ZUS – Standardowy (Społeczne + FP + Zdrowotna)
+              </option>
+              <option value="MALY_ZUS_PLUS" {% if profile.zus.typ.value == 'MALY_ZUS_PLUS' %}selected{% endif %}>
+                Mały ZUS Plus / Preferencyjny – Podstawa 30% minimalnego (bez FP)
+              </option>
+              <option value="ULGA_NA_START" {% if profile.zus.typ.value == 'ULGA_NA_START' %}selected{% endif %}>
+                Ulga na start – Zwolnienie ze składek społecznych (tylko Zdrowotna)
+              </option>
+              <option value="TYLKO_ZDROWOTNA" {% if profile.zus.typ.value == 'TYLKO_ZDROWOTNA' %}selected{% endif %}>
+                Tylko Zdrowotna – Zbieg tytułów / Umowa o pracę poza JDG (brak społecznych w JDG)
+              </option>
+            </select>
+            <span class="text-[10px] text-slate-400 mt-1 block">
+              Określa podstawę naliczania emerytalnej, rentowej, chorobowej, wypadkowej i FP.
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Dodatkowe opcje metodyki księgowej ZUS i Zdrowotnej -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">
+              Metoda Naliczania Składki Zdrowotnej (Ryczałt):
+            </label>
+            <select name="metoda_zdrowotna" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+              <option value="BIEZACA" {% if profile.zus.metoda_zdrowotna == 'BIEZACA' %}selected{% endif %}>
+                Metoda bieżąca – Progi wg przychodu narastająco w bieżącym roku (standard biur rachunkowych)
+              </option>
+              <option value="UPROSZCZONA_UBIEGLY_ROK" {% if profile.zus.metoda_zdrowotna == 'UPROSZCZONA_UBIEGLY_ROK' %}selected{% endif %}>
+                Metoda uproszczona (art. 81 ust. 2h) – Stała składka wg przychodu z ubiegłego roku
+              </option>
+            </select>
+            <span class="text-[10px] text-slate-400 mt-1 block">
+              W metodzie bieżącej w styczniu płaci się I próg (498,35 zł), a przejście na wyższy następuje po przekroczeniu 60k/300k zł.
+            </span>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">
+              Zasada Odliczania Składek ZUS w PIT-28:
+            </label>
+            <select name="zasada_odliczen" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+              <option value="KASOWA" {% if profile.zus.zasada_odliczen == 'KASOWA' %}selected{% endif %}>
+                Zasada kasowa – Odliczenie składek faktycznie opłaconych w danym m-cu (standard biur rachunkowych)
+              </option>
+              <option value="MEMORIALOWA" {% if profile.zus.zasada_odliczen == 'MEMORIALOWA' %}selected{% endif %}>
+                Zasada memoriałowa – Odliczenie składek należnych za ten sam miesiąc
+              </option>
+            </select>
+            <span class="text-[10px] text-slate-400 mt-1 block">
+              Zgodnie z art. 11 ust. 1 ustawy o ryczałcie odliczeniu podlegają składki zapłacone w danym miesiącu.
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Checkboxy: Składka chorobowa i Płatnik VAT -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          
+          <div class="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <input type="checkbox" id="chorobowe_dobrowolne" name="chorobowe_dobrowolne" value="true"
+                   {% if profile.zus.chorobowe_dobrowolne %}checked{% endif %}
+                   class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+            <label for="chorobowe_dobrowolne" class="cursor-pointer">
+              <span class="font-bold text-slate-800 block">Dobrowolna składka chorobowa (2,45%)</span>
+              <span class="text-[11px] text-slate-500 block mt-0.5">
+                Uprawnia przedsiębiorcę do wypłaty świadczeń chorobowych oraz zasiłku macierzyńskiego/ojcowskiego.
+              </span>
+            </label>
+          </div>
+
+          <div class="flex items-start space-x-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <input type="checkbox" id="platnik_vat" name="platnik_vat" value="true"
+                   {% if profile.platnik_vat %}checked{% endif %}
+                   class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+            <label for="platnik_vat" class="cursor-pointer">
+              <span class="font-bold text-slate-800 block">Czynny Podatnik VAT (JPK_V7)</span>
+              <span class="text-[11px] text-slate-500 block mt-0.5">
+                Zarejestrowany do VAT – bilansowanie podatku należnego i naliczonego, prawo do odliczeń.
+              </span>
+            </label>
+          </div>
+
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+            💾 Zapisz Parametry Podatkowe i ZUS
+          </button>
+
+          <span class="text-[11px] text-slate-400">
+            Wpływa bezpośrednio na kalkulację zaliczki PIT-28, ZUS oraz VAT-7
+          </span>
+        </div>
+
+        <div id="tax-settings-result"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Karta Integracji KSeF 2.0 -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🏛️ Bramka Krajowego Systemu e-Faktur (KSeF 2.0)</span>
+        </h2>
+        <p class="text-xs text-slate-500">Bezpośrednie połączenie szyfrowane z API Ministerstwa Finansów.</p>
+      </div>
+      <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                   {% if profile.ksef.srodowisko == 'PROD' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+        Aktualnie: {{ profile.ksef.srodowisko }}
+      </span>
+    </div>
+
+    <form hx-post="/ustawienia/ksef" 
+          hx-target="#ksef-settings-result" 
+          class="space-y-4 text-xs">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <div class="sm:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">
+            Token Autoryzacyjny Podatnika KSeF <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="token" value="{{ profile.ksef.token }}" required
+                 placeholder="Wklej token wygenerowany w Aplikacji Podatnika KSeF"
+                 class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-1 block">
+            Token generowany w Aplikacji Podatnika KSeF z uprawnieniami do odczytu i zapisu faktur.
+          </span>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Środowisko KSeF:</label>
+          <select name="srodowisko" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+            <option value="PROD" {% if profile.ksef.srodowisko == 'PROD' %}selected{% endif %}>🟢 Produkcyjne (PROD)</option>
+            <option value="TEST" {% if profile.ksef.srodowisko == 'TEST' %}selected{% endif %}>🟡 Testowe / Przedprodukcyjne (TEST)</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button type="submit" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+          💾 Zapisz Konfigurację KSeF
+        </button>
+
+        <span class="text-[11px] text-slate-400">
+          Szyfrowanie certyfikatem MF RSA-OAEP SHA-256
+        </span>
+      </div>
+
+      <div id="ksef-settings-result"></div>
+    </form>
+  </div>
+
+  <!-- 3. Karta Silnika AI (Multi-Provider: Antigravity, Gemini, OpenAI, Claude, Zero-LLM) -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🤖 Silnik Sztucznej Inteligencji & Asystent Copilot</span>
+        </h2>
+        <p class="text-xs text-slate-500">
+          Wybór trybu pracy asystenta: lokalny agent CLI (Antigravity agy) lub bezpośrednie adaptery chmurowe (Gemini, Claude, OpenAI).
+        </p>
+      </div>
+      <span class="text-xs font-semibold {% if llm.available %}text-emerald-700 bg-emerald-50 border-emerald-200{% else %}text-amber-700 bg-amber-50 border-amber-200{% endif %} px-2.5 py-1 rounded-full border">
+        {{ llm.label }}
+      </span>
+    </div>
+
+    <!-- Panel Szczegółowego Statusu Aktywnego AI (Ustawienia Firmy - Zadanie 1) -->
+    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          📊 Aktualny Status Podłączenia AI:
+        </span>
+        {% if llm.available %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+            Gotowy do Asysty (Aktywny)
+          </span>
+        {% else %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+            Tryb Deterministyczny (Zero-LLM)
+          </span>
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold">Dostawca (Provider):</span>
+          <span class="font-bold text-slate-800 mt-0.5 block">
+            {% if llm.provider == 'antigravity' %}🚀 Antigravity CLI (agy)
+            {% elif llm.provider == 'gemini' %}🟢 Google Gemini
+            {% elif llm.provider == 'claude' %}🟣 Anthropic Claude
+            {% elif llm.provider == 'openai' %}🟢 OpenAI
+            {% else %}⚙️ Brak (Zero-LLM){% endif %}
+          </span>
+        </div>
+
+        <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold">Aktywny Model:</span>
+          <span class="font-mono font-bold text-indigo-700 mt-0.5 block truncate" title="{{ llm.model }}">
+            {{ llm.model }}
+          </span>
+        </div>
+
+        <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold">Tryb Pracy:</span>
+          <span class="font-semibold text-slate-700 mt-0.5 block">
+            {% if llm.mode == 'local_cli' %}Lokalny proces CLI (agy)
+            {% elif llm.mode == 'cloud_sdk' %}Chmura REST API (SDK)
+            {% else %}Deterministyczny kod Python{% endif %}
+          </span>
+        </div>
+
+        <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+          <span class="text-[10px] text-slate-400 block uppercase font-bold">Kontekst Workspace:</span>
+          <span class="font-semibold text-slate-700 mt-0.5 block flex items-center space-x-1">
+            <span class="text-emerald-600">✓</span>
+            <span>Reguły AGENTS.md</span>
+          </span>
+        </div>
+      </div>
+
+      {% if llm.provider == 'antigravity' %}
+        <div class="text-[11px] text-slate-600 bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-100 flex items-start space-x-2">
+          <span class="text-indigo-600 font-bold">💡</span>
+          <div>
+            <strong>Tryb Antigravity CLI:</strong> Sesja z modelem inicjowana jest w procesie Pythona bezpośrednio na katalogu projektu z poleceniem zapoznania się z plikiem <code>AGENTS.md</code>. Kolejne wiadomości w czacie kontynuują otwartą sesję bez ponownej inicjalizacji.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Formularz Konfiguracji AI -->
+    <form hx-post="/ustawienia/llm" 
+          hx-target="#llm-settings-result" 
+          class="space-y-4 text-xs">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Dostawca Modeli (Provider):</label>
+          <select name="provider" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+            <option value="auto" {% if llm_saved.provider == 'auto' %}selected{% endif %}>
+              ✨ Automatyczny (wg dostępności agy / kluczy API)
+            </option>
+            <option value="antigravity" {% if llm_saved.provider == 'antigravity' %}selected{% endif %}>
+              🚀 Antigravity CLI Agent (lokalne narzędzie 'agy' na folderze projektu)
+            </option>
+            <option value="gemini" {% if llm_saved.provider == 'gemini' %}selected{% endif %}>
+              🟢 Google Gemini (2.5 Flash / 1.5 Pro)
+            </option>
+            <option value="claude" {% if llm_saved.provider == 'claude' %}selected{% endif %}>
+              🟣 Anthropic Claude (3.5 Sonnet / Haiku)
+            </option>
+            <option value="openai" {% if llm_saved.provider == 'openai' %}selected{% endif %}>
+              🟢 OpenAI / Ollama (GPT-4o)
+            </option>
+            <option value="null" {% if llm_saved.provider == 'null' %}selected{% endif %}>
+              ⚙️ Deterministyczny Zero-LLM (Bez AI)
+            </option>
+          </select>
+          <span class="text-[10px] text-slate-400 mt-1 block">
+            Dla opcji Antigravity klucz API nie jest wymagany – narzędzie działa lokalnie w terminalu.
+          </span>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Klucz API (tylko dla Gemini / Claude / OpenAI):</label>
+          <input type="password" name="api_key" placeholder="Wklej klucz API dostawcy..."
+                 class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-1 block">
+            Zapisywany lokalnie w pliku .env (niewymagany dla trybu Antigravity CLI).
+          </span>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nazwa Modelu (opcjonalnie):</label>
+          <input type="text" name="model" list="model-suggestions" value="{{ llm_saved.model if llm_saved and llm_saved.model else '' }}"
+                 placeholder="np. antigravity-cli, gemini-1.5-flash, claude-3-5-sonnet"
+                 class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <datalist id="model-suggestions">
+            <option value="antigravity-cli">Antigravity CLI (Domyślny agent agy)</option>
+            <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (Szybki i ekonomiczny)</option>
+            <option value="gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+            <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+            <option value="claude-3-5-sonnet-20241022">Anthropic Claude 3.5 Sonnet</option>
+            <option value="claude-3-5-haiku-20241022">Anthropic Claude 3.5 Haiku</option>
+            <option value="gpt-4o">OpenAI GPT-4o</option>
+            <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+          </datalist>
+          <span class="text-[10px] text-slate-400 mt-1 block">
+            Pozostaw puste dla domyślnego modelu wybranego dostawcy.
+          </span>
+        </div>
+
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+          💾 Zapisz Wybór Silnika AI
+        </button>
+
+        <span class="text-[11px] text-slate-400">
+          Wspiera ciągłość sesji, strumieniowanie SSE i dymki czatu
+        </span>
+      </div>
+
+      <div id="llm-settings-result"></div>
+    </form>
+  </div>
+
+  <!-- 4. Karta Wdrożenia Zero-CLI & Docker -->
+  <div class="bg-slate-900 rounded-2xl p-6 text-white space-y-3 shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div class="flex items-center space-x-2">
+        <span class="text-xl">🐳</span>
+        <h3 class="text-sm font-bold">Wdrożenie Hostingowe & Konteneryzacja (Zero-CLI)</h3>
+      </div>
+      <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+        In-Process Python
+      </span>
+    </div>
+
+    <p class="text-xs text-slate-300 leading-relaxed">
+      Aplikacja TaxPilot AI nie wymaga instalacji żadnych narzędzi deweloperskich ani binariów CLI na serwerze.
+      Wszystkie moduły księgowe, kryptografia KSeF oraz adaptery LLM działają w czystym procesie Pythona (FastAPI + Uvicorn).
+    </p>
+
+    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300 flex items-center justify-between">
+      <span>docker compose up -d</span>
+      <span class="text-slate-500 font-sans text-xs">Port 8000 • Trwały wolumen: ./firmy</span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

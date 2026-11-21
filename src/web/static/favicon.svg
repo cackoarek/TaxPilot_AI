@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Zaokrąglone tło -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)"/>
+
+  <!-- Tarcza Bezpieczeństwa & Compliance -->
+  <path d="M32 10 L48 16 V32 C48 42 41 50 32 54 C23 50 16 42 16 32 V16 Z" fill="url(#shieldGrad)"/>
+
+  <!-- Skrzydło Pilota / Strzałka Wzrostu (TaxPilot) -->
+  <path d="M32 18 L42 34 L32 30 L22 34 Z" fill="url(#goldGrad)"/>
+
+  <!-- Symbol waluty / podatków (%) w centrum -->
+  <circle cx="28" cy="38" r="2" fill="#ffffff"/>
+  <circle cx="36" cy="44" r="2" fill="#ffffff"/>
+  <line x1="38" y1="36" x2="26" y2="46" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+</svg>

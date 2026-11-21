@@ -1,0 +1,30 @@
+# ==============================================================================
+# TaxPilot AI - Docker Compose Configuration
+# ==============================================================================
+# Uruchomienie produkcyjne: docker compose up -d
+# Aplikacja dostępna na: http://localhost:8000
+# ==============================================================================
+
+services:
+  taxpilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taxpilot-web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - TAXPILOT_HOST=0.0.0.0
+      - TAXPILOT_PORT=8000
+      - TAXPILOT_DEBUG=False
+      - TAXPILOT_LLM_PROVIDER=${TAXPILOT_LLM_PROVIDER:-auto}
+      # Opcjonalne klucze API dostawców LLM (przekazywane z pliku .env hosta):
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+    volumes:
+      # TRWAŁY WOLUMEN DANYCH (Persistent Volume)
+      # Katalog z danymi firm, tokenami KSeF, fakturami i rozliczeniami
+      - ./firmy:/app/firmy

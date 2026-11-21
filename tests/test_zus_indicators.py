@@ -13,38 +13,40 @@ class TestZUSIndicators(unittest.TestCase):
     def test_official_2026_indicators(self):
         macro = get_zus_indicators("2026")
         self.assertEqual(macro.rok, "2026")
-        self.assertEqual(macro.podstawa_pelny_zus, Decimal("5304.00"))
-        self.assertEqual(macro.podstawa_preferencyjny_zus, Decimal("1440.00"))
-        self.assertEqual(macro.przecietne_wynagrodzenie_zdrowotna, Decimal("9008.11"))
+        self.assertEqual(macro.podstawa_pelny_zus, Decimal("5652.00"))
+        self.assertEqual(macro.podstawa_preferencyjny_zus, Decimal("1441.80"))
+        self.assertEqual(macro.przecietne_wynagrodzenie_zdrowotna, Decimal("9228.64"))
         self.assertEqual(macro.zrodlo, "OFICJALNE_GUS")
         self.assertIsNone(macro.ostrzezenie)
 
     def test_official_2025_indicators(self):
         macro = get_zus_indicators("2025")
         self.assertEqual(macro.rok, "2025")
-        self.assertEqual(macro.podstawa_pelny_zus, Decimal("4694.40"))
+        self.assertEqual(macro.podstawa_pelny_zus, Decimal("5203.80"))
+        self.assertEqual(macro.podstawa_preferencyjny_zus, Decimal("1399.80"))
+        self.assertEqual(macro.przecietne_wynagrodzenie_zdrowotna, Decimal("8549.18"))
         self.assertEqual(macro.zrodlo, "OFICJALNE_GUS")
 
     def test_fallback_future_year(self):
-        macro = get_zus_indicators("2027")
-        self.assertEqual(macro.rok, "2027")
+        macro = get_zus_indicators("2028")
+        self.assertEqual(macro.rok, "2028")
         self.assertEqual(macro.zrodlo, "PROGNOZA_SZACOWANA")
         self.assertIsNotNone(macro.ostrzezenie)
         self.assertIn("Zastosowano prognozowane wskaźniki ZUS", macro.ostrzezenie)
-        self.assertTrue(macro.przecietne_wynagrodzenie_zdrowotna > Decimal("9008.11"))
+        self.assertTrue(macro.przecietne_wynagrodzenie_zdrowotna > Decimal("9228.64"))
 
     def test_profile_override(self):
         overrides = {
-            "custom_podstawa_spoleczne": Decimal("5500.00"),
+            "custom_podstawa_spoleczne": Decimal("5800.00"),
             "custom_przecietne_wynagrodzenie": Decimal("9500.00"),
         }
         macro = get_zus_indicators("2026", profile_overrides=overrides)
-        self.assertEqual(macro.podstawa_pelny_zus, Decimal("5500.00"))
+        self.assertEqual(macro.podstawa_pelny_zus, Decimal("5800.00"))
         self.assertEqual(macro.przecietne_wynagrodzenie_zdrowotna, Decimal("9500.00"))
         self.assertEqual(macro.zrodlo, "PROFIL_UZYTKOWNIKA")
 
     def test_calculate_zus_with_official_2026(self):
-        # II próg ryczałtu (60k-300k): 100% * 9008.11 * 0.09 = 810.73 zł
+        # II próg ryczałtu (60k-300k): 100% * 9228.64 * 0.09 = 830.58 zł
         res = calculate_zus(
             rok="2026",
             miesiac="08",
@@ -53,10 +55,10 @@ class TestZUSIndicators(unittest.TestCase):
             forma_opodatkowania=FormaOpodatkowania.RYCZALT,
             przychod_roczny_narastajaco=Decimal("150000.00"),
         )
-        self.assertEqual(res.suma_spoleczne, Decimal("1808.14"))
-        self.assertEqual(res.zdrowotna, Decimal("810.73"))
-        self.assertEqual(res.odliczenie_zdrowotna_ryczalt_50, Decimal("405.37"))
-        self.assertEqual(res.lacznie_do_zaplaty, Decimal("2618.87"))
+        self.assertEqual(res.suma_spoleczne, Decimal("1926.76"))
+        self.assertEqual(res.zdrowotna, Decimal("830.58"))
+        self.assertEqual(res.odliczenie_zdrowotna_ryczalt_50, Decimal("415.29"))
+        self.assertEqual(res.lacznie_do_zaplaty, Decimal("2757.34"))
         self.assertEqual(res.zrodlo_wskaznikow, "OFICJALNE_GUS")
 
     def test_cache_save_and_load(self):

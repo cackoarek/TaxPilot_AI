@@ -251,7 +251,10 @@ def calculate_pit28_advance(
                 odliczenia_dla_stawki = (laczne_odliczenia * udzial).quantize(
                     Decimal("0.01"), rounding=ROUND_HALF_UP
                 )
-                podstawa_stawki = max(Decimal("0.00"), przychod_stawki - odliczenia_dla_stawki)
+                # Zgodnie z art. 63 § 1 Ordynacji Podatkowej podstawę opodatkowania zaokrągla się do pełnych złotych
+                podstawa_stawki = max(Decimal("0.00"), przychod_stawki - odliczenia_dla_stawki).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_UP
+                )
             else:
                 podstawa_stawki = Decimal("0.00")
 

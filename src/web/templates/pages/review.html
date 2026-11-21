@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block title %}Wstępny Przegląd Dokumentów – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Przewodnik po module (Ogólne - Zadanie 4) -->
+  <div x-data="{ guideOpen: false }" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-sm border border-slate-800 p-4 transition-all">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">📝</span>
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <span>Wstępny Przegląd & Kwalifikacja Podatkowa</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Krok 2</span>
+          </h2>
+          <p class="text-xs text-slate-300 mt-0.5">Procedura weryfikacji przychodów i kosztów przed ostatecznym zaksięgowaniem i zamknięciem miesiąca.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Chroni przed zarzutem braku należytej staranności i błędnym odliczeniem podatku. Pozwala jednoznacznie oddzielić koszty firmowe (100%), wydatki samochodowe (50% VAT art. 86a) oraz prywatne zakupy osobiste (0% VAT/KUP).</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Pamięć reguł:</strong> Twoja zmiana kwalifikacji w tabeli jest natychmiast utrwalana – kolejne takie faktury zakwalifikują się automatycznie.</li>
+          <li><strong>Podgląd faktur:</strong> Kliknij przycisk „Podgląd”, aby zobaczyć oryginalną strukturę dokumentu XML/JSON.</li>
+          <li><strong>Krok 3:</strong> Po zatwierdzeniu tabel przejdź do modułu Księgowanie, aby wygenerować oficjalną ewidencję i przelewy.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Baner Wymogu Synchronizacji (Przegląd - Zadanie 1) -->
+  <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs">
+    <div class="flex items-center space-x-3">
+      <span class="text-2xl">📁</span>
+      <div>
+        <h3 class="text-xs font-bold text-blue-950 uppercase tracking-wide">Pamiętaj o komplecie dokumentów przed przeglądem</h3>
+        <p class="text-xs text-blue-800 mt-0.5">
+          Jeżeli w tym miesiącu nie pobrano jeszcze najnowszych faktur z KSeF 2.0 lub nie dostarczono dokumentów zewnętrznych (np. biletów, faktur z zagranicy AWS/Google), wróć do magazynu faktur.
+        </p>
+      </div>
+    </div>
+    <a href="/faktury" class="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center space-x-1 self-start sm:self-auto">
+      <span>📁 Przejdź do Faktury & KSeF 2.0 &rarr;</span>
+    </a>
+  </div>
+
+  <!-- Komunikat o nieprzetworzonych dokumentach i przycisk AI -->
+  {% include "partials/unprocessed_invoices_banner.html" %}
+
+  <!-- Nagłówek Procedury -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded">KROK 2</span>
+        <h1 class="text-xl font-bold text-slate-900">
+          Wstępny Przegląd i Akceptacja Dokumentów (Pre-settlement Review)
+        </h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">
+        Okres: <strong class="text-slate-800">{{ rok }}-{{ miesiac }}</strong> • Firma: <strong class="text-slate-800">{{ profile.nazwa if profile else '' }}</strong> (NIP: {{ profile.nip if profile else '' }})
+      </p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <a href="/" class="px-3.5 py-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors">
+        &larr; Wróć do Pulpitu
+      </a>
+    </div>
+  </div>
+
+  <!-- Sekcja Własny Rozdział: Audyt i Kwalifikacja (Przegląd - Zadanie 2) -->
+  <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-xl shadow-sm border border-slate-800 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="space-y-1">
+      <div class="flex items-center space-x-2">
+        <span class="text-lg">🤖</span>
+        <h3 class="text-sm font-bold tracking-tight text-white">Inteligentna Kwalifikacja Faktur AI</h3>
+        <span class="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-[10px] font-bold rounded border border-indigo-400/30">AI & Porady Księgowe</span>
+      </div>
+      <p class="text-xs text-slate-300 max-w-2xl">
+        Uruchom analizę AI, która zakwalifikuje każdą nową pozycję faktury (100% firmowy, 50% samochód art. 86a, 0% wydatek osobisty) wraz z profesjonalnym uzasadnieniem i poradą certyfikowanego księgowego.
+      </p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <button type="button" 
+              hx-post="/api/costs/ai-qualify-run" 
+              hx-target="#ai-qualify-banner-container" 
+              hx-swap="outerHTML"
+              class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow-md transition-all flex items-center space-x-2 cursor-pointer border border-indigo-400/40 hover:scale-[1.02]">
+        <span>🤖</span>
+        <span>Uruchom kwalifikację faktur AI</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Dynamiczny Kontener Wyników Kwalifikacji AI -->
+  <div id="ai-qualify-banner-container">
+    {% if ai_qualify_status and ai_qualify_status.status in ('running', 'completed') %}
+      {% set status = ai_qualify_status %}
+      {% include "partials/ai_qualify_banner.html" %}
+    {% endif %}
+  </div>
+
+  <!-- Dynamiczny Kontener Wyników Audytu (Auto-Routing & Zasadność) -->
+  <div id="audit-result-banner-container"></div>
+
+  <!-- Baner Relokacji i Duplikatów (Auto-Routing) -->
+  {% if review and review.relokacje %}
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl text-xs text-blue-900 space-y-1 shadow-xs">
+      <div class="flex items-center space-x-2 font-bold">
+        <span>📁</span>
+        <span>AUTOMATYCZNY ROUTING DOKUMENTÓW (AUTO-ROUTING)</span>
+      </div>
+      <p class="text-blue-800">
+        Wykryto <strong>{{ review.relokacje|length }}</strong> plików wrzuconych do niewłaściwego folderu. System automatycznie rozpoznał NIP wystawcy i zrelokował dokumenty sprzedaży do właściwego katalogu przychodów.
+      </p>
+    </div>
+  {% endif %}
+
+  <!-- Baner Ostrzegawczy AML (Błąd sieci) -->
+  {% if review and review.ostrzezenie_sieci_aml %}
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl text-xs text-amber-900 space-y-1 shadow-xs flex items-center justify-between">
+      <div class="flex items-center space-x-2 font-bold">
+        <span class="text-lg">⚠️</span>
+        <div>
+          <span class="block">UWAGA: NIEZWERYFIKOWANI KONTRAHENCI W REJESTRACH MF (BŁĄD SIECI)</span>
+          <span class="font-normal text-amber-800 text-[11px]">Dla części kontrahentów nie udało się potwierdzić statusu VAT z powodu błędu połączenia.</span>
+        </div>
+      </div>
+      <a href="/aml" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors">
+        Weryfikuj w module AML &rarr;
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- ========================================== -->
+  <!-- 1. TABELA PRZYCHODÓW (SPRZEDAŻ)            -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-3">
+    
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>1. Tabela Faktur Przychodowych (Sprzedaż)</span>
+          <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">
+            {{ review.sprzedaz|length if review else 0 }} faktur
+          </span>
+        </h2>
+        <p class="text-xs text-slate-500">Przychody podlegające opodatkowaniu ryczałtem od przychodów ewidencjonowanych (stawka 12%).</p>
+      </div>
+      <div class="text-right">
+        <span class="text-xs text-slate-500">Przychód Netto Łącznie:</span>
+        <span class="block text-base font-black text-slate-900 font-mono">
+          {{ "%.2f"|format(review.laczna_sprzedaz_netto) if review else '0.00' }} zł
+        </span>
+      </div>
+    </div>
+
+    <!-- Tabela Sprzedaży -->
+    <div class="overflow-x-auto px-5">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+            <th class="p-3 text-center">LP</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Numer Faktury</th>
+            <th class="p-3">Nabywca (Kontrahent)</th>
+            <th class="p-3">Przedmiot Sprzedaży</th>
+            <th class="p-3 text-right">Netto</th>
+            <th class="p-3 text-right">Ryczałt</th>
+            <th class="p-3 text-center">Źródło</th>
+            <th class="p-3 text-center">Akcje</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% if review and review.sprzedaz %}
+            {% for item in review.sprzedaz %}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-400 font-mono text-center">{{ item.lp }}</td>
+                <td class="p-3 font-mono text-slate-600 whitespace-nowrap">{{ item.data }}</td>
+                <td class="p-3 font-mono font-medium text-slate-800">{{ item.numer }}</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">{{ item.nabywca_nazwa }}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">NIP: {{ item.nabywca_nip }}</div>
+                </td>
+                <td class="p-3 text-slate-600 truncate max-w-xs" title="{{ item.pelny_przedmiot or item.przedmiot }}">{{ item.przedmiot }}</td>
+                <td class="p-3 font-mono text-right font-bold text-slate-900">{{ "%.2f"|format(item.kwota_netto) }} zł</td>
+                <td class="p-3 font-mono text-right text-blue-700 font-semibold">
+                  {% if item.stawka_ryczaltu is defined and item.stawka_ryczaltu is not none %}
+                    {% set st = item.stawka_ryczaltu|string|replace('%','')|float %}
+                    {% if st < 1.0 %}
+                      {{ (st * 100)|round|int }}%
+                    {% else %}
+                      {{ st|round|int }}%
+                    {% endif %}
+                  {% else %}
+                    12%
+                  {% endif %}
+                </td>
+                <td class="p-3 text-center text-slate-500 font-medium">{{ item.zrodlo }}</td>
+                <td class="p-3 text-center whitespace-nowrap">
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer={{ item.numer|urlencode }}&typ=sprzedaz"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs inline-flex items-center space-x-1"
+                          title="Podejrzyj fakturę i surowy JSON/XML">
+                    <span>👁️</span>
+                    <span>Podgląd</span>
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="9" class="p-6 text-center text-slate-400 italic">Brak zarejestrowanych faktur sprzedaży w tym miesiącu.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Oświadczenie o kompletności przychodów -->
+    <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center space-x-3 text-xs text-slate-700">
+      <input type="checkbox" id="confirm-revenues" checked class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+      <label for="confirm-revenues" class="cursor-pointer select-none">
+        <strong>Oświadczenie przedsiębiorcy:</strong> Potwierdzam, że powyższy wykaz obejmuje wszystkie przychody gospodarcze uzyskane w miesiącu {{ rok }}-{{ miesiac }}.
+      </label>
+    </div>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 2. TABELA KOSZTÓW (ZAKUPY & KWALIFIKACJA)  -->
+  <!-- ========================================== -->
+  <div id="costs-table-container"
+       hx-trigger="refresh-review-tables from:body"
+       hx-get="/przeglad"
+       hx-select="#costs-table-container"
+       hx-swap="outerHTML"
+       hx-disinherit="*"
+       class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-4">
+    
+    <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>2. Tabela Faktur Kosztowych (Zakupy) – Audyt & Kwalifikacja Pozycji</span>
+          <span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold">
+            {{ review.koszty|length if review else 0 }} dokumentów
+          </span>
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Faktury wielopozycyjne prezentują każdą pozycję osobno z możliwością wykluczenia (np. TV Play) lub przypisania stawki.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium text-[11px]">✅ 100% Firmowy</span>
+        <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-medium text-[11px]">🚗 50% Samochód</span>
+        <span class="px-2.5 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200 font-medium text-[11px]">⛔ 0% Prywatny (Wykluczony)</span>
+        {% if review and review.do_wyjasnienia %}
+          <span class="px-2.5 py-1 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] animate-pulse">
+            ⚠️ {{ review.do_wyjasnienia|length }} do wyjaśnienia
+          </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Tabela Kosztów -->
+    <div class="overflow-x-auto px-5">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+            <th class="p-3 text-center">LP</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Numer Faktury</th>
+            <th class="p-3">Sprzedawca</th>
+            <th class="p-3">Przedmiot Wydatku / Pozycje</th>
+            <th class="p-3 text-right">Netto</th>
+            <th class="p-3 text-right">VAT & Odliczenie</th>
+            <th class="p-3 text-center">Kwalifikacja & Akcje</th>
+          </tr>
+        </thead>
+        {% if review and review.koszty %}
+          {% for item in review.koszty %}
+            {% include "partials/expense_row.html" %}
+          {% endfor %}
+        {% else %}
+          <tbody>
+            <tr>
+              <td colspan="8" class="p-6 text-center text-slate-400 italic">Brak zarejestrowanych faktur kosztowych w tym miesiącu.</td>
+            </tr>
+          </tbody>
+        {% endif %}
+      </table>
+    </div>
+
+    <!-- Pasek Podsumowania Kosztów (Auto-Refresh przez HTMX) -->
+    <div class="px-5 pb-5">
+      {% include "partials/costs_summary.html" %}
+    </div>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. POZYCJE DO ROZSTRZYGNIĘCIA & REGUŁY     -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>3. Rozstrzyganie Wątpliwości & Nauka Reguł Firmy (Human-in-the-Loop)</span>
+        </h2>
+        <p class="text-xs text-slate-500">
+          Zdefiniuj stałe reguły dla powtarzalnych wydatków, aby w kolejnych miesiącach system kwalifikował je automatycznie.
+        </p>
+      </div>
+      <span class="text-xs text-slate-400 font-mono">firmy/{{ profile.nip }}/reguly_kosztowe.json</span>
+    </div>
+
+    <!-- Formularz Dodawania / Utrwalania Reguły -->
+    <form hx-post="/api/rules/save" 
+          hx-target="#rule-save-result" 
+          class="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+      
+      <div>
+        <label class="block font-bold text-slate-700 mb-1">Wzorzec w opisie wydatku <span class="text-red-500">*</span></label>
+        <input type="text" name="wzorzec" required placeholder="np. Abonament, Serwis, Paliwo"
+               class="w-full border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 mb-1">NIP Kontrahenta (opcjonalny)</label>
+        <input type="text" name="sprzedawca_nip" placeholder="np. 5261040567"
+               class="w-full border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-700 mb-1">Kwalifikacja Podatkowa <span class="text-red-500">*</span></label>
+        <select name="kwalifikacja" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+          <option value="FIRMOWY_100">✅ 100% Firmowy (Pełny VAT)</option>
+          <option value="SAMOCHOD_50">🚗 50% Samochód (art. 86a)</option>
+          <option value="PRYWATNY_0">⛔ 0% Prywatny (Bez KUP/VAT)</option>
+        </select>
+      </div>
+
+      <div class="flex items-end">
+        <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs transition-colors">
+          💾 Zapisz Regułę na Stałe
+        </button>
+      </div>
+
+      <div class="sm:col-span-4" id="rule-save-result">
+        <!-- Komunikat po zapisaniu reguły -->
+      </div>
+    </form>
+
+    <!-- Rozwijana Lista Zapisanych Reguł Firmy -->
+    <div x-data="{ rulesOpen: false }" class="pt-3 border-t border-slate-100">
+      <div class="flex items-center justify-between">
+        <button type="button"
+                id="toggle-rules-btn"
+                @click="rulesOpen = !rulesOpen"
+                hx-get="/api/rules/list"
+                hx-target="#rules-list-container"
+                hx-swap="innerHTML"
+                class="inline-flex items-center space-x-2 text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-2 rounded-lg border border-indigo-200 transition-colors cursor-pointer shadow-2xs">
+          <span>📋</span>
+          <span id="rules-btn-text">Zobacz zapisane reguły firmy ({{ liczba_regul }})</span>
+          <span class="text-[10px] transform transition-transform duration-200" :class="rulesOpen ? 'rotate-180' : ''">▼</span>
+        </button>
+      </div>
+
+      <div id="rules-list-container" 
+           x-show="rulesOpen" 
+           x-cloak
+           x-transition
+           hx-get="/api/rules/list"
+           hx-trigger="rules-updated from:body"
+           hx-swap="innerHTML"
+           class="mt-3">
+        <!-- Zawartość ładowana dynamicznie z /api/rules/list -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 4. ZAKOŃCZENIE KROKU 2 & PRZEJŚCIE DO KROKU 3 (COMPLIANCE) -->
+  <!-- ======================================================== -->
+  <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-lg space-y-4 border border-slate-800">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <span class="px-2 py-0.5 bg-indigo-500 text-white text-[10px] font-bold rounded uppercase">Status Kroku 2</span>
+          <h2 class="text-base font-bold text-white flex items-center space-x-2">
+            <span>Kwalifikacja Kosztów & Przegląd Dokumentów</span>
+          </h2>
+        </div>
+        <p class="text-xs text-slate-300 max-w-xl">
+          Po zweryfikowaniu przychodów i zakwalifikowaniu kosztów (100% / 50% / 0%), kolejnym etapem jest procedura należytej staranności i weryfikacja kontrahentów na Białej Liście VAT.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <a href="/aml" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2">
+          <span>🛡️ Przejdź do Kroku 3: Compliance AML & VAT &rarr;</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-slate-400 gap-2">
+      <div class="flex items-center space-x-2">
+        <span class="text-emerald-400">✓</span>
+        <span>Jeśli zakwalifikowałeś pozycje ręcznie w tabeli powyżej, Twoja kwalifikacja jest kompletna i audyt AI nie jest wymagany.</span>
+      </div>
+      <a href="/ksiegowanie" class="text-slate-400 hover:text-white underline text-[11px] transition-colors">
+        lub przejdź bezpośrednio do Kroku 4: Księgowanie &rarr;
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

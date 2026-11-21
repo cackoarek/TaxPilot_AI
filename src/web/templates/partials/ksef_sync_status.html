@@ -1,0 +1,21 @@
+<!-- Fragment statusu ostatniej synchronizacji KSeF: partials/ksef_sync_status.html -->
+<div id="ksef-last-sync-status" class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
+  <div>
+    <span class="text-slate-500">Ostatnia synchronizacja:</span>
+    {% if last_sync %}
+      <span class="font-bold {% if last_sync.status == 'SUKCES' %}text-emerald-700{% else %}text-rose-600{% endif %}">
+        {{ last_sync.timestamp }} ({{ last_sync.status }})
+      </span>
+      <div class="text-[10px] text-slate-500">
+        Pobrano: {{ last_sync.lacznie_sprzedaz }} sprzedaży, {{ last_sync.lacznie_kosztow }} kosztów
+      </div>
+    {% else %}
+      <span class="text-slate-400 font-medium">Brak prób w tym okresie</span>
+    {% endif %}
+  </div>
+  {% if sync_history %}
+    <button type="button" @click="historyModalOpen = true" class="text-blue-600 hover:text-blue-800 font-semibold underline text-[11px] self-start sm:self-auto cursor-pointer">
+      Historia synchronizacji ({{ sync_history|length }}) &rarr;
+    </button>
+  {% endif %}
+</div>

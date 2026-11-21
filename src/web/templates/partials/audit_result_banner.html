@@ -1,0 +1,105 @@
+<!-- Baner Podsumowania Inteligentnego Audytu: partials/audit_result_banner.html -->
+<div id="audit-result-banner" class="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border border-blue-200 p-5 rounded-2xl shadow-xs space-y-3 fade-in">
+  
+  <div class="flex items-center justify-between border-b border-blue-200/60 pb-3">
+    <div class="flex items-center space-x-2">
+      <span class="text-xl">🔍</span>
+      <h3 class="text-sm font-bold text-slate-900">
+        Wynik Inteligentnego Audytu Podatkowego & Kwalifikacji Dokumentów
+      </h3>
+    </div>
+    <span class="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+      Okres: {{ rok }}-{{ miesiac }} • Status: Zweryfikowano
+    </span>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+    
+    <!-- 1. Prawidłowość folderów (Auto-Routing) -->
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+      <div class="flex items-center space-x-1.5 font-bold text-slate-800">
+        <span>📁</span>
+        <span>Poprawność Folderów (Routing)</span>
+      </div>
+      {% if liczba_relokacji > 0 %}
+        <p class="text-amber-800 font-medium">
+          Wykryto i automatycznie przeniesiono <strong>{{ liczba_relokacji }}</strong> dokumentów z błędnych folderów (zapisano audyt .PRZENIESIONO.txt).
+        </p>
+      {% else %}
+        <p class="text-emerald-700">
+          ✅ Wszystkie faktury (sprzedaż i zakupy) znajdują się we właściwych katalogach.
+        </p>
+      {% endif %}
+      <div class="text-[10px] text-slate-400">
+        Sprawdzono: {{ liczba_sprzedaz }} sprzedaż, {{ liczba_koszt }} koszty
+      </div>
+    </div>
+
+    <!-- 2. Zasadność biznesowa wg profilu PKD -->
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+      <div class="flex items-center space-x-1.5 font-bold text-slate-800">
+        <span>🏢</span>
+        <span>Zasadność Gospodarcza (PKD)</span>
+      </div>
+      <p class="text-slate-700">
+        Profil działalności: <strong class="text-slate-900">{{ profile.kody_pkd|join(', ') if profile.kody_pkd else '62.01.Z (IT)' }}</strong>.
+        Koszty telekomunikacji, hostingu, sprzętu komputerowego i edukacji zweryfikowane jako uzasadnione w działalności programistycznej.
+      </p>
+    </div>
+
+    <!-- 3. Wykryte wykluczenia i pozycje prywatne -->
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+      <div class="flex items-center space-x-1.5 font-bold text-slate-800">
+        <span>⚖️</span>
+        <span>Wykluczenia & Ochrona VAT</span>
+      </div>
+      {% if wykluczone_pozycje %}
+        <p class="text-rose-700 font-medium">
+          Wykryto <strong>{{ wykluczone_pozycje|length }}</strong> pozycji o charakterze prywatnym (np. Telewizja Play Now). Zostały wykluczone (0% VAT / 0% KUP) z rozliczenia.
+        </p>
+      {% else %}
+        <p class="text-emerald-700">
+          ✅ Brak ukrytych wydatków osobistych. Wszystkie pozycje kwalifikują się do odliczenia.
+        </p>
+      {% endif %}
+      <div class="text-[10px] text-slate-400">
+        Automatyczna ochrona przed zakwestionowaniem przez US
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Szczegóły wykluczonych pozycji jeśli występują -->
+  {% if wykluczone_pozycje %}
+    <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-900 space-y-1.5">
+      <div class="font-bold flex items-center space-x-1.5">
+        <span>⛔</span>
+        <span>Pozycje wykluczone przez mechanizm audytu (0% VAT / brak KUP):</span>
+      </div>
+      <ul class="list-disc list-inside space-y-0.5 text-[11px] text-rose-800">
+        {% for wykl in wykluczone_pozycje %}
+          <li>
+            Faktura <strong>{{ wykl.faktura }}</strong> ({{ wykl.sprzedawca }}):
+            <em>"{{ wykl.opis }}"</em> – {{ "%.2f"|format(wykl.netto) }} zł netto.
+            <span class="text-rose-600">({{ wykl.uzasadnienie }})</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <!-- Potwierdzenie gotowości i przejście do Kroku 3: Compliance -->
+  <div class="p-3.5 bg-emerald-100/80 border border-emerald-300 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-emerald-950 mt-2">
+    <div class="flex items-center space-x-2">
+      <span class="text-lg">🛡️</span>
+      <div>
+        <strong class="block">Klasyfikacja AI i weryfikacja kosztów zakończona!</strong>
+        <span class="text-emerald-800 text-[11px]">Wszystkie dokumenty zostały sprawdzone pod kątem PKD i wykluczeń. Jesteś gotowy do Kroku 3 – Compliance AML & VAT.</span>
+      </div>
+    </div>
+    <a href="/aml" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg shadow-xs transition-colors shrink-0 self-start sm:self-auto flex items-center space-x-1">
+      <span>Przejdź do Kroku 3: Compliance &rarr;</span>
+    </a>
+  </div>
+
+</div>

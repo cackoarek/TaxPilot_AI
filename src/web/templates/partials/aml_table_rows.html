@@ -1,0 +1,195 @@
+<!-- Miesięczny Rejestr Weryfikacji AML (HTMX partial) -->
+<div id="aml-table-container" class="space-y-4">
+  
+  {% if report_data and report_data.statystyki %}
+    {% set st = report_data.statystyki %}
+    
+    <!-- Baner Nagłówka Zbiorczego Raportu (Standard Executive Compliance) -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-md border border-slate-800 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🏛️</span>
+          <h3 class="text-sm font-bold uppercase tracking-wide text-white">
+            ZBIORCZY RAPORT WERYFIKACJI KONTRAHENTÓW
+          </h3>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/30 text-blue-300 border border-blue-400/30">
+            Należyta Staranność VAT & AML
+          </span>
+        </div>
+        <p class="text-xs text-slate-300">
+          Urzędowa dokumentacja audytowa dla Krajowej Administracji Skarbowej (KAS) i MF • Obowiązkowa retencja: <strong>5 lat</strong>.
+        </p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <a href="/aml/raport/pdf?rok={{ rok }}&miesiac={{ miesiac }}" 
+           target="_blank"
+           class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 cursor-pointer border border-blue-400/40">
+          <span>📑</span>
+          <span>Pobierz Zbiorczy Raport PDF</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Kafelki Statystyk Miesiąca -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center text-xs">
+      <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+        <span class="text-xs text-slate-500 block">Łącznie podmiotów</span>
+        <span class="text-xl font-black text-slate-900 font-mono">{{ st.lacznie_kontrahentow }}</span>
+        <span class="text-[10px] text-slate-400 block mt-0.5">sprzedaż & koszty</span>
+      </div>
+      <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 shadow-2xs">
+        <span class="text-xs block text-emerald-700 font-bold">🟢 Niskie ryzyko</span>
+        <span class="text-xl font-black font-mono text-emerald-800">{{ st.niski_ryzyko_akceptacja }}</span>
+        <span class="text-[10px] text-emerald-600 block mt-0.5">akceptacja do rozliczenia</span>
+      </div>
+      <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 shadow-2xs">
+        <span class="text-xs block text-amber-700 font-bold">🟡 Średnie ryzyko</span>
+        <span class="text-xl font-black font-mono text-amber-800">{{ st.srednie_ryzyko_uwaga }}</span>
+        <span class="text-[10px] text-amber-600 block mt-0.5">wymaga uwagi / wyjaśnienia</span>
+      </div>
+      <div class="p-3 bg-orange-50 rounded-xl border border-orange-200 text-orange-900 shadow-2xs">
+        <span class="text-xs block text-orange-700 font-bold">🟠 Wysokie ryzyko</span>
+        <span class="text-xl font-black font-mono text-orange-800">{{ st.wysokie_ryzyko_wyjasnienia }}</span>
+        <span class="text-[10px] text-orange-600 block mt-0.5">wykreślony / nieaktywny</span>
+      </div>
+      <div class="p-3 bg-red-50 rounded-xl border border-red-200 text-red-900 shadow-2xs">
+        <span class="text-xs block text-red-700 font-bold">🛑 Sankcje STOP</span>
+        <span class="text-xl font-black font-mono text-red-800">{{ st.krytyczne_stop_sankcje }}</span>
+        <span class="text-[10px] text-red-600 block mt-0.5">bezwzględna blokada</span>
+      </div>
+    </div>
+
+    <!-- Alert błędu sieci / offline w statystykach -->
+    {% if st.get('bledy_polaczenia_offline', 0) > 0 %}
+      <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl text-xs text-amber-900 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg">⚠️</span>
+          <span>Wykryto <strong>{{ st.get('bledy_polaczenia_offline', 0) }}</strong> kontrahentów z niekompletnymi danymi z powodu braku połączenia z rejestrem MF.</span>
+        </div>
+        <form hx-post="/aml/verify-month" hx-target="#aml-table-container" hx-indicator="#verify-month-spinner">
+          <input type="hidden" name="force" value="true">
+          <button type="submit" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors">
+            🔄 Ponów weryfikację live (wymuś online --force)
+          </button>
+        </form>
+      </div>
+    {% endif %}
+
+    <!-- Tabela Kontrahentów -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+              <th class="p-3">NIP</th>
+              <th class="p-3">Nazwa Kontrahenta</th>
+              <th class="p-3">Status VAT</th>
+              <th class="p-3">Rachunek MF</th>
+              <th class="p-3">Sankcje</th>
+              <th class="p-3">Poziom Ryzyka</th>
+              <th class="p-3 text-right">Akcja</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for k in report_data.kontrahenci %}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 font-mono font-medium text-slate-900">{{ k.nip }}</td>
+                <td class="p-3">
+                  <div class="font-bold text-slate-900">{{ k.nazwa }}</div>
+                  {% if k.adres %}<div class="text-[11px] text-slate-400 truncate max-w-xs">{{ k.adres }}</div>{% endif %}
+                </td>
+                <td class="p-3">
+                  {% if k.platnik_vat_czynny %}
+                    <span class="text-emerald-700 font-semibold">🟢 Czynny</span>
+                  {% elif k.blad_polaczenia %}
+                    <span class="text-amber-700 font-semibold" title="{{ k.status_vat }}">⚠️ Błąd sieci</span>
+                  {% else %}
+                    <span class="text-slate-600">{{ k.status_vat }}</span>
+                  {% endif %}
+                </td>
+                <td class="p-3">
+                  {% if 'Zgłoszony' in k.status_rachunku or 'ZGODNY' in k.status_rachunku %}
+                    <span class="text-emerald-700 font-semibold">🟢 Zgłoszony</span>
+                  {% elif 'BRAK_NA_BIALEJ_LISCIE' in k.status_rachunku or 'Poza listą' in k.status_rachunku %}
+                    <span class="text-rose-700 font-semibold" title="Rachunek nie figuruje w wykazie Białej Listy MF">⚠️ Poza listą</span>
+                  {% elif 'Nie wskazano' in k.status_rachunku or 'NIE_DOTYCZY' in k.status_rachunku or 'NIE_PODANO' in k.status_rachunku %}
+                    <span class="text-slate-400">⚪ Nie dotyczy</span>
+                  {% else %}
+                    <span class="text-amber-700 font-semibold">🟡 {{ k.status_rachunku }}</span>
+                  {% endif %}
+                </td>
+                <td class="p-3">
+                  {% if not k.sankcje_mswia and not k.sankcje_ue %}
+                    <span class="text-emerald-700 font-semibold">🟢 Czysty</span>
+                  {% else %}
+                    <span class="text-red-700 font-bold">🛑 SANKCJE</span>
+                  {% endif %}
+                </td>
+                <td class="p-3">
+                  {% if k.poziom_ryzyka == 'NISKIE' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      🟢 NISKIE
+                    </span>
+                  {% elif k.poziom_ryzyka == 'SREDNIE' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                      🟡 ŚREDNIE
+                    </span>
+                  {% elif k.poziom_ryzyka == 'WYSOKIE' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800">
+                      🟠 WYSOKIE
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
+                      🛑 SANKCJE
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="p-3 text-right">
+                  <a href="/aml/karta/pdf/{{ k.nip }}?rok={{ rok }}&miesiac={{ miesiac }}" 
+                     target="_blank"
+                     class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold transition-colors">
+                    📄 Karta PDF
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Stopka Tabeli -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <span class="text-slate-500">
+          Data wygenerowania rejestru: <strong>{{ report_data.data_generowania[:16]|replace('T', ' ') if report_data.data_generowania else 'Brak' }}</strong>
+        </span>
+        <div class="flex items-center space-x-2">
+          <a href="/aml/raport/pdf?rok={{ rok }}&miesiac={{ miesiac }}" 
+             target="_blank"
+             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors flex items-center space-x-1">
+            <span>📑 Pobierz Zbiorczy Raport PDF (A4 Pejzaż)</span>
+          </a>
+          <a href="/aml/raport/md?rok={{ rok }}&miesiac={{ miesiac }}" 
+             target="_blank"
+             class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-semibold text-xs transition-colors">
+            Markdown
+          </a>
+        </div>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-3">
+      <span class="text-3xl block">🛡️</span>
+      <h3 class="text-sm font-bold text-slate-800">Brak wygenerowanego rejestru za {{ rok }}-{{ miesiac }}</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        Nie przeprowadzono jeszcze procedury weryfikacji kontrahentów z faktur za ten miesiąc.
+      </p>
+      <form hx-post="/aml/verify-month" hx-target="#aml-table-container" hx-indicator="#verify-month-spinner" class="pt-2">
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors">
+          🔍 Zweryfikuj wszystkich kontrahentów z faktur {{ rok }}-{{ miesiac }}
+        </button>
+      </form>
+    </div>
+  {% endif %}
+
+</div>

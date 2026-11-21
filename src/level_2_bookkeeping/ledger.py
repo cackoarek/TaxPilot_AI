@@ -17,7 +17,12 @@ from src.level_1_ingestion.invoice_deduplicator import DuplicateAnomaly
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
 from src.skills.ryczalt_tools import EwidencjaPrzychodowMiesiaca, STAWKA_12, RegulySprzedazyFirmy
 from src.skills.vat_tools import RejestrVATMiesiaca, ProporcjaOdliczeniaVAT
-from src.skills.cost_classifier import RegulyKosztoweFirmy, audit_invoice_expense, InvoiceTaxAuditReport
+from src.skills.cost_classifier import (
+    RegulyKosztoweFirmy,
+    ReczneKwalifikacjeService,
+    audit_invoice_expense,
+    InvoiceTaxAuditReport,
+)
 
 
 @dataclass
@@ -89,37 +94,43 @@ class BookkeepingService:
         reguly_sprzedazy = RegulySprzedazyFirmy.load(profile)
 
         # 3. Wczytanie faktur sprzedaży (KSeF + Non-KSeF)
-        faktury_sprzedaz = InvoiceStorage.list_invoices(
+        # Dla Ewidencji Przychodów (PIT-28) uwzględniamy zasadę ex tunc (korekty wsteczne z powodu błędu rachunkowego - art. 14 ust. 1m PIT)
+        faktury_sprzedaz_pit = InvoiceStorage.list_sales_invoices_for_pit(
+            profile=profile, rok=rok_str, miesiac=miesiac_str
+        )
+        # Dla Rejestru VAT sprzedaży uwzględniamy faktury wystawione w danym miesiącu (art. 29a ust. 13 VAT)
+        faktury_sprzedaz_vat = InvoiceStorage.list_invoices(
             profile=profile, rok=rok_str, miesiac=miesiac_str, typ=InvoiceType.SPRZEDAZ
         )
         domyslna_stawka_ryczaltu = Decimal(str(profile.domyslna_stawka_ryczaltu))
 
-        for inv in faktury_sprzedaz:
-            # Weryfikacja czy korekta dotyczy bieżącej Ewidencji Przychodów (PIT-28):
-            # Zgodnie z art. 14 ust. 1m ustawy o PIT: korekta przychodu spowodowana błędem rachunkowym
-            # lub inną oczywistą omyłką koryguje przychody wstecznie (w okresie pierwotnym),
-            # a nie w bieżącym okresie rozliczeniowym.
-            if inv.czy_korekta and inv.czy_korekta_wsteczna_pit:
-                pass
-            else:
-                ewidencja.dodaj_fakture(
-                    inv,
-                    default_rate=domyslna_stawka_ryczaltu,
-                    custom_buyer_rates=reguly_sprzedazy.stawki_nabywcow
-                )
-            if profile.platnik_vat:
+        for inv in faktury_sprzedaz_pit:
+            ewidencja.dodaj_fakture(
+                inv,
+                default_rate=domyslna_stawka_ryczaltu,
+                custom_buyer_rates=reguly_sprzedazy.stawki_nabywcow
+            )
+
+        if profile.platnik_vat:
+            for inv in faktury_sprzedaz_vat:
                 rejestr_vat.dodaj_fakture_sprzedazy(inv)
 
         # 4. Wczytanie i audyt faktur kosztowych (zarówno KSeF jak i Non-KSeF)
         faktury_koszt = InvoiceStorage.list_invoices(
             profile=profile, rok=rok_str, miesiac=miesiac_str, typ=InvoiceType.KOSZT
         )
+        reczne_overrides = ReczneKwalifikacjeService.load_overrides(profile, rok_str, miesiac_str)
 
         custom_vat = custom_vat_proportions or {}
         for inv in faktury_koszt:
             forced_prop = custom_vat.get(inv.numer)
             # Audyt pozycji kosztowych
-            report = audit_invoice_expense(inv, reguly_firmy, kody_pkd=profile.kody_pkd)
+            report = audit_invoice_expense(
+                inv,
+                reguly_firmy,
+                kody_pkd=profile.kody_pkd,
+                reczne_overrides=reczne_overrides,
+            )
             audyty_kosztow.append(report)
             if report.wymaga_wyjasnienia:
                 pytania_uzytkownika.extend(report.pytania_do_uzytkownika)
