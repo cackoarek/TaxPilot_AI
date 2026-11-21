@@ -1,0 +1,49 @@
+{
+  "numer": "FV/2026/10/FAST-891",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "INV-2026-10-FASTNET.txt",
+  "data_wystawienia": "2026-10-01",
+  "data_sprzedazy": "2026-10-01",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "9990001122",
+    "nazwa": "FAST-NET CLOUD SP. Z O.O., NIP 9990001122",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "7770001122",
+  "suma_vat": "2026",
+  "suma_brutto": "2275.50",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Zakup z pliku INV-2026-10-FASTNET.txt",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "7770001122",
+      "stawka_vat": "23",
+      "kwota_vat": "2026",
+      "wartosc_brutto": "2275.50",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

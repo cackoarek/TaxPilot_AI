@@ -1,0 +1,36 @@
+{
+  "nip": "5341531304",
+  "nazwa": "MICHAŁ SZYMUSIK",
+  "adres": "OKOPOWA 7, 05-802 PRUSZKÓW",
+  "regon": "141063416",
+  "krs": null,
+  "forma_prawna": "JEDNOOSOBOWA DZIAŁALNOŚĆ GOSPODARCZA (JDG)",
+  "data_weryfikacji": "2026-11-20T15:28:45.898171+00:00",
+  "data_weryfikacji_tekst": "20.11.2026, 16:28",
+  "osoba_weryfikujaca": "TaxPilot AI – Verification & Compliance Agent",
+  "status_rejestru": "AKTYWNY",
+  "zrodlo_rejestru": "Biała Lista MF",
+  "reprezentacja": [
+    "Przedsiębiorca osobiście (właściciel JDG)"
+  ],
+  "crbr_status": "NIE_DOTYCZY",
+  "beneficjenci_rzeczywisci": [],
+  "sankcje_mswia": false,
+  "sankcje_ue": false,
+  "sankcje_szczegoly": [],
+  "status_vat": "Czynny",
+  "platnik_vat_czynny": true,
+  "zweryfikowany_rachunek": "59194010763036820200000000",
+  "status_rachunku": "ZGODNY_BIALA_LISTA",
+  "rachunki_zgloszone_mf": [
+    "59194010763036820200000000"
+  ],
+  "status_pep": false,
+  "poziom_ryzyka": "NISKIE",
+  "decyzja": "AKCEPTACJA",
+  "uzasadnienie_decyzji": "Kontrahent zweryfikowany pozytywnie: aktywny w rejestrach, czynny podatnik VAT, brak powiązań z listami sankcyjnymi, rachunek i status VAT prawidłowe.",
+  "uwagi_dodatkowe": null,
+  "blad_polaczenia": false,
+  "komunikat_bledu": null,
+  "sha256_hash": "2bbf403fa17819c288f168baff4a7adde7e91177e7fef3fc9cd0918e33fddcca"
+}

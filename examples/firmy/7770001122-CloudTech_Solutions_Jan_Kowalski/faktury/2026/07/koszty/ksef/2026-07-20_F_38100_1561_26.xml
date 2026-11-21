@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-07-20T12:00:00Z</DataWytworzeniaFa>
+    <SystemInfo>TaxPilot AI</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>9512120077</NIP>
+      <Nazwa>T-MOBILE POLSKA S.A.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Marynarska 12, 02-674 Warszawa</AdresL1>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Test Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Roosevelta 22, 60-829 Poznań</AdresL1>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-07-20</P_1>
+    <P_2>F 38100/1561/26</P_2>
+    <P_6>2026-07-20</P_6>
+    <P_13_1>110.00</P_13_1>
+    <P_14_1>25.30</P_14_1>
+    <P_15>135.30</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <P_19>2</P_19>
+      <P_22>2</P_22>
+      <P_23>2</P_23>
+      <P_PMarzy>2</P_PMarzy>
+    </Adnotacje>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Dostęp do sieci i łącze światłowodowe (T-Mobile)</P_7>
+      <P_8A>szt.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>110.00</P_9A>
+      <P_11>110.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <TerminPlatnosci>
+        <Termin>2026-07-20</Termin>
+      </TerminPlatnosci>
+      <RachunekBankowy>
+        <NrRB>93109000047777010097655657</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

@@ -1,0 +1,23 @@
+{
+  "nip": "7770001122",
+  "nazwa": "CloudTech Solutions Jan Kowalski",
+  "forma_opodatkowania": "RYCZALT",
+  "domyslna_stawka_ryczaltu": 0.12,
+  "platnik_vat": true,
+  "zus": {
+    "typ": "PELNY_ZUS",
+    "chorobowe_dobrowolne": true,
+    "zasada_odliczen": "MEMORIALOWA",
+    "metoda_zdrowotna": "BIEZACA",
+    "prog_zdrowotnej_uproszczony": "60k-300k",
+    "historia_typow": {}
+  },
+  "ksef": {
+    "srodowisko": "PROD"
+  },
+  "katalog_nazwa": "7770001122-CloudTech_Solutions_Jan_Kowalski",
+  "kody_pkd": [],
+  "regon": null,
+  "adres": null,
+  "llm": {}
+}

@@ -1,0 +1,52 @@
+{
+  "numer": "AWS-INV-2026-08-5912",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "AWS-INV-2026-08-5912.pdf",
+  "data_wystawienia": "2026-08-03",
+  "data_sprzedazy": "2026-08-03",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "sprzedawca": {
+    "nip": "LU26375245",
+    "nazwa": "AMAZON WEB SERVICES EMEA SARL",
+    "kraj": "LU",
+    "adres": "38 Avenue John F. Kennedy, L-1855 Luxembourg",
+    "regon": ""
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": "ul. Roosevelta 22, 60-829 Poznań",
+    "regon": "389123456"
+  },
+  "suma_netto": "810.00",
+  "suma_vat": "0.00",
+  "suma_brutto": "810.00",
+  "stawki_netto": {
+    "np": "810.00"
+  },
+  "stawki_vat": {
+    "np": "0.00"
+  },
+  "pozycje": [
+    {
+      "opis": "Usługi chmurowe Amazon Web Services (Compute EC2, S3, RDS)",
+      "ilosc": "1",
+      "jednostka": "usł.",
+      "cena_jednostkowa_netto": "810.00",
+      "wartosc_netto": "810.00",
+      "stawka_vat": "np",
+      "kwota_vat": "0.00",
+      "wartosc_brutto": "810.00",
+      "stawka_ryczaltu": null,
+      "pkwiu": "62.01.1"
+    }
+  ]
+}

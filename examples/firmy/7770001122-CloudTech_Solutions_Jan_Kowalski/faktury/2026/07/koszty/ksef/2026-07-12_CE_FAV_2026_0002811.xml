@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-07-12T12:00:00Z</DataWytworzeniaFa>
+    <SystemInfo>TaxPilot AI</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>7740001454</NIP>
+      <Nazwa>ORLEN SPÓŁKA AKCYJNA</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chemików 7, 09-411 Płock</AdresL1>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Test Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Roosevelta 22, 60-829 Poznań</AdresL1>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-07-12</P_1>
+    <P_2>CE/FAV/2026/0002811</P_2>
+    <P_6>2026-07-12</P_6>
+    <P_13_1>280.00</P_13_1>
+    <P_14_1>64.40</P_14_1>
+    <P_15>344.40</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <P_19>2</P_19>
+      <P_22>2</P_22>
+      <P_23>2</P_23>
+      <P_PMarzy>2</P_PMarzy>
+    </Adnotacje>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Paliwo EFECTA 95</P_7>
+      <P_8A>szt.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>280.00</P_9A>
+      <P_11>280.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <TerminPlatnosci>
+        <Termin>2026-07-12</Termin>
+      </TerminPlatnosci>
+      <RachunekBankowy>
+        <NrRB>30102010260000140203550589</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

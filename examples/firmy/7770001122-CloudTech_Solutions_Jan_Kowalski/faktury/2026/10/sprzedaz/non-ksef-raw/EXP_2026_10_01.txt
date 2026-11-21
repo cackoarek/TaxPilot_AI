@@ -1,0 +1,26 @@
+INVOICE / FAKTURA VAT
+Invoice Number: EXP/2026/10/01
+Date of Issue: 2026-10-28
+Tax Point / Data Sprzedaży: 2026-10-28
+
+SELLER / SPRZEDAWCA:
+CloudTech Test Jan Kowalski
+NIP: 7770001122
+ul. Roosevelta 22, 60-829 Poznań, Poland
+
+BUYER / NABYWCA:
+Google Ireland Limited
+VAT ID: IE6388047V
+Gordon House, Barrow Street, Dublin 4, Ireland
+
+DESCRIPTION OF SERVICE:
+1. Senior Cloud Architecture Consulting & GCP Platform Optimization
+   Quantity: 1
+   Unit Price: 18 000.00 PLN
+   VAT Rate: np (Reverse charge - Odwrotne obciążenie zgodnie z art. 28b ustawy o VAT)
+   VAT Amount: 0.00 PLN
+   Total Net: 18 000.00 PLN
+   Total Gross: 18 000.00 PLN
+
+Payment terms: Bank transfer 14 days
+Account: PL 10 1010 0055 0225 7770 0011 2200

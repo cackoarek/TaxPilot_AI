@@ -1,0 +1,558 @@
+{
+  "nip": "7770001122",
+  "firma": "CloudTech Test Jan Kowalski",
+  "rok": "2026",
+  "miesiac": "10",
+  "przychod_roczny_narastajaco": "209000.00",
+  "suma_zobowiazan_lacznie": "16566.34",
+  "przelewy": [
+    {
+      "nazwa": "ZUS (Społeczne + Zdrowotna)",
+      "kwota": "2757.34",
+      "termin": "2026-11-20",
+      "rachunek": "Indywidualny Rachunek Składkowy ZUS (NRS)",
+      "tytul": "Składki ZUS za 10/2026"
+    },
+    {
+      "nazwa": "Urząd Skarbowy – Ryczałt PIT-28",
+      "kwota": "6276",
+      "termin": "2026-11-20",
+      "rachunek": "Indywidualny Mikrorachunek Podatkowy",
+      "tytul": "Zaliczka PIT-28 za 10/2026"
+    },
+    {
+      "nazwa": "Urząd Skarbowy – Podatek VAT-7",
+      "kwota": "7533",
+      "termin": "2026-11-25",
+      "rachunek": "Indywidualny Mikrorachunek Podatkowy",
+      "tytul": "Podatek VAT-7 za 10/2026"
+    }
+  ],
+  "zus": {
+    "rok": "2026",
+    "miesiac": "10",
+    "typ_zus": "PELNY_ZUS",
+    "chorobowe_dobrowolne": true,
+    "forma_opodatkowania": "RYCZALT",
+    "zrodlo_wskaznikow": "OFICJALNE_GUS",
+    "ostrzezenie_wskaznikow": null,
+    "podstawa_spoleczne": "5652.00",
+    "skladki_spoleczne": {
+      "emerytalna": "1103.27",
+      "rentowa": "452.16",
+      "chorobowa": "138.47",
+      "wypadkowa": "94.39",
+      "fundusz_pracy": "138.47",
+      "suma": "1926.76",
+      "odliczalne": "1788.29"
+    },
+    "skladka_zdrowotna": {
+      "prog": "60k-300k",
+      "podstawa": "9228.64",
+      "kwota": "830.58",
+      "odliczenie_ryczalt_50": "415.29"
+    },
+    "lacznie_do_zaplaty": "2757.34",
+    "termin_platnosci": "2026-11-20"
+  },
+  "pit28": {
+    "rok": "2026",
+    "miesiac": "10",
+    "przychod_laczny": "54500.00",
+    "odliczenie_spoleczne": "1788.29",
+    "odliczenie_zdrowotna_50": "415.29",
+    "podstawa_opodatkowania": "52296.42",
+    "podatek_wg_stawek": {
+      "0.12": "6275.52"
+    },
+    "podatek_nalezy_dokladny": "6275.52",
+    "zaliczka_pit28_zaokraglona": 6276,
+    "termin_platnosci": "2026-11-20"
+  },
+  "vat": {
+    "rok": "2026",
+    "miesiac": "10",
+    "vat_nalezy": "8395.00",
+    "vat_nalezny": "8395.00",
+    "vat_naliczony": "861.67",
+    "nadwyzka_z_poprzedniego_miesiaca": "0.00",
+    "roznica_vat": "7533.33",
+    "vat_do_zaplaty_zaokraglony": 7533,
+    "vat_do_przeniesienia": "0.00",
+    "termin_platnosci": "2026-11-25"
+  },
+  "ewidencja": {
+    "nip": "7770001122",
+    "firma": "CloudTech Test Jan Kowalski",
+    "rok": "2026",
+    "miesiac": "10",
+    "ewidencja_przychodow": {
+      "rok": "2026",
+      "miesiac": "10",
+      "sumy_wg_stawek": {
+        "0.12": "54500.00"
+      },
+      "laczny_przychod_netto": "54500.00",
+      "liczba_faktur": 2,
+      "wpisy": [
+        {
+          "numer_faktury": "1/10/2026",
+          "data_sprzedazy": "2026-10-30",
+          "nabywca_nazwa": "VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+          "nabywca_nip": "8971793639",
+          "przychody_wg_stawek": {
+            "0.12": "36500.00"
+          },
+          "suma_przychodu": "36500.00",
+          "opis_zdarzenia": "Usługi architektury chmurowej i DevOps (Kubernetes/AWS) - kontrakt 10/2026, Konsultacje wdrożeniowe CI/CD i automatyzacja testów",
+          "zrodlo": "KSEF"
+        },
+        {
+          "numer_faktury": "EXP/2026/10/01",
+          "data_sprzedazy": "2026-10-28",
+          "nabywca_nazwa": "Google Ireland Limited",
+          "nabywca_nip": "IE6388047V",
+          "przychody_wg_stawek": {
+            "0.12": "18000.00"
+          },
+          "suma_przychodu": "18000.00",
+          "opis_zdarzenia": "Senior Cloud Architecture Consulting & GCP Platform Optimization",
+          "zrodlo": "NON_KSEF"
+        }
+      ]
+    },
+    "rejestr_vat": {
+      "rok": "2026",
+      "miesiac": "10",
+      "sprzedaz": {
+        "liczba_faktur": 2,
+        "suma_netto": "54500.00",
+        "suma_vat_nalezy": "8395.00",
+        "suma_brutto": "62895.00",
+        "netto_wg_stawek": {
+          "23": "36500.00",
+          "np": "18000.00"
+        },
+        "vat_wg_stawek": {
+          "23": "8395.00",
+          "np": "0.00"
+        },
+        "wpisy": [
+          {
+            "numer_faktury": "1/10/2026",
+            "data_sprzedazy": "2026-10-30",
+            "nabywca_nazwa": "VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+            "nabywca_nip": "8971793639",
+            "netto_wg_stawek": {
+              "23": "36500.00"
+            },
+            "vat_wg_stawek": {
+              "23": "8395.00"
+            },
+            "suma_netto": "36500.00",
+            "suma_vat": "8395.00",
+            "suma_brutto": "44895.00"
+          },
+          {
+            "numer_faktury": "EXP/2026/10/01",
+            "data_sprzedazy": "2026-10-28",
+            "nabywca_nazwa": "Google Ireland Limited",
+            "nabywca_nip": "IE6388047V",
+            "netto_wg_stawek": {
+              "np": "18000.00"
+            },
+            "vat_wg_stawek": {
+              "np": "0.00"
+            },
+            "suma_netto": "18000.00",
+            "suma_vat": "0.00",
+            "suma_brutto": "18000.00"
+          }
+        ]
+      },
+      "zakupy": {
+        "liczba_faktur": 7,
+        "suma_netto": "5463.49",
+        "suma_vat_faktury": "1003.61",
+        "suma_vat_naliczony_odliczenie": "861.67",
+        "suma_vat_nieodliczony": "141.94",
+        "suma_odrzucone_netto_prywatne": "350.00",
+        "suma_odrzucony_vat_prywatny": "80.50",
+        "suma_brutto": "6817.10",
+        "wpisy": [
+          {
+            "numer_faktury": "CE/FAV/2026/0005129",
+            "data_zakupu": "2026-10-10",
+            "sprzedawca_nazwa": "EURO-NET SP. Z O.O.",
+            "sprzedawca_nip": "5270005984",
+            "suma_netto": "1299.18",
+            "suma_vat_z_faktury": "298.82",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "298.82",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "1598.00"
+          },
+          {
+            "numer_faktury": "FV/ALG/2026/10/9128",
+            "data_zakupu": "2026-10-14",
+            "sprzedawca_nazwa": "ALLEGRO SP. Z O.O.",
+            "sprzedawca_nip": "5252674797",
+            "suma_netto": "120.00",
+            "suma_vat_z_faktury": "108.10",
+            "proporcja_odliczenia": "0.50",
+            "vat_naliczony_do_odliczenia": "27.60",
+            "vat_nieodliczony": "80.50",
+            "odrzucone_netto_prywatne": "350.00",
+            "odrzucony_vat_prywatny": "80.50",
+            "suma_brutto": "578.10"
+          },
+          {
+            "numer_faktury": "F/71029415/10/26",
+            "data_zakupu": "2026-10-15",
+            "sprzedawca_nazwa": "P4 SP. Z O.O.",
+            "sprzedawca_nip": "9512120077",
+            "suma_netto": "210.00",
+            "suma_vat_z_faktury": "48.30",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "48.30",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "258.30"
+          },
+          {
+            "numer_faktury": "F 41209/1561/26",
+            "data_zakupu": "2026-10-19",
+            "sprzedawca_nazwa": "ORLEN S.A.",
+            "sprzedawca_nip": "7740001454",
+            "suma_netto": "298.54",
+            "suma_vat_z_faktury": "68.66",
+            "proporcja_odliczenia": "0.50",
+            "vat_naliczony_do_odliczenia": "34.33",
+            "vat_nieodliczony": "34.33",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "367.20"
+          },
+          {
+            "numer_faktury": "AWS-INV-2026-10-7419",
+            "data_zakupu": "2026-10-24",
+            "sprzedawca_nazwa": "Amazon Web Services EMEA SARL",
+            "sprzedawca_nip": "LU26375245",
+            "suma_netto": "1450.00",
+            "suma_vat_z_faktury": "0.00",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "0.00",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "1450.00"
+          },
+          {
+            "numer_faktury": "FV/2026/10/FAST-891",
+            "data_zakupu": "2026-10-22",
+            "sprzedawca_nazwa": "FAST-NET CLOUD SP. Z O.O.",
+            "sprzedawca_nip": "9990001122",
+            "suma_netto": "1850.00",
+            "suma_vat_z_faktury": "425.50",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "425.50",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "2275.50"
+          },
+          {
+            "numer_faktury": "PAR-2026-10-55912",
+            "data_zakupu": "2026-10-27",
+            "sprzedawca_nazwa": "M&M Michał Szymusik (Circle K nr 75090)",
+            "sprzedawca_nip": "5341531304",
+            "suma_netto": "235.77",
+            "suma_vat_z_faktury": "54.23",
+            "proporcja_odliczenia": "0.50",
+            "vat_naliczony_do_odliczenia": "27.12",
+            "vat_nieodliczony": "27.11",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "290.00"
+          }
+        ]
+      }
+    },
+    "audyt_kosztow": [
+      {
+        "numer_faktury": "CE/FAV/2026/0005129",
+        "data": "2026-10-10",
+        "sprzedawca_nazwa": "EURO-NET SP. Z O.O.",
+        "sprzedawca_nip": "5270005984",
+        "suma_faktury_netto": "1299.18",
+        "suma_faktury_vat": "298.82",
+        "suma_faktury_brutto": "1598.00",
+        "kwalifikowane_netto": "1299.18",
+        "kwalifikowany_vat": "298.82",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Dysk SSD Samsung 990 Pro 2TB NVMe PCIe 4.0 do stacji roboczej",
+            "wartosc_netto": "730.89",
+            "kwota_vat": "168.11",
+            "stawka_vat": "23",
+            "wartosc_brutto": "899.00",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "168.11",
+            "netto_do_kup": "730.89",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          },
+          {
+            "opis": "Klawiatura mechaniczna bezprzewodowa Logitech MX Mechanical",
+            "wartosc_netto": "568.29",
+            "kwota_vat": "130.71",
+            "stawka_vat": "23",
+            "wartosc_brutto": "699.00",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "130.71",
+            "netto_do_kup": "568.29",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "FV/ALG/2026/10/9128",
+        "data": "2026-10-14",
+        "sprzedawca_nazwa": "ALLEGRO SP. Z O.O.",
+        "sprzedawca_nip": "5252674797",
+        "suma_faktury_netto": "470.00",
+        "suma_faktury_vat": "108.10",
+        "suma_faktury_brutto": "578.10",
+        "kwalifikowane_netto": "120.00",
+        "kwalifikowany_vat": "27.60",
+        "odrzucone_netto_prywatne": "350.00",
+        "odrzucony_vat_prywatny": "80.50",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Kable sieciowe patchcord RJ45 Cat 6a 10m - 5 szt.",
+            "wartosc_netto": "120.00",
+            "kwota_vat": "27.60",
+            "stawka_vat": "23",
+            "wartosc_brutto": "147.60",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "27.60",
+            "netto_do_kup": "120.00",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          },
+          {
+            "opis": "Zestaw klocków LEGO Star Wars dla dzieci (wydatek prywatny)",
+            "wartosc_netto": "350.00",
+            "kwota_vat": "80.50",
+            "stawka_vat": "23",
+            "wartosc_brutto": "430.50",
+            "kwalifikacja": "PRYWATNY_0",
+            "vat_odliczenie_procent": "0.00",
+            "vat_do_odliczenia": "0.00",
+            "netto_do_kup": "0.00",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "F/71029415/10/26",
+        "data": "2026-10-15",
+        "sprzedawca_nazwa": "P4 SP. Z O.O.",
+        "sprzedawca_nip": "9512120077",
+        "suma_faktury_netto": "210.00",
+        "suma_faktury_vat": "48.30",
+        "suma_faktury_brutto": "258.30",
+        "kwalifikowane_netto": "210.00",
+        "kwalifikowany_vat": "48.30",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Abonament Biznes Rozszerzony - Internet Światłowodowy dla Biura",
+            "wartosc_netto": "180.00",
+            "kwota_vat": "41.40",
+            "stawka_vat": "23",
+            "wartosc_brutto": "221.40",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "41.40",
+            "netto_do_kup": "180.00",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          },
+          {
+            "opis": "Opłata za publiczny stały adres IPv4 dla serwera VPN",
+            "wartosc_netto": "30.00",
+            "kwota_vat": "6.90",
+            "stawka_vat": "23",
+            "wartosc_brutto": "36.90",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "6.90",
+            "netto_do_kup": "30.00",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "F 41209/1561/26",
+        "data": "2026-10-19",
+        "sprzedawca_nazwa": "ORLEN S.A.",
+        "sprzedawca_nip": "7740001454",
+        "suma_faktury_netto": "298.54",
+        "suma_faktury_vat": "68.66",
+        "suma_faktury_brutto": "367.20",
+        "kwalifikowane_netto": "298.54",
+        "kwalifikowany_vat": "34.33",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "EFECTA 95 CN27101245 paliwo benzyna",
+            "wartosc_netto": "298.54",
+            "kwota_vat": "68.66",
+            "stawka_vat": "23",
+            "wartosc_brutto": "367.20",
+            "kwalifikacja": "SAMOCHOD_50",
+            "vat_odliczenie_procent": "0.50",
+            "vat_do_odliczenia": "34.33",
+            "netto_do_kup": "298.54",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "AWS-INV-2026-10-7419",
+        "data": "2026-10-24",
+        "sprzedawca_nazwa": "Amazon Web Services EMEA SARL",
+        "sprzedawca_nip": "LU26375245",
+        "suma_faktury_netto": "1450.00",
+        "suma_faktury_vat": "0.00",
+        "suma_faktury_brutto": "1450.00",
+        "kwalifikowane_netto": "1450.00",
+        "kwalifikowany_vat": "0.00",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Amazon Web Services Cloud Infrastructure Services (EC2, S3, RDS) - October 2026",
+            "wartosc_netto": "1450.00",
+            "kwota_vat": "0.00",
+            "stawka_vat": "np",
+            "wartosc_brutto": "1450.00",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "0.00",
+            "netto_do_kup": "1450.00",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "FV/2026/10/FAST-891",
+        "data": "2026-10-22",
+        "sprzedawca_nazwa": "FAST-NET CLOUD SP. Z O.O.",
+        "sprzedawca_nip": "9990001122",
+        "suma_faktury_netto": "1850.00",
+        "suma_faktury_vat": "425.50",
+        "suma_faktury_brutto": "2275.50",
+        "kwalifikowane_netto": "1850.00",
+        "kwalifikowany_vat": "425.50",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Serwer dedykowany NVMe Pro 64GB RAM oraz backup w chmurze",
+            "wartosc_netto": "1850.00",
+            "kwota_vat": "425.50",
+            "stawka_vat": "23",
+            "wartosc_brutto": "2275.50",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "425.50",
+            "netto_do_kup": "1850.00",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "PAR-2026-10-55912",
+        "data": "2026-10-27",
+        "sprzedawca_nazwa": "M&M Michał Szymusik (Circle K nr 75090)",
+        "sprzedawca_nip": "5341531304",
+        "suma_faktury_netto": "235.77",
+        "suma_faktury_vat": "54.23",
+        "suma_faktury_brutto": "290.00",
+        "kwalifikowane_netto": "235.77",
+        "kwalifikowany_vat": "27.12",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Paliwo benzyna milesPLUS 98",
+            "wartosc_netto": "235.77",
+            "kwota_vat": "54.23",
+            "stawka_vat": "23",
+            "wartosc_brutto": "290.00",
+            "kwalifikacja": "SAMOCHOD_50",
+            "vat_odliczenie_procent": "0.50",
+            "vat_do_odliczenia": "27.12",
+            "netto_do_kup": "235.77",
+            "uzasadnienie": "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
+            "zrodlo_decyzji": "DECYZJA_RECZNA"
+          }
+        ]
+      }
+    ],
+    "laczne_odrzucone_netto_prywatne": "350.00",
+    "laczny_odrzucony_vat_prywatny": "80.50",
+    "pytania_do_uzytkownika": [],
+    "duplikaty": [
+      {
+        "numer": "FV/2026/10/FAST-891",
+        "kontrahent": "FAST-NET CLOUD SP. Z O.O., NIP 9990001122",
+        "kontrahent_nip": "9990001122",
+        "kwota_netto": "7770001122",
+        "kwota_vat": "2026",
+        "kwota_brutto": "2275.50",
+        "typ_duplikatu": "SAME_PERIOD_DUPLICATE",
+        "miesiac_odrzucony": "2026-10",
+        "miesiac_pierwotny": "2026-10",
+        "zrodlo_odrzucone": "NON_KSEF",
+        "zrodlo_pierwotne": "NON_KSEF",
+        "plik_odrzucony": "INV-2026-10-FASTNET.txt",
+        "plik_pierwotny": "INV-2026-10-FASTNET.pdf",
+        "opis_problemu": "Faktura 'FV/2026/10/FAST-891' od FAST-NET CLOUD SP. Z O.O., NIP 9990001122 (2275.50 zł brutto) została wgrana wielokrotnie w tym samym miesiącu (plik 'INV-2026-10-FASTNET.txt' duplikuje plik 'INV-2026-10-FASTNET.pdf').",
+        "rekomendacja": "Zdublowany plik został pominięty. Dokument zostanie ujęty w księgowaniu tylko raz."
+      }
+    ]
+  }
+}

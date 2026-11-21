@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-19T14:45:00Z</DataWytworzeniaFa>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>7740001454</NIP>
+      <Nazwa>ORLEN S.A.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chemików 7</AdresL1>
+      <AdresL2>09-411 Płock</AdresL2>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Test Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Roosevelta 22</AdresL1>
+      <AdresL2>60-829 Poznań</AdresL2>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-19</P_1>
+    <P_2>F 41209/1561/26</P_2>
+    <P_6>2026-10-19</P_6>
+    <P_13_1>298.54</P_13_1>
+    <P_14_1>68.66</P_14_1>
+    <P_15>367.20</P_15>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>EFECTA 95 CN27101245 paliwo benzyna</P_7>
+      <P_8A>l</P_8A>
+      <P_8B>58.10</P_8B>
+      <P_9A>5.138</P_9A>
+      <P_11>298.54</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <RachunekBankowy>
+        <NrRB>30102010260000140203550589</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+  <Stopka>
+    <Rejestry>
+      <REGON>610188201</REGON>
+    </Rejestry>
+  </Stopka>
+</Faktura>

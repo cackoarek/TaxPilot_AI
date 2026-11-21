@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-10T11:20:00Z</DataWytworzeniaFa>
+    <SystemInfo>SAP</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>5270005984</NIP>
+      <Nazwa>EURO-NET SP. Z O.O.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Muszkieterów 15</AdresL1>
+      <AdresL2>02-273 Warszawa</AdresL2>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Test Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Roosevelta 22</AdresL1>
+      <AdresL2>60-829 Poznań</AdresL2>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-10</P_1>
+    <P_2>CE/FAV/2026/0005129</P_2>
+    <P_6>2026-10-10</P_6>
+    <P_13_1>1299.18</P_13_1>
+    <P_14_1>298.82</P_14_1>
+    <P_15>1598.00</P_15>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Dysk SSD Samsung 990 Pro 2TB NVMe PCIe 4.0 do stacji roboczej</P_7>
+      <P_8A>szt</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>730.89</P_9A>
+      <P_11>730.89</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>2</NrWierszaFa>
+      <P_7>Klawiatura mechaniczna bezprzewodowa Logitech MX Mechanical</P_7>
+      <P_8A>szt</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>568.29</P_9A>
+      <P_11>568.29</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <RachunekBankowy>
+        <NrRB>42191010482209772674840001</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+  <Stopka>
+    <Rejestry>
+      <REGON>010137837</REGON>
+    </Rejestry>
+  </Stopka>
+</Faktura>

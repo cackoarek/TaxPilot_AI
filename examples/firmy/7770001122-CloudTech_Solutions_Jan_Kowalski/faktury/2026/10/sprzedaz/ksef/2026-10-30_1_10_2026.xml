@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-30T16:00:00Z</DataWytworzeniaFa>
+    <SystemInfo>TaxPilot AI</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Test Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Roosevelta 22</AdresL1>
+      <AdresL2>60-829 Poznań</AdresL2>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>8971793639</NIP>
+      <Nazwa>VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>pl. Grunwaldzki 23</AdresL1>
+      <AdresL2>50-365 Wrocław</AdresL2>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-30</P_1>
+    <P_2>1/10/2026</P_2>
+    <P_6>2026-10-30</P_6>
+    <P_13_1>36500.00</P_13_1>
+    <P_14_1>8395.00</P_14_1>
+    <P_15>44895.00</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <P_23>2</P_23>
+    </Adnotacje>
+    <RodzajFaktury>VAT</RodzajFaktury>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Usługi architektury chmurowej i DevOps (Kubernetes/AWS) - kontrakt 10/2026</P_7>
+      <PKWiU>62.01.1</PKWiU>
+      <P_8A>szt.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>32000.00</P_9A>
+      <P_11>32000.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>2</NrWierszaFa>
+      <P_7>Konsultacje wdrożeniowe CI/CD i automatyzacja testów</P_7>
+      <PKWiU>62.02.1</PKWiU>
+      <P_8A>szt.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>4500.00</P_9A>
+      <P_11>4500.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <RachunekBankowy>
+        <NrRB>10101000550225777000112200</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

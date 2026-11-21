@@ -1,0 +1,50 @@
+{
+  "numer": "PAR-2026-10-55912",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "PAR-2026-10-55912.jpg",
+  "data_wystawienia": "2026-10-27",
+  "data_sprzedazy": "2026-10-27",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "sprzedawca": {
+    "nip": "5341531304",
+    "nazwa": "M&M Michał Szymusik (Circle K nr 75090)",
+    "kraj": "PL",
+    "adres": "ul. Szosa Lubelska 36, 05-400 Otwock"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": "ul. Roosevelta 22, 60-829 Poznań"
+  },
+  "suma_netto": "235.77",
+  "suma_vat": "54.23",
+  "suma_brutto": "290.00",
+  "stawki_netto": {
+    "23": "235.77"
+  },
+  "stawki_vat": {
+    "23": "54.23"
+  },
+  "pozycje": [
+    {
+      "opis": "Paliwo benzyna milesPLUS 98",
+      "ilosc": "38.67",
+      "jednostka": "l",
+      "cena_jednostkowa_netto": "6.097",
+      "wartosc_netto": "235.77",
+      "stawka_vat": "23",
+      "kwota_vat": "54.23",
+      "wartosc_brutto": "290.00",
+      "stawka_ryczaltu": null,
+      "pkwiu": "19.20.21.0"
+    }
+  ]
+}

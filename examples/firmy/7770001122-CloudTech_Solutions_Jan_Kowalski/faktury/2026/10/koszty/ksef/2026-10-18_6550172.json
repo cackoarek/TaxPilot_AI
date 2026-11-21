@@ -1,0 +1,137 @@
+{
+  "numer": "6550172",
+  "ksef_numer_referencyjny": "5270203968-20261018-001122334455-EE",
+  "zrodlo": "KSEF",
+  "data_wystawienia": "2026-10-18",
+  "data_sprzedazy": "2026-10-18",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "sprzedawca": {
+    "nip": "5270203968",
+    "nazwa": "Nestle Polska S.A. Nespresso",
+    "kraj": "PL"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL"
+  },
+  "suma_netto": "480.00",
+  "suma_vat": "110.40",
+  "suma_brutto": "590.40",
+  "pozycje": [
+    {
+      "opis": "Kapsułki kawa gatunek 1",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 2",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 3",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 4",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 5",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 6",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 7",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 8",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 9",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 10",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 11",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 12",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 13",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 14",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 15",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    },
+    {
+      "opis": "Kapsułki kawa gatunek 16",
+      "wartosc_netto": "30.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6.90",
+      "wartosc_brutto": "36.90"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "numer": "6474098",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "KSEF",
+  "plik_zrodlowy": null,
+  "data_wystawienia": "2026-04-16",
+  "data_sprzedazy": "2026-04-16",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "5270203968",
+    "nazwa": "Sprzedawca 5270203968",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "120.72",
+  "suma_vat": "27.78",
+  "suma_brutto": "148.50",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Nespresso kawa do biura",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "120.72",
+      "stawka_vat": "23",
+      "kwota_vat": "27.78",
+      "wartosc_brutto": "148.50",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "nip": "8971793639",
+  "nazwa": "VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+  "adres": "PL. GRUNWALDZKI 23, 50-365 WROCŁAW",
+  "regon": "022284492",
+  "krs": "0000484436",
+  "forma_prawna": "SPÓŁKA HANDLOWA",
+  "data_weryfikacji": "2026-11-17T15:50:37.151430+00:00",
+  "data_weryfikacji_tekst": "17.11.2026, 16:50",
+  "osoba_weryfikujaca": "TaxPilot AI – Verification & Compliance Agent",
+  "status_rejestru": "AKTYWNY",
+  "zrodlo_rejestru": "Krajowy Rejestr Sądowy (KRS) / MF",
+  "reprezentacja": [
+    "Zarząd zgodnie z odpisem KRS"
+  ],
+  "crbr_status": "ZGODNY",
+  "beneficjenci_rzeczywisci": [
+    "Beneficjenci rzeczywiści zgłoszeni w CRBR"
+  ],
+  "sankcje_mswia": false,
+  "sankcje_ue": false,
+  "sankcje_szczegoly": [],
+  "status_vat": "Czynny",
+  "platnik_vat_czynny": true,
+  "zweryfikowany_rachunek": null,
+  "status_rachunku": "NIE_PODANO",
+  "rachunki_zgloszone_mf": [
+    "49105015751000009030245873",
+    "64105015751000002404243988",
+    "27105015751000009030245881",
+    "26105015751000009030245899"
+  ],
+  "status_pep": false,
+  "poziom_ryzyka": "NISKIE",
+  "decyzja": "AKCEPTACJA",
+  "uzasadnienie_decyzji": "Kontrahent zweryfikowany pozytywnie: aktywny w rejestrach, czynny podatnik VAT, brak powiązań z listami sankcyjnymi, rachunek i status VAT prawidłowe.",
+  "uwagi_dodatkowe": null,
+  "blad_polaczenia": false,
+  "komunikat_bledu": null,
+  "sha256_hash": "e8ca423f3b540f2ae2d0316f4cfd31c58d815f46a0d12ae1c682c5842d14edd4"
+}

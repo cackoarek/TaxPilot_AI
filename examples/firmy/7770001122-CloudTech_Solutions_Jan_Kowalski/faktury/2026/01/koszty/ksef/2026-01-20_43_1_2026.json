@@ -1,0 +1,32 @@
+{
+  "numer": "43/1/2026",
+  "ksef_numer_referencyjny": "5252545285-20260120-001122334455-BB",
+  "zrodlo": "KSEF",
+  "data_wystawienia": "2026-01-20",
+  "data_sprzedazy": "2026-01-20",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "sprzedawca": {
+    "nip": "5252545285",
+    "nazwa": "ACME Services Sp. z o.o.",
+    "kraj": "PL"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL"
+  },
+  "suma_netto": "100.00",
+  "suma_vat": "23.00",
+  "suma_brutto": "123.00",
+  "pozycje": [
+    {
+      "opis": "Zakup z pliku 2026-01-samochod-FV 43-1-2026.pdf",
+      "wartosc_netto": "100.00",
+      "stawka_vat": "23",
+      "kwota_vat": "23.00",
+      "wartosc_brutto": "123.00"
+    }
+  ]
+}

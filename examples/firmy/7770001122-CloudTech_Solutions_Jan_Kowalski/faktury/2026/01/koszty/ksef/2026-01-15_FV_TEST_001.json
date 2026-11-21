@@ -1,0 +1,39 @@
+{
+  "numer": "FV/TEST/001",
+  "ksef_numer_referencyjny": "9512120077-20260115-001122334455-AA",
+  "zrodlo": "KSEF",
+  "data_wystawienia": "2026-01-15",
+  "data_sprzedazy": "2026-01-15",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "sprzedawca": {
+    "nip": "9512120077",
+    "nazwa": "Operator Play P4 Sp. z o.o.",
+    "kraj": "PL"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL"
+  },
+  "suma_netto": "150.00",
+  "suma_vat": "34.50",
+  "suma_brutto": "184.50",
+  "pozycje": [
+    {
+      "opis": "Telewizja PLAY NOW - pakiet",
+      "wartosc_netto": "50.00",
+      "stawka_vat": "23",
+      "kwota_vat": "11.50",
+      "wartosc_brutto": "61.50"
+    },
+    {
+      "opis": "Abonament biuro internet",
+      "wartosc_netto": "100.00",
+      "stawka_vat": "23",
+      "kwota_vat": "23.00",
+      "wartosc_brutto": "123.00"
+    }
+  ]
+}

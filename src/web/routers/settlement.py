@@ -227,6 +227,12 @@ async def approve_cost_invoice(
     if not target_item and review.koszty:
         target_item = review.koszty[0]
 
+    if not target_item:
+        return HTMLResponse(
+            content=f'<div id="expense-row-{lp}" class="expense-row text-xs text-slate-500 p-2">Zatwierdzono fakturę {cleaned_numer}</div>',
+            headers={"HX-Trigger": "update-costs-summary"},
+        )
+
     row_ctx = {
         "request": request,
         "item": target_item,
@@ -250,6 +256,8 @@ async def approve_single_item(
     numer: str = Query(...),
     item_idx: int = Query(...),
     lp: int = Query(...),
+    rok: Optional[str] = Query(None),
+    miesiac: Optional[str] = Query(None),
     kwalifikacja: Optional[str] = Form(None),
     opis: Optional[str] = Form(None),
     sprzedawca_nip: Optional[str] = Form(None),
@@ -259,8 +267,12 @@ async def approve_single_item(
     cleaned_numer = urllib.parse.unquote(numer).strip()
     ctx = get_global_context(request)
     profile = ctx["profile"]
-    rok = ctx["rok"]
-    miesiac = ctx["miesiac"]
+    effective_rok = rok or request.query_params.get("rok") or ctx["rok"]
+    effective_miesiac = miesiac or request.query_params.get("miesiac") or ctx["miesiac"]
+    if len(effective_miesiac) == 1:
+        effective_miesiac = f"0{effective_miesiac}"
+    rok = effective_rok
+    miesiac = effective_miesiac
 
     if not profile:
         raise HTTPException(status_code=400, detail="Brak profilu firmy")
@@ -335,6 +347,12 @@ async def approve_single_item(
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
         target_item = review.koszty[0]
+
+    if not target_item:
+        return HTMLResponse(
+            content=f'<div id="expense-block-{lp}" class="expense-block text-xs text-slate-500 p-2">Zatwierdzono pozycję faktury {cleaned_numer}</div>',
+            headers={"HX-Trigger": "update-costs-summary"},
+        )
 
     row_ctx = {
         "request": request,
@@ -499,6 +517,12 @@ async def qualify_single_position(
     if not target_item and review.koszty:
         target_item = review.koszty[0]
 
+    if not target_item:
+        return HTMLResponse(
+            content=f'<div id="expense-block-{lp}" class="expense-block text-xs text-slate-500 p-2">Zaktualizowano kwalifikację pozycji faktury {cleaned_numer}</div>',
+            headers={"HX-Trigger": "update-costs-summary"},
+        )
+
     row_ctx = {
         "request": request,
         "item": target_item,
@@ -588,6 +612,12 @@ async def qualify_all_positions_bulk(
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
         target_item = review.koszty[0]
+
+    if not target_item:
+        return HTMLResponse(
+            content=f'<div id="expense-block-{lp}" class="expense-block text-xs text-slate-500 p-2">Zatwierdzono pozycję faktury {cleaned_numer}</div>',
+            headers={"HX-Trigger": "update-costs-summary"},
+        )
 
     row_ctx = {
         "request": request,
@@ -815,6 +845,12 @@ async def qualify_expense_item(
     if not target_item and review.koszty:
         target_item = review.koszty[0]
 
+    if not target_item:
+        return HTMLResponse(
+            content=f'<div id="expense-row-{lp}" class="expense-row text-xs text-slate-500 p-2">Zaktualizowano kwalifikację <span class="font-semibold">{kwalifikacja}</span> dla faktury {cleaned_numer}</div>',
+            headers={"HX-Trigger": "update-costs-summary"},
+        )
+
     row_ctx = {
         "request": request,
         "item": target_item,
@@ -901,6 +937,12 @@ async def save_rule_from_item(
         target_item = next((item for item in review.koszty if item.lp == lp), None)
     if not target_item and review.koszty:
         target_item = review.koszty[0]
+
+    if not target_item:
+        return HTMLResponse(
+            content=f'<div id="expense-block-{lp}" class="expense-block text-xs text-slate-500 p-2">Zatwierdzono pozycję faktury {cleaned_numer}</div>',
+            headers={"HX-Trigger": "update-costs-summary"},
+        )
 
     row_ctx = {
         "request": request,

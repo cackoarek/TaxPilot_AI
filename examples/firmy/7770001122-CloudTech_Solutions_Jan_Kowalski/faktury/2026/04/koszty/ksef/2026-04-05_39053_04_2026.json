@@ -1,0 +1,49 @@
+{
+  "numer": "39053/04/2026",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "KSEF",
+  "plik_zrodlowy": null,
+  "data_wystawienia": "2026-04-05",
+  "data_sprzedazy": "2026-04-05",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "5252834567",
+    "nazwa": "Sprzedawca 5252834567",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "59.88",
+  "suma_vat": "13.77",
+  "suma_brutto": "73.65",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Usługi chmurowe hosting",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "59.88",
+      "stawka_vat": "23",
+      "kwota_vat": "13.77",
+      "wartosc_brutto": "73.65",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

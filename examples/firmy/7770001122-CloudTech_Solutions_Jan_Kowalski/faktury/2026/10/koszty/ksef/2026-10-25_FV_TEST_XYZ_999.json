@@ -1,0 +1,32 @@
+{
+  "numer": "FV/TEST/XYZ_999",
+  "ksef_numer_referencyjny": "7740001454-20261025-001122334455-FF",
+  "zrodlo": "KSEF",
+  "data_wystawienia": "2026-10-25",
+  "data_sprzedazy": "2026-10-25",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "sprzedawca": {
+    "nip": "7740001454",
+    "nazwa": "PKN ORLEN S.A.",
+    "kraj": "PL"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL"
+  },
+  "suma_netto": "150.00",
+  "suma_vat": "34.50",
+  "suma_brutto": "184.50",
+  "pozycje": [
+    {
+      "opis": "specyficzny_testowy_wydatek_xyz",
+      "wartosc_netto": "150.00",
+      "stawka_vat": "23",
+      "kwota_vat": "34.50",
+      "wartosc_brutto": "184.50"
+    }
+  ]
+}

@@ -38,7 +38,7 @@ class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
 
     @patch("shutil.which")
     def test_is_configured(self, mock_which):
-        mock_which.return_value = "/home/acacko/.local/bin/agy"
+        mock_which.return_value = "/usr/local/bin/agy"
         provider = AntigravityProvider(binary_path="agy")
         self.assertTrue(provider.is_configured())
 
@@ -49,7 +49,7 @@ class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
     @patch("asyncio.create_subprocess_exec")
     @patch("shutil.which")
     async def test_chat_async_two_turns_maintains_session(self, mock_which, mock_exec):
-        mock_which.return_value = "/home/acacko/.local/bin/agy"
+        mock_which.return_value = "/usr/local/bin/agy"
 
         # Mock procesu 1
         proc1 = AsyncMock()
@@ -108,12 +108,12 @@ class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
     def test_context_activation_includes_company_and_period(self):
         """Weryfikuje, czy inicjalizacja kontekstu przekazuje agentowi aktywną firmę i wybrany okres."""
         profile = {
-            "nip": "5322030067",
-            "nazwa": "Smart IT Solutions",
+            "nip": "7770001122",
+            "nazwa": "CloudTech Solutions",
             "platnik_vat": True,
         }
         session = AntigravitySession(
-            session_id="company_5322030067",
+            session_id="company_7770001122",
             profile=profile,
             rok="2026",
             miesiac="10",
@@ -121,8 +121,8 @@ class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
         prompt = session.build_turn_prompt("Podsumuj przychody")
 
         self.assertIn("AGENTS.md", prompt)
-        self.assertIn("Smart IT Solutions", prompt)
-        self.assertIn("5322030067", prompt)
+        self.assertIn("CloudTech Solutions", prompt)
+        self.assertIn("7770001122", prompt)
         self.assertIn("2026-10", prompt)
         self.assertIn("stronie WWW", prompt)
         self.assertIn("TABELE", prompt)

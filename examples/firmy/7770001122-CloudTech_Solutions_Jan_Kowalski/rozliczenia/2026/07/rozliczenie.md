@@ -1,0 +1,45 @@
+# Raport Rozliczenia Miesięcznego – 2026-07
+**Firma:** CloudTech Test Jan Kowalski (NIP: `7770001122`)
+**Forma opodatkowania:** RYCZALT | **ZUS:** PELNY_ZUS
+
+---
+## 1. Paczka Przelewów Podatkowych (Do wykonania)
+
+| Odbiorca / Zobowiązanie | Kwota do zapłaty | Termin płatności | Rachunek docelowy | Tytuł przelewu |
+| :--- | :---: | :---: | :--- | :--- |
+| **ZUS (Społeczne + Zdrowotna)** | **2425.11 zł** | `2026-08-20` | Indywidualny Rachunek Składkowy ZUS (NRS) | `Składki ZUS za 07/2026` |
+| **Urząd Skarbowy – Ryczałt PIT-28** | **5636.00 zł** | `2026-08-20` | Indywidualny Mikrorachunek Podatkowy | `Zaliczka PIT-28 za 07/2026` |
+| **Urząd Skarbowy – Podatek VAT-7** | **6925.00 zł** | `2026-08-25` | Indywidualny Mikrorachunek Podatkowy | `Podatek VAT-7 za 07/2026` |
+
+**Łączna suma obciążeń za ten miesiąc:** **14986.11 zł**
+
+---
+## 2. Zestawienie Ewidencji Gospodarczej
+* **Przychód netto w miesiącu:** 49000.00 zł
+* **Przychód roczny narastająco:** 49000.00 zł (próg zdrowotnej: `<60k`)
+* **Liczba faktur sprzedaży:** 2
+* **Liczba faktur kosztowych:** 5
+
+---
+## 3. Szczegóły Wyliczeń
+
+### A. Składki ZUS
+* **Podstawa składek społecznych:** 5652.00 zł
+* **Składki społeczne (emerytalna, rentowa, chorobowa, wypadkowa, FP):** 1926.76 zł (w tym odliczalne w PIT bez FP: 1788.29 zł)
+* **Podstawa składki zdrowotnej:** 5537.18 zł
+* **Składka zdrowotna:** 498.35 zł (odliczenie na ryczałcie 50%: 249.18 zł)
+* **Razem przelew do ZUS:** **2425.11 zł**
+
+### B. Ryczałt od Przychodów Ewidencjonowanych (PIT-28)
+* **Przychód do opodatkowania:** 49000.00 zł
+* **Odliczenie składek społecznych (zapłacone w m-cu, bez FP):** -1788.29 zł
+* **Odliczenie 50% zapłaconej składki zdrowotnej:** -249.18 zł
+* **Podstawa opodatkowania:** 46962.53 zł
+* **Podatek wyliczony dokładnie:** 5635.56 zł
+* **Zaliczka PIT-28 do zapłaty (zaokrąglona):** **5636 zł**
+
+### C. Rozliczenie Podatku VAT (JPK_V7)
+* **VAT należny (ze sprzedaży):** 7590.00 zł
+* **VAT naliczony (z kosztów podlegających odliczeniu):** 664.70 zł
+* **Różnica VAT:** 6925.30 zł
+* **Podatek VAT do wpłaty do US:** **6925 zł**

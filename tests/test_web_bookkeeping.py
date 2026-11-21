@@ -20,18 +20,12 @@ class TestWebBookkeeping(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        cls.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         cls.temp_dir = Path(tempfile.mkdtemp(prefix="taxpilot_test_bookkeeping_"))
 
-        cls.profile = CompanyProfile(
-            nip="7770001122",
-            nazwa="CloudTech Test Jan Kowalski",
-            forma_opodatkowania=FormaOpodatkowania.RYCZALT,
-            domyslna_stawka_ryczaltu=0.12,
-            zus=ZUSConfig(typ=TypZUS.PELNY_ZUS, chorobowe_dobrowolne=True),
-            katalog_nazwa="7770001122-CloudTech_Test_Jan_Kowalski",
-        )
-        cls.profile.katalog_firmy.mkdir(parents=True, exist_ok=True)
-        cls.profile.save()
+        from tests.fixtures import setup_test_company
+        cls.profile = setup_test_company()
 
     @classmethod
     def tearDownClass(cls):

@@ -17,10 +17,26 @@ from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
 
 TEST_NIP = "7770001122"
 TEST_NAME = "CloudTech Solutions Jan Kowalski"
+EXAMPLE_COMPANY_DIR = Path(__file__).resolve().parent.parent / "examples" / "firmy" / "7770001122-CloudTech_Solutions_Jan_Kowalski"
 
 
 def setup_test_company() -> CompanyProfile:
-    """Tworzy zanonimizowany profil firmy testowej oraz strukturę faktur za kwiecień 2026."""
+    """Tworzy zanonimizowany profil firmy testowej oraz strukturę faktur z examples/."""
+    target_dir = Path(f"firmy/{TEST_NIP}-CloudTech_Solutions_Jan_Kowalski")
+    if EXAMPLE_COMPANY_DIR.exists():
+        if not target_dir.exists():
+            shutil.copytree(EXAMPLE_COMPANY_DIR, target_dir)
+        else:
+            for item in EXAMPLE_COMPANY_DIR.iterdir():
+                t = target_dir / item.name
+                if not t.exists():
+                    if item.is_dir():
+                        shutil.copytree(item, t)
+                    else:
+                        shutil.copy2(item, t)
+        profile = CompanyProfile.load_from_dir(target_dir)
+        return profile
+
     profile = CompanyProfile(
         nip=TEST_NIP,
         nazwa=TEST_NAME,
@@ -106,6 +122,113 @@ def setup_test_company() -> CompanyProfile:
             pozycje=[InvoiceItem(opis=opis, wartosc_netto=n, stawka_vat="23", kwota_vat=v, wartosc_brutto=b)]
         )
         InvoiceStorage.save_invoice(profile, inv_k)
+
+    # 3. Faktury kosztowe za 2026-01 (na potrzeby testów integracyjnych przeglądu 2026-01)
+    inv_k_01_1 = Invoice(
+        numer="FV/TEST/001",
+        data_wystawienia="2026-01-15",
+        data_sprzedazy="2026-01-15",
+        sprzedawca=InvoiceParty(nip="9512120077", nazwa="Operator Play P4 Sp. z o.o.", kraj="PL"),
+        nabywca=seller_me,
+        typ=InvoiceType.KOSZT,
+        suma_netto=Decimal("150.00"),
+        suma_vat=Decimal("34.50"),
+        suma_brutto=Decimal("184.50"),
+        pozycje=[
+            InvoiceItem(opis="Telewizja PLAY NOW - pakiet", wartosc_netto=Decimal("50.00"), stawka_vat="23", kwota_vat=Decimal("11.50"), wartosc_brutto=Decimal("61.50")),
+            InvoiceItem(opis="Abonament biuro internet", wartosc_netto=Decimal("100.00"), stawka_vat="23", kwota_vat=Decimal("23.00"), wartosc_brutto=Decimal("123.00")),
+        ]
+    )
+    inv_k_01_2 = Invoice(
+        numer="43/1/2026",
+        data_wystawienia="2026-01-20",
+        data_sprzedazy="2026-01-20",
+        sprzedawca=InvoiceParty(nip="5252545285", nazwa="ACME Services Sp. z o.o.", kraj="PL"),
+        nabywca=seller_me,
+        typ=InvoiceType.KOSZT,
+        suma_netto=Decimal("100.00"),
+        suma_vat=Decimal("23.00"),
+        suma_brutto=Decimal("123.00"),
+        pozycje=[
+            InvoiceItem(opis="Zakup z pliku 2026-01-samochod-FV 43-1-2026.pdf", wartosc_netto=Decimal("100.00"), stawka_vat="23", kwota_vat=Decimal("23.00"), wartosc_brutto=Decimal("123.00")),
+        ]
+    )
+    InvoiceStorage.save_invoice(profile, inv_k_01_1)
+    InvoiceStorage.save_invoice(profile, inv_k_01_2)
+
+    # 4. Faktury za 2026-10 (na potrzeby testów wielopozycyjnych i reguł 2026-10)
+    # Faktura Play z 4 pozycjami
+    inv_k_10_play = Invoice(
+        numer="F/60131422/10/26",
+        data_wystawienia="2026-10-10",
+        data_sprzedazy="2026-10-10",
+        sprzedawca=InvoiceParty(nip="9512120077", nazwa="Operator Play P4 Sp. z o.o.", kraj="PL"),
+        nabywca=seller_me,
+        typ=InvoiceType.KOSZT,
+        suma_netto=Decimal("200.00"),
+        suma_vat=Decimal("46.00"),
+        suma_brutto=Decimal("246.00"),
+        pozycje=[
+            InvoiceItem(opis="Usługi telekomunikacyjne – TV", wartosc_netto=Decimal("35.00"), stawka_vat="23", kwota_vat=Decimal("8.05"), wartosc_brutto=Decimal("43.05")),
+            InvoiceItem(opis="Abonament głosowy", wartosc_netto=Decimal("65.00"), stawka_vat="23", kwota_vat=Decimal("14.95"), wartosc_brutto=Decimal("79.95")),
+            InvoiceItem(opis="Usługi telekomunikacyjne", wartosc_netto=Decimal("50.00"), stawka_vat="23", kwota_vat=Decimal("11.50"), wartosc_brutto=Decimal("61.50")),
+            InvoiceItem(opis="Rata za telefon", wartosc_netto=Decimal("50.00"), stawka_vat="0", kwota_vat=Decimal("0.00"), wartosc_brutto=Decimal("50.00")),
+        ]
+    )
+    InvoiceStorage.save_invoice(profile, inv_k_10_play)
+
+    # Faktura paliwowa Orlen
+    inv_k_10_orlen = Invoice(
+        numer="F 37804/1561/26",
+        data_wystawienia="2026-10-14",
+        data_sprzedazy="2026-10-14",
+        sprzedawca=InvoiceParty(nip="7740001454", nazwa="PKN ORLEN S.A.", kraj="PL"),
+        nabywca=seller_me,
+        typ=InvoiceType.KOSZT,
+        suma_netto=Decimal("250.00"),
+        suma_vat=Decimal("57.50"),
+        suma_brutto=Decimal("307.50"),
+        pozycje=[
+            InvoiceItem(opis="EFECTA 95 CN27101245", wartosc_netto=Decimal("250.00"), stawka_vat="23", kwota_vat=Decimal("57.50"), wartosc_brutto=Decimal("307.50")),
+        ]
+    )
+    InvoiceStorage.save_invoice(profile, inv_k_10_orlen)
+
+    # Faktura Nespresso z 16 pozycjami (spełnia test > 5 pozycji dla paska zbiorczego)
+    pozycje_nespresso = [
+        InvoiceItem(opis=f"Kapsułki kawa gatunek {i}", wartosc_netto=Decimal("30.00"), stawka_vat="23", kwota_vat=Decimal("6.90"), wartosc_brutto=Decimal("36.90"))
+        for i in range(1, 17)
+    ]
+    inv_k_10_nespresso = Invoice(
+        numer="6550172",
+        data_wystawienia="2026-10-18",
+        data_sprzedazy="2026-10-18",
+        sprzedawca=InvoiceParty(nip="5270203968", nazwa="Nestle Polska S.A. Nespresso", kraj="PL"),
+        nabywca=seller_me,
+        typ=InvoiceType.KOSZT,
+        suma_netto=Decimal("480.00"),
+        suma_vat=Decimal("110.40"),
+        suma_brutto=Decimal("590.40"),
+        pozycje=pozycje_nespresso,
+    )
+    InvoiceStorage.save_invoice(profile, inv_k_10_nespresso)
+
+    # Faktura do testu ręcznej kwalifikacji i reguł
+    inv_k_10_xyz = Invoice(
+        numer="FV/TEST/XYZ_999",
+        data_wystawienia="2026-10-25",
+        data_sprzedazy="2026-10-25",
+        sprzedawca=InvoiceParty(nip="7740001454", nazwa="PKN ORLEN S.A.", kraj="PL"),
+        nabywca=seller_me,
+        typ=InvoiceType.KOSZT,
+        suma_netto=Decimal("150.00"),
+        suma_vat=Decimal("34.50"),
+        suma_brutto=Decimal("184.50"),
+        pozycje=[
+            InvoiceItem(opis="specyficzny_testowy_wydatek_xyz", wartosc_netto=Decimal("150.00"), stawka_vat="23", kwota_vat=Decimal("34.50"), wartosc_brutto=Decimal("184.50")),
+        ]
+    )
+    InvoiceStorage.save_invoice(profile, inv_k_10_xyz)
 
     return profile
 

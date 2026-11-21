@@ -1,0 +1,6 @@
+Faktura VAT nr FV/2026/10/FAST-891
+Sprzedawca: FAST-NET CLOUD SP. Z O.O., NIP 9990001122
+Rachunek bankowy: 99109010140000000199998888
+Nabywca: CloudTech Test Jan Kowalski, NIP 7770001122
+Netto: 1850.00 PLN, VAT: 425.50 PLN, Brutto: 2275.50 PLN
+Usługa: Serwer dedykowany NVMe Pro 64GB RAM oraz backup w chmurze

@@ -1,0 +1,9 @@
+INVOICE EXP/2026/07/01
+Date: 2026-07-28
+Seller: CloudTech Test Jan Kowalski, NIP: 7770001122, ul. Roosevelta 22, 60-829 Poznan
+Buyer: Google Ireland Limited, VAT: IE6388047V, Gordon House, Barrow Street, Dublin 4, Ireland
+Item: Konsultacje Google Cloud Platform - okres 07/2026
+Amount: 16000.00 PLN
+VAT Rate: NP (Reverse Charge / art. 28b)
+Total: 16000.00 PLN
+Bank: 10101000550225777000112200

@@ -1,0 +1,14 @@
+{
+  "00304026075090200::paliwo pb95": {
+    "numer_faktury": "00304026075090200",
+    "sprzedawca_nazwa": "M&M MICHAŁ SZYMUSIK",
+    "sprzedawca_nip": "5341531304",
+    "pozycja_opis": "Paliwo PB95",
+    "kwota_netto": "241.37",
+    "kwota_vat": "55.52",
+    "kwalifikacja_sugerowana": "SAMOCHOD_50",
+    "porada_ksiegowa": "Zakup paliwa (PB95) do samochodu osobowego wykorzystywanego w trybie mieszanym uprawnia do odliczenia 50% podatku VAT zgodnie z art. 86a ust. 1 i 2 ustawy o VAT. W przypadku opodatkowania ryczałtem od przychodów ewidencjonowanych wydatek ten nie pomniejsza podstawy opodatkowania PIT (brak rozliczania KUP), natomiast nierozliczone 50% VAT pozostaje kosztem nieodliczalnym.",
+    "zatwierdzony": true,
+    "data_utworzenia": "2026-11-20 16:28:23"
+  }
+}

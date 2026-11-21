@@ -1,0 +1,413 @@
+{
+  "nip": "7770001122",
+  "firma": "CloudTech Test Jan Kowalski",
+  "rok": "2026",
+  "miesiac": "07",
+  "przychod_roczny_narastajaco": "49000.00",
+  "suma_zobowiazan_lacznie": "14986.11",
+  "przelewy": [
+    {
+      "nazwa": "ZUS (Społeczne + Zdrowotna)",
+      "kwota": "2425.11",
+      "termin": "2026-08-20",
+      "rachunek": "Indywidualny Rachunek Składkowy ZUS (NRS)",
+      "tytul": "Składki ZUS za 07/2026"
+    },
+    {
+      "nazwa": "Urząd Skarbowy – Ryczałt PIT-28",
+      "kwota": "5636",
+      "termin": "2026-08-20",
+      "rachunek": "Indywidualny Mikrorachunek Podatkowy",
+      "tytul": "Zaliczka PIT-28 za 07/2026"
+    },
+    {
+      "nazwa": "Urząd Skarbowy – Podatek VAT-7",
+      "kwota": "6925",
+      "termin": "2026-08-25",
+      "rachunek": "Indywidualny Mikrorachunek Podatkowy",
+      "tytul": "Podatek VAT-7 za 07/2026"
+    }
+  ],
+  "zus": {
+    "rok": "2026",
+    "miesiac": "07",
+    "typ_zus": "PELNY_ZUS",
+    "chorobowe_dobrowolne": true,
+    "forma_opodatkowania": "RYCZALT",
+    "zrodlo_wskaznikow": "OFICJALNE_GUS",
+    "ostrzezenie_wskaznikow": null,
+    "podstawa_spoleczne": "5652.00",
+    "skladki_spoleczne": {
+      "emerytalna": "1103.27",
+      "rentowa": "452.16",
+      "chorobowa": "138.47",
+      "wypadkowa": "94.39",
+      "fundusz_pracy": "138.47",
+      "suma": "1926.76",
+      "odliczalne": "1788.29"
+    },
+    "skladka_zdrowotna": {
+      "prog": "<60k",
+      "podstawa": "5537.18",
+      "kwota": "498.35",
+      "odliczenie_ryczalt_50": "249.18"
+    },
+    "lacznie_do_zaplaty": "2425.11",
+    "termin_platnosci": "2026-08-20"
+  },
+  "pit28": {
+    "rok": "2026",
+    "miesiac": "07",
+    "przychod_laczny": "49000.00",
+    "odliczenie_spoleczne": "1788.29",
+    "odliczenie_zdrowotna_50": "249.18",
+    "podstawa_opodatkowania": "46962.53",
+    "podatek_wg_stawek": {
+      "0.12": "5635.56"
+    },
+    "podatek_nalezy_dokladny": "5635.56",
+    "zaliczka_pit28_zaokraglona": 5636,
+    "termin_platnosci": "2026-08-20"
+  },
+  "vat": {
+    "rok": "2026",
+    "miesiac": "07",
+    "vat_nalezy": "7590.00",
+    "vat_nalezny": "7590.00",
+    "vat_naliczony": "664.70",
+    "nadwyzka_z_poprzedniego_miesiaca": "0.00",
+    "roznica_vat": "6925.30",
+    "vat_do_zaplaty_zaokraglony": 6925,
+    "vat_do_przeniesienia": "0.00",
+    "termin_platnosci": "2026-08-25"
+  },
+  "ewidencja": {
+    "nip": "7770001122",
+    "firma": "CloudTech Test Jan Kowalski",
+    "rok": "2026",
+    "miesiac": "07",
+    "ewidencja_przychodow": {
+      "rok": "2026",
+      "miesiac": "07",
+      "sumy_wg_stawek": {
+        "0.12": "49000.00"
+      },
+      "laczny_przychod_netto": "49000.00",
+      "liczba_faktur": 2,
+      "wpisy": [
+        {
+          "numer_faktury": "1/07/2026",
+          "data_sprzedazy": "2026-07-31",
+          "nabywca_nazwa": "VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+          "nabywca_nip": "8971793639",
+          "przychody_wg_stawek": {
+            "0.12": "33000.00"
+          },
+          "suma_przychodu": "33000.00",
+          "opis_zdarzenia": "Usługi inżynierii danych i architektury chmurowej AWS/Kubernetes - kontrakt 07/2026",
+          "zrodlo": "KSEF"
+        },
+        {
+          "numer_faktury": "EXP/2026/07/01",
+          "data_sprzedazy": "2026-07-28",
+          "nabywca_nazwa": "GOOGLE IRELAND LIMITED",
+          "nabywca_nip": "IE6388047V",
+          "przychody_wg_stawek": {
+            "0.12": "16000.00"
+          },
+          "suma_przychodu": "16000.00",
+          "opis_zdarzenia": "Konsultacje Google Cloud Platform - okres 07/2026",
+          "zrodlo": "NON_KSEF"
+        }
+      ]
+    },
+    "rejestr_vat": {
+      "rok": "2026",
+      "miesiac": "07",
+      "sprzedaz": {
+        "liczba_faktur": 2,
+        "suma_netto": "49000.00",
+        "suma_vat_nalezy": "7590.00",
+        "suma_brutto": "56590.00",
+        "netto_wg_stawek": {
+          "23": "33000.00",
+          "np": "16000.00"
+        },
+        "vat_wg_stawek": {
+          "23": "7590.00",
+          "np": "0.00"
+        },
+        "wpisy": [
+          {
+            "numer_faktury": "1/07/2026",
+            "data_sprzedazy": "2026-07-31",
+            "nabywca_nazwa": "VIKINGCO POLAND SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+            "nabywca_nip": "8971793639",
+            "netto_wg_stawek": {
+              "23": "33000.00"
+            },
+            "vat_wg_stawek": {
+              "23": "7590.00"
+            },
+            "suma_netto": "33000.00",
+            "suma_vat": "7590.00",
+            "suma_brutto": "40590.00"
+          },
+          {
+            "numer_faktury": "EXP/2026/07/01",
+            "data_sprzedazy": "2026-07-28",
+            "nabywca_nazwa": "GOOGLE IRELAND LIMITED",
+            "nabywca_nip": "IE6388047V",
+            "netto_wg_stawek": {
+              "np": "16000.00"
+            },
+            "vat_wg_stawek": {
+              "np": "0.00"
+            },
+            "suma_netto": "16000.00",
+            "suma_vat": "0.00",
+            "suma_brutto": "16000.00"
+          }
+        ]
+      },
+      "zakupy": {
+        "liczba_faktur": 5,
+        "suma_netto": "3770.00",
+        "suma_vat_faktury": "696.90",
+        "suma_vat_naliczony_odliczenie": "664.70",
+        "suma_vat_nieodliczony": "32.20",
+        "suma_odrzucone_netto_prywatne": "0.00",
+        "suma_odrzucony_vat_prywatny": "0.00",
+        "suma_brutto": "4466.90",
+        "wpisy": [
+          {
+            "numer_faktury": "CE/FAV/2026/0002811",
+            "data_zakupu": "2026-07-12",
+            "sprzedawca_nazwa": "ORLEN SPÓŁKA AKCYJNA",
+            "sprzedawca_nip": "7740001454",
+            "suma_netto": "280.00",
+            "suma_vat_z_faktury": "64.40",
+            "proporcja_odliczenia": "0.50",
+            "vat_naliczony_do_odliczenia": "32.20",
+            "vat_nieodliczony": "32.20",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "344.40"
+          },
+          {
+            "numer_faktury": "F/71029415/07/26",
+            "data_zakupu": "2026-07-15",
+            "sprzedawca_nazwa": "P4 SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+            "sprzedawca_nip": "5341531304",
+            "suma_netto": "140.00",
+            "suma_vat_z_faktury": "32.20",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "32.20",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "172.20"
+          },
+          {
+            "numer_faktury": "F 38100/1561/26",
+            "data_zakupu": "2026-07-20",
+            "sprzedawca_nazwa": "T-MOBILE POLSKA S.A.",
+            "sprzedawca_nip": "9512120077",
+            "suma_netto": "110.00",
+            "suma_vat_z_faktury": "25.30",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "25.30",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "135.30"
+          },
+          {
+            "numer_faktury": "FV/2026/07/04",
+            "data_zakupu": "2026-07-25",
+            "sprzedawca_nazwa": "PIOTR WIŚNIEWSKI",
+            "sprzedawca_nip": "5213242793",
+            "suma_netto": "2500.00",
+            "suma_vat_z_faktury": "575.00",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "575.00",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "3075.00"
+          },
+          {
+            "numer_faktury": "AWS-INV-2026-07-4821",
+            "data_zakupu": "2026-07-03",
+            "sprzedawca_nazwa": "AMAZON WEB SERVICES EMEA SARL",
+            "sprzedawca_nip": "LU26375245",
+            "suma_netto": "740.00",
+            "suma_vat_z_faktury": "0.00",
+            "proporcja_odliczenia": "1.00",
+            "vat_naliczony_do_odliczenia": "0.00",
+            "vat_nieodliczony": "0.00",
+            "odrzucone_netto_prywatne": "0.00",
+            "odrzucony_vat_prywatny": "0.00",
+            "suma_brutto": "740.00"
+          }
+        ]
+      }
+    },
+    "audyt_kosztow": [
+      {
+        "numer_faktury": "CE/FAV/2026/0002811",
+        "data": "2026-07-12",
+        "sprzedawca_nazwa": "ORLEN SPÓŁKA AKCYJNA",
+        "sprzedawca_nip": "7740001454",
+        "suma_faktury_netto": "280.00",
+        "suma_faktury_vat": "64.40",
+        "suma_faktury_brutto": "344.40",
+        "kwalifikowane_netto": "280.00",
+        "kwalifikowany_vat": "32.20",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Paliwo EFECTA 95",
+            "wartosc_netto": "280.00",
+            "kwota_vat": "64.40",
+            "stawka_vat": "23",
+            "wartosc_brutto": "344.40",
+            "kwalifikacja": "SAMOCHOD_50",
+            "vat_odliczenie_procent": "0.50",
+            "vat_do_odliczenia": "32.20",
+            "netto_do_kup": "280.00",
+            "uzasadnienie": "Eksploatacja pojazdu osobowego w trybie mieszanym (art. 86a ustawy o VAT)",
+            "zrodlo_decyzji": "HEURYSTYKA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "F/71029415/07/26",
+        "data": "2026-07-15",
+        "sprzedawca_nazwa": "P4 SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+        "sprzedawca_nip": "5341531304",
+        "suma_faktury_netto": "140.00",
+        "suma_faktury_vat": "32.20",
+        "suma_faktury_brutto": "172.20",
+        "kwalifikowane_netto": "140.00",
+        "kwalifikowany_vat": "32.20",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Usługi telekomunikacyjne mobilne (Play)",
+            "wartosc_netto": "140.00",
+            "kwota_vat": "32.20",
+            "stawka_vat": "23",
+            "wartosc_brutto": "172.20",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "32.20",
+            "netto_do_kup": "140.00",
+            "uzasadnienie": "Wydatek firmowy związany z prowadzoną działalnością",
+            "zrodlo_decyzji": "HEURYSTYKA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "F 38100/1561/26",
+        "data": "2026-07-20",
+        "sprzedawca_nazwa": "T-MOBILE POLSKA S.A.",
+        "sprzedawca_nip": "9512120077",
+        "suma_faktury_netto": "110.00",
+        "suma_faktury_vat": "25.30",
+        "suma_faktury_brutto": "135.30",
+        "kwalifikowane_netto": "110.00",
+        "kwalifikowany_vat": "25.30",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Dostęp do sieci i łącze światłowodowe (T-Mobile)",
+            "wartosc_netto": "110.00",
+            "kwota_vat": "25.30",
+            "stawka_vat": "23",
+            "wartosc_brutto": "135.30",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "25.30",
+            "netto_do_kup": "110.00",
+            "uzasadnienie": "Standardowy wydatek bieżący firmy",
+            "zrodlo_decyzji": "DOMYSLNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "FV/2026/07/04",
+        "data": "2026-07-25",
+        "sprzedawca_nazwa": "PIOTR WIŚNIEWSKI",
+        "sprzedawca_nip": "5213242793",
+        "suma_faktury_netto": "2500.00",
+        "suma_faktury_vat": "575.00",
+        "suma_faktury_brutto": "3075.00",
+        "kwalifikowane_netto": "2500.00",
+        "kwalifikowany_vat": "575.00",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Wsparcie wdrożeniowe DevOps & CI/CD",
+            "wartosc_netto": "2500.00",
+            "kwota_vat": "575.00",
+            "stawka_vat": "23",
+            "wartosc_brutto": "3075.00",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "575.00",
+            "netto_do_kup": "2500.00",
+            "uzasadnienie": "Standardowy wydatek bieżący firmy",
+            "zrodlo_decyzji": "DOMYSLNA"
+          }
+        ]
+      },
+      {
+        "numer_faktury": "AWS-INV-2026-07-4821",
+        "data": "2026-07-03",
+        "sprzedawca_nazwa": "AMAZON WEB SERVICES EMEA SARL",
+        "sprzedawca_nip": "LU26375245",
+        "suma_faktury_netto": "740.00",
+        "suma_faktury_vat": "0.00",
+        "suma_faktury_brutto": "740.00",
+        "kwalifikowane_netto": "740.00",
+        "kwalifikowany_vat": "0.00",
+        "odrzucone_netto_prywatne": "0.00",
+        "odrzucony_vat_prywatny": "0.00",
+        "wymaga_wyjasnienia": false,
+        "pytania_do_uzytkownika": [],
+        "pozycje": [
+          {
+            "opis": "Usługi chmurowe Amazon Web Services (Compute EC2, S3, RDS)",
+            "wartosc_netto": "740.00",
+            "kwota_vat": "0.00",
+            "stawka_vat": "np",
+            "wartosc_brutto": "740.00",
+            "kwalifikacja": "FIRMOWY_100",
+            "vat_odliczenie_procent": "1.00",
+            "vat_do_odliczenia": "0.00",
+            "netto_do_kup": "740.00",
+            "uzasadnienie": "Wydatek firmowy związany z prowadzoną działalnością",
+            "zrodlo_decyzji": "HEURYSTYKA"
+          }
+        ]
+      }
+    ],
+    "laczne_odrzucone_netto_prywatne": "0.00",
+    "laczny_odrzucony_vat_prywatny": "0.00",
+    "pytania_do_uzytkownika": [],
+    "duplikaty": []
+  }
+}

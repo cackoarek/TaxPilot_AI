@@ -1,0 +1,19 @@
+{
+  "firma_nip": "7770001122",
+  "firma_nazwa": "CloudTech Test Jan Kowalski",
+  "rok": "2026",
+  "miesiac": "01",
+  "data_generowania": "2026-11-21T19:55:19.642868+00:00",
+  "statystyki": {
+    "lacznie_kontrahentow": 0,
+    "niski_ryzyko_akceptacja": 0,
+    "srednie_ryzyko_uwaga": 0,
+    "wysokie_ryzyko_wyjasnienia": 0,
+    "krytyczne_stop_sankcje": 0,
+    "bledy_polaczenia_offline": 0,
+    "rachunki_sprawdzone": 0,
+    "rachunki_zgodne": 0,
+    "rachunki_niezgodne": 0
+  },
+  "kontrahenci": []
+}

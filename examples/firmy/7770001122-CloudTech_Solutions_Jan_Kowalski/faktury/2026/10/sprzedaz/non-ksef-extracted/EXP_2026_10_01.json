@@ -1,0 +1,50 @@
+{
+  "numer": "EXP/2026/10/01",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "EXP_2026_10_01.txt",
+  "data_wystawienia": "2026-10-28",
+  "data_sprzedazy": "2026-10-28",
+  "typ": "sprzedaz",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": "10101000550225777000112200",
+  "sprzedawca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": "ul. Roosevelta 22, 60-829 Poznań"
+  },
+  "nabywca": {
+    "nip": "IE6388047V",
+    "nazwa": "Google Ireland Limited",
+    "kraj": "IE",
+    "adres": "Gordon House, Barrow Street, Dublin 4, Ireland"
+  },
+  "suma_netto": "18000.00",
+  "suma_vat": "0.00",
+  "suma_brutto": "18000.00",
+  "stawki_netto": {
+    "np": "18000.00"
+  },
+  "stawki_vat": {
+    "np": "0.00"
+  },
+  "pozycje": [
+    {
+      "opis": "Senior Cloud Architecture Consulting & GCP Platform Optimization",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "18000.00",
+      "wartosc_netto": "18000.00",
+      "stawka_vat": "np",
+      "kwota_vat": "0.00",
+      "wartosc_brutto": "18000.00",
+      "stawka_ryczaltu": "0.12",
+      "pkwiu": "62.01.1"
+    }
+  ]
+}

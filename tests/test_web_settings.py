@@ -14,7 +14,10 @@ class TestWebSettings(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Kopia zapasowa profilu
-        cls.profile = CompanyProfile.load_by_nip("5322030067")
+        cls.profile = CompanyProfile.load_by_nip("7770001122")
+        if not cls.profile:
+            from tests.fixtures import setup_test_company
+            cls.profile = setup_test_company()
         cls.initial_token = cls.profile.ksef.token
         cls.initial_env = cls.profile.ksef.srodowisko
         cls.initial_llm = dict(getattr(cls.profile, "llm", {}))
@@ -52,6 +55,8 @@ class TestWebSettings(unittest.TestCase):
 
     def setUp(self):
         self.client = TestClient(app)
+        from src.web.config import COOKIE_ACTIVE_NIP
+        self.client.cookies[COOKIE_ACTIVE_NIP] = self.profile.nip
 
     def test_settings_view_renders(self):
         """Test renderowania strony ustawień GET /ustawienia."""
@@ -79,7 +84,7 @@ class TestWebSettings(unittest.TestCase):
         self.assertIn("Konfiguracja KSeF została pomyślnie zaktualizowana", html)
 
         # Sprawdzenie czy profil został zaktualizowany
-        reloaded = CompanyProfile.load_by_nip("5322030067")
+        reloaded = CompanyProfile.load_by_nip(self.profile.nip)
         self.assertEqual(reloaded.ksef.token, "nowy_testowy_token_ksef_12345")
         self.assertEqual(reloaded.ksef.srodowisko, "TEST")
 
@@ -115,7 +120,7 @@ class TestWebSettings(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Sprawdzenie przeładowania profilu
-        reloaded = CompanyProfile.load_by_nip("5322030067")
+        reloaded = CompanyProfile.load_by_nip(self.profile.nip)
         self.assertEqual(reloaded.llm.get("model"), "models/gemini-3.8-flash")
         self.assertEqual(reloaded.llm.get("provider"), "gemini")
 
@@ -141,7 +146,7 @@ class TestWebSettings(unittest.TestCase):
         self.assertIn("Konfiguracja silnika AI została zapisana", html)
         self.assertIn("Antigravity", html)
 
-        reloaded = CompanyProfile.load_by_nip("5322030067")
+        reloaded = CompanyProfile.load_by_nip(self.profile.nip)
         self.assertEqual(reloaded.llm.get("provider"), "antigravity")
 
         provider = LLMProviderFactory.get_provider(profile=reloaded)
@@ -168,7 +173,7 @@ class TestWebSettings(unittest.TestCase):
         self.assertIn("MALY_ZUS_PLUS", html)
 
         # Sprawdzenie trwałości na dysku w profil.json
-        reloaded = CompanyProfile.load_by_nip("5322030067")
+        reloaded = CompanyProfile.load_by_nip(self.profile.nip)
         self.assertAlmostEqual(reloaded.domyslna_stawka_ryczaltu, 0.085)
         self.assertEqual(reloaded.zus.typ, TypZUS.MALY_ZUS_PLUS)
         self.assertTrue(reloaded.zus.chorobowe_dobrowolne)
@@ -183,7 +188,7 @@ class TestWebSettings(unittest.TestCase):
             },
         )
         self.assertEqual(response2.status_code, 200)
-        reloaded2 = CompanyProfile.load_by_nip("5322030067")
+        reloaded2 = CompanyProfile.load_by_nip(self.profile.nip)
         self.assertAlmostEqual(reloaded2.domyslna_stawka_ryczaltu, 0.14)
         self.assertEqual(reloaded2.zus.typ, TypZUS.ULGA_NA_START)
         self.assertFalse(reloaded2.zus.chorobowe_dobrowolne)

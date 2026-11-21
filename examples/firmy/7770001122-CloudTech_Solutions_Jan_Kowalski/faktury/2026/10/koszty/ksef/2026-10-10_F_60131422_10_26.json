@@ -1,0 +1,53 @@
+{
+  "numer": "F/60131422/10/26",
+  "ksef_numer_referencyjny": "9512120077-20261010-001122334455-CC",
+  "zrodlo": "KSEF",
+  "data_wystawienia": "2026-10-10",
+  "data_sprzedazy": "2026-10-10",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "sprzedawca": {
+    "nip": "9512120077",
+    "nazwa": "Operator Play P4 Sp. z o.o.",
+    "kraj": "PL"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL"
+  },
+  "suma_netto": "200.00",
+  "suma_vat": "46.00",
+  "suma_brutto": "246.00",
+  "pozycje": [
+    {
+      "opis": "Usługi telekomunikacyjne – TV",
+      "wartosc_netto": "35.00",
+      "stawka_vat": "23",
+      "kwota_vat": "8.05",
+      "wartosc_brutto": "43.05"
+    },
+    {
+      "opis": "Abonament głosowy",
+      "wartosc_netto": "65.00",
+      "stawka_vat": "23",
+      "kwota_vat": "14.95",
+      "wartosc_brutto": "79.95"
+    },
+    {
+      "opis": "Usługi telekomunikacyjne",
+      "wartosc_netto": "50.00",
+      "stawka_vat": "23",
+      "kwota_vat": "11.50",
+      "wartosc_brutto": "61.50"
+    },
+    {
+      "opis": "Rata za telefon",
+      "wartosc_netto": "50.00",
+      "stawka_vat": "0",
+      "kwota_vat": "0.00",
+      "wartosc_brutto": "50.00"
+    }
+  ]
+}

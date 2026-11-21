@@ -1,0 +1,58 @@
+{
+  "numer": "EXP/2026/09/01",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "EXP_2026_09_01.txt",
+  "data_wystawienia": "2026-09-28",
+  "data_sprzedazy": "2026-09-28",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": {
+    "data": "2026-11-21 20:55:16",
+    "zrodlo_katalog": "firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/faktury/2026/09/sprzedaz/non-ksef-raw",
+    "docelowy_katalog": "firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/faktury/2026/09/koszty/non-ksef-raw",
+    "oryginalny_plik": "EXP_2026_09_01.txt",
+    "nowy_plik": "EXP_2026_09_01.txt",
+    "pierwotny_typ": "sprzedaz",
+    "faktyczny_typ": "koszty",
+    "powod": "Wykryto faktyczny typ: KOSZTY (Sprzedawca: CloudTech Test Jan Kowalski, NIP: 7770001122, ul. Roosevelta [0000000000], Nabywca: CloudTech Test Jan Kowalski [7770001122])"
+  },
+  "sprzedawca": {
+    "nip": "0000000000",
+    "nazwa": "CloudTech Test Jan Kowalski, NIP: 7770001122, ul. Roosevelta",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "0.00",
+  "suma_vat": "6388047",
+  "suma_brutto": "0.00",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Zakup z pliku EXP_2026_09_01.txt",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "0.00",
+      "stawka_vat": "23",
+      "kwota_vat": "6388047",
+      "wartosc_brutto": "0.00",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}
