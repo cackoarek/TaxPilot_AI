@@ -10,10 +10,45 @@ import argparse
 from pathlib import Path
 
 
-def generate_portal_html(version_tag: str = "v0.1.0", repo: str = "cackoarek/TaxPilot_AI") -> str:
+def generate_portal_html(pages_dir: Path, version_tag: str = "v0.1.0", repo: str = "cackoarek/TaxPilot_AI") -> str:
     owner = repo.split("/")[0] if "/" in repo else "cackoarek"
     repo_name = repo.split("/")[1] if "/" in repo else "TaxPilot_AI"
     pages_base = f"https://{owner}.github.io/{repo_name}"
+
+    # Generowanie dynamicznych wierszy tabeli wersji
+    rows = []
+    rows.append(f"""<tr>
+      <td class="py-3 px-3">
+        <a href="latest/index.html" class="font-bold text-blue-400 hover:underline">latest ({version_tag})</a>
+      </td>
+      <td class="py-3 px-3"><a href="latest/index.html" class="text-slate-300 hover:text-white">📊 Pulpit</a></td>
+      <td class="py-3 px-3"><a href="latest/web_przeglad.html" class="text-slate-300 hover:text-white">📝 Przegląd</a></td>
+      <td class="py-3 px-3"><a href="latest/web_ksiegowanie.html" class="text-slate-300 hover:text-white">📑 Ewidencja</a></td>
+      <td class="py-3 px-3"><a href="latest/reports/raport-weryfikacji-2026-10.pdf" target="_blank" class="text-emerald-400 hover:underline">📄 Pobierz PDF</a></td>
+    </tr>""")
+
+    versions = []
+    if pages_dir.exists():
+        for d in pages_dir.iterdir():
+            if d.is_dir() and d.name.startswith("v") and (d / "index.html").exists():
+                versions.append(d.name)
+    versions.sort(reverse=True)
+
+    for v in versions:
+        pdf_link = "—"
+        if (pages_dir / v / "reports" / "raport-weryfikacji-2026-10.pdf").exists():
+            pdf_link = f'<a href="{v}/reports/raport-weryfikacji-2026-10.pdf" target="_blank" class="text-emerald-400 hover:underline">📄 Pobierz PDF</a>'
+        rows.append(f"""<tr>
+          <td class="py-3 px-3">
+            <a href="{v}/index.html" class="font-bold text-slate-300 hover:underline">{v}</a>
+          </td>
+          <td class="py-3 px-3"><a href="{v}/index.html" class="text-slate-400 hover:text-white">📊 Pulpit</a></td>
+          <td class="py-3 px-3"><a href="{v}/web_przeglad.html" class="text-slate-400 hover:text-white">📝 Przegląd</a></td>
+          <td class="py-3 px-3"><a href="{v}/web_ksiegowanie.html" class="text-slate-400 hover:text-white">📑 Ewidencja</a></td>
+          <td class="py-3 px-3">{pdf_link}</td>
+        </tr>""")
+
+    tbody_rows = "\\n".join(rows)
 
     return f"""<!DOCTYPE html>
 <html lang="pl" class="h-full bg-slate-900 text-slate-100">
@@ -242,23 +277,7 @@ def generate_portal_html(version_tag: str = "v0.1.0", repo: str = "cackoarek/Tax
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/60">
-            <tr>
-              <td class="py-3 px-3">
-                <a href="latest/index.html" class="font-bold text-blue-400 hover:underline">latest ({version_tag})</a>
-              </td>
-              <td class="py-3 px-3">
-                <a href="latest/index.html" class="text-slate-300 hover:text-white">📊 Pulpit</a>
-              </td>
-              <td class="py-3 px-3">
-                <a href="latest/web_przeglad.html" class="text-slate-300 hover:text-white">📝 Przegląd</a>
-              </td>
-              <td class="py-3 px-3">
-                <a href="latest/web_ksiegowanie.html" class="text-slate-300 hover:text-white">📑 Ewidencja</a>
-              </td>
-              <td class="py-3 px-3">
-                <a href="latest/reports/raport-weryfikacji-2026-10.pdf" target="_blank" class="text-emerald-400 hover:underline">📄 Pobierz PDF</a>
-              </td>
-            </tr>
+            {tbody_rows}
           </tbody>
         </table>
       </div>
@@ -289,9 +308,9 @@ def main():
     parser.add_argument("--repo", "-r", default="cackoarek/TaxPilot_AI", help="Nazwa repozytorium (owner/repo)")
     args = parser.parse_args()
 
-    html = generate_portal_html(version_tag=args.version, repo=args.repo)
     out_path = Path(args.output).resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    html = generate_portal_html(pages_dir=out_path.parent, version_tag=args.version, repo=args.repo)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"✅ Wygenerowano landing portal: {out_path} ({len(html)} bajtów)")
