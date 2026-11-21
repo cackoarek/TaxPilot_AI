@@ -14,8 +14,8 @@
   "rachunek_bankowy": null,
   "relokacja": {
     "data": "2026-11-21 20:55:16",
-    "zrodlo_katalog": "/home/acacko/PycharmProjects/TaxPilot_AI/firmy/7770001122-CloudTech_Test_Jan_Kowalski/faktury/2026/09/sprzedaz/non-ksef-raw",
-    "docelowy_katalog": "/home/acacko/PycharmProjects/TaxPilot_AI/firmy/7770001122-CloudTech_Test_Jan_Kowalski/faktury/2026/09/koszty/non-ksef-raw",
+    "zrodlo_katalog": "firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/faktury/2026/09/sprzedaz/non-ksef-raw",
+    "docelowy_katalog": "firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/faktury/2026/09/koszty/non-ksef-raw",
     "oryginalny_plik": "EXP_2026_09_01.txt",
     "nowy_plik": "EXP_2026_09_01.txt",
     "pierwotny_typ": "sprzedaz",
