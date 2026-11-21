@@ -319,6 +319,51 @@ class TestWebInvoices(unittest.TestCase):
         self.assertIn("width: 40%", html)
         self.assertIn("40%", html)
 
+    def test_upload_file_exceeds_15mb_returns_413(self):
+        """Weryfikuje odrzucenie pliku przekraczającego limit 15 MB ze statusem 413 (SEC-2)."""
+        # Utwórz strumień o rozmiarze 16 MB (16 * 1024 * 1024 bajtów)
+        large_size = 16 * 1024 * 1024
+        large_stream = io.BytesIO(b"%PDF-" + b"0" * (large_size - 5))
+
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("duzy_dokument.pdf", large_stream, "application/pdf")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("Przekroczono dopuszczalny limit rozmiaru", response.text)
+        self.assertIn("15 MB", response.text)
+
+    def test_upload_fake_pdf_fails_magic_bytes(self):
+        """Weryfikuje odrzucenie pliku .exe przemianowanego na .pdf (brak sygnatury %PDF-) ze statusem 400 (SEC-2)."""
+        fake_pdf_content = b"MZ\x90\x00\x03\x00\x00\x00This is a Windows executable!"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("faktura_falszywa.pdf", fake_pdf_content, "application/pdf")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Brak poprawnej sygnatury PDF", response.text)
+
+    def test_upload_fake_image_fails_magic_bytes(self):
+        """Weryfikuje odrzucenie pliku tekstowego przemianowanego na .png ze statusem 400 (SEC-2)."""
+        fake_png_content = b"To nie jest plik graficzny PNG!"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("falszywy_skan.png", fake_png_content, "image/png")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Brak poprawnej sygnatury obrazu PNG", response.text)
+
+    def test_sanitize_filename_utility(self):
+        """Weryfikuje działanie sanityzacji nazw plików (usunięcie path traversal i znaków specjalnych)."""
+        from src.web.routers.invoices import sanitize_filename
+        self.assertEqual(sanitize_filename("../../etc/passwd.pdf"), "passwd.pdf")
+        self.assertEqual(sanitize_filename("Faktura VAT 12-2026.pdf"), "Faktura_VAT_12-2026.pdf")
+        self.assertEqual(sanitize_filename("skan@#$!*()___.png"), "skan.png")
+        self.assertEqual(sanitize_filename("..///..///test.json"), "test.json")
+
 
 if __name__ == "__main__":
     unittest.main()

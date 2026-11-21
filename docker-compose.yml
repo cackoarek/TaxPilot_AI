@@ -13,11 +13,13 @@ services:
     container_name: taxpilot-web
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      # Bezpieczne mapowanie wyłącznie na loopback (127.0.0.1) – ochrona przed dostępem z sieci publicznej
+      - "127.0.0.1:8000:8000"
     environment:
       - TAXPILOT_HOST=0.0.0.0
       - TAXPILOT_PORT=8000
       - TAXPILOT_DEBUG=False
+      - TAXPILOT_ACCESS_TOKEN=${TAXPILOT_ACCESS_TOKEN:-}
       - TAXPILOT_LLM_PROVIDER=${TAXPILOT_LLM_PROVIDER:-auto}
       # Opcjonalne klucze API dostawców LLM (przekazywane z pliku .env hosta):
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}

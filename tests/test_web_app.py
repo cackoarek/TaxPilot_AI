@@ -68,6 +68,48 @@ class TestWebApp(unittest.TestCase):
         htmx_resp = self.client.get("/static/js/htmx.min.js")
         self.assertEqual(htmx_resp.status_code, 200)
 
+    def test_token_auth_middleware(self):
+        """Test opcjonalnej autoryzacji tokenem (NET-1)."""
+        import os
+        from src.web.config import COOKIE_AUTH_TOKEN
+        token_secret = "tajny-token-12345"
+        os.environ["TAXPILOT_ACCESS_TOKEN"] = token_secret
+
+        try:
+            # 1. Żądanie bez tokenu -> 401 Unauthorized (JSON domyślnie, HTML dla przeglądarki)
+            unauth_resp = self.client.get("/")
+            self.assertEqual(unauth_resp.status_code, 401)
+            self.assertIn("Wymagana autoryzacja", unauth_resp.text)
+
+            unauth_html_resp = self.client.get("/", headers={"Accept": "text/html"})
+            self.assertEqual(unauth_html_resp.status_code, 401)
+            self.assertIn("Wymagana Autoryzacja", unauth_html_resp.text)
+
+            # 2. Endpoint /health i pliki statyczne są publiczne
+            health_resp = self.client.get("/health")
+            self.assertEqual(health_resp.status_code, 200)
+
+            # 3. Autoryzacja przez nagłówek Authorization: Bearer <token>
+            auth_header_resp = self.client.get("/", headers={"Authorization": f"Bearer {token_secret}"})
+            self.assertEqual(auth_header_resp.status_code, 200)
+
+            # 4. Autoryzacja przez parametr query ?token=<token>
+            query_resp = self.client.get(f"/?token={token_secret}")
+            self.assertEqual(query_resp.status_code, 200)
+            self.assertIn(COOKIE_AUTH_TOKEN, query_resp.cookies)
+
+            # 5. Autoryzacja przez ciasteczko
+            cookie_client = TestClient(app)
+            cookie_client.cookies[COOKIE_AUTH_TOKEN] = token_secret
+            cookie_resp = cookie_client.get("/")
+            self.assertEqual(cookie_resp.status_code, 200)
+
+            # 6. Błędny token -> 401
+            bad_token_resp = self.client.get("/", headers={"Authorization": "Bearer zly_token"})
+            self.assertEqual(bad_token_resp.status_code, 401)
+        finally:
+            del os.environ["TAXPILOT_ACCESS_TOKEN"]
+
 
 if __name__ == "__main__":
     unittest.main()

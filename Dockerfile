@@ -1,8 +1,8 @@
 # ==============================================================================
-# TaxPilot AI - Production Dockerfile (Zero-CLI / In-Process Python Runtime)
+# TaxPilot AI - Production Dockerfile (Local-First / Private Network Container)
 # ==============================================================================
-# Lekki, bezpieczny obraz kontenera zoptymalizowany pod hosting publiczny
-# (VPS, Render, Railway, Fly.io, Hetzner, AWS ECS / GCP Cloud Run).
+# Lekki, bezpieczny obraz kontenera zoptymalizowany pod uruchomienie lokalne
+# oraz w zabezpieczonych sieciach prywatnych (Docker Desktop, VPN, Tailscale).
 # Nie wymaga instalacji żadnych zewnętrznych narzędzi OS ani CLI na hoście.
 # ==============================================================================
 

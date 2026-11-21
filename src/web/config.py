@@ -19,9 +19,13 @@ DEFAULT_HOST = os.getenv("TAXPILOT_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.getenv("TAXPILOT_PORT", "8000"))
 DEBUG = os.getenv("TAXPILOT_DEBUG", "True").lower() in ("true", "1", "yes")
 
+# Opcjonalny token autoryzacyjny dla instancji sieciowych/VPN (NET-1)
+TAXPILOT_ACCESS_TOKEN = os.getenv("TAXPILOT_ACCESS_TOKEN", "").strip()
+
 COOKIE_ACTIVE_NIP = "taxpilot_active_nip"
 COOKIE_ACTIVE_YEAR = "taxpilot_active_year"
 COOKIE_ACTIVE_MONTH = "taxpilot_active_month"
+COOKIE_AUTH_TOKEN = "taxpilot_auth_token"
 
 DEFAULT_YEAR = "2026"
 DEFAULT_MONTH = "01"
