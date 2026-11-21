@@ -7,7 +7,7 @@ Generuje deterministyczne zestawienia:
 """
 
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import re
 from typing import Dict, List, Optional, Any
 
@@ -19,6 +19,8 @@ from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
 from src.skills.ryczalt_tools import RegulySprzedazyFirmy
 from src.skills.cost_classifier import (
     RegulyKosztoweFirmy,
+    ReczneKwalifikacjeService,
+    CostClassifier,
     audit_invoice_expense,
     InvoiceTaxAuditReport,
     KwalifikacjaKosztu,
@@ -42,6 +44,10 @@ class SalesItemReview:
     kwota_brutto: Decimal
     zrodlo: str = "KSeF"
     status_aml: str = "🟢 Czysty"
+    pozycje: List[Dict[str, Any]] = field(default_factory=list)
+    pelny_przedmiot: str = ""
+    plik_zrodlowy: Optional[str] = None
+    ksef_numer_referencyjny: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -52,11 +58,15 @@ class SalesItemReview:
             "nabywca_nazwa": self.nabywca_nazwa,
             "nabywca_nip": self.nabywca_nip,
             "przedmiot": self.przedmiot,
+            "pelny_przedmiot": self.pelny_przedmiot or self.przedmiot,
             "kwota_netto": str(self.kwota_netto),
             "stawka_ryczaltu": str(self.stawka_ryczaltu),
             "kwota_vat": str(self.kwota_vat),
             "kwota_brutto": str(self.kwota_brutto),
             "status_aml": self.status_aml,
+            "pozycje": self.pozycje,
+            "plik_zrodlowy": self.plik_zrodlowy,
+            "ksef_numer_referencyjny": self.ksef_numer_referencyjny,
         }
 
 
@@ -76,6 +86,19 @@ class ExpenseItemReview:
     status_weryfikacji: str
     zrodlo: str = "KSeF"
     status_aml: str = "🟢 Czysty"
+    pozycje: List[Dict[str, Any]] = field(default_factory=list)
+    kwalifikowany_vat: Decimal = Decimal("0.00")
+    kwalifikowane_netto: Decimal = Decimal("0.00")
+    odrzucony_vat_prywatny: Decimal = Decimal("0.00")
+    odrzucone_netto_prywatne: Decimal = Decimal("0.00")
+    zasadnosc_opis: str = ""
+    ai_sugestia: Optional[str] = None
+    ai_porada: Optional[str] = None
+    wymaga_zatwierdzenia: bool = False
+    zatwierdzony: bool = False
+    plik_zrodlowy: Optional[str] = None
+    ksef_numer_referencyjny: Optional[str] = None
+    kwalifikacja_kod: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -90,8 +113,21 @@ class ExpenseItemReview:
             "kwota_vat": str(self.kwota_vat),
             "kwota_brutto": str(self.kwota_brutto),
             "kwalifikacja_podatkowa": self.kwalifikacja_podatkowa,
+            "kwalifikacja_kod": self.kwalifikacja_kod,
             "status_weryfikacji": self.status_weryfikacji,
             "status_aml": self.status_aml,
+            "pozycje": self.pozycje,
+            "kwalifikowany_vat": str(self.kwalifikowany_vat),
+            "kwalifikowane_netto": str(self.kwalifikowane_netto),
+            "odrzucony_vat_prywatny": str(self.odrzucony_vat_prywatny),
+            "odrzucone_netto_prywatne": str(self.odrzucone_netto_prywatne),
+            "zasadnosc_opis": self.zasadnosc_opis,
+            "ai_sugestia": self.ai_sugestia,
+            "ai_porada": self.ai_porada,
+            "wymaga_zatwierdzenia": self.wymaga_zatwierdzenia,
+            "zatwierdzony": self.zatwierdzony,
+            "plik_zrodlowy": self.plik_zrodlowy,
+            "ksef_numer_referencyjny": self.ksef_numer_referencyjny,
         }
 
 
@@ -145,6 +181,26 @@ class PreSettlementReview:
     laczny_koszt_brutto: Decimal = Decimal("0.00")
     ostrzezenie_sieci_aml: bool = False
 
+    @property
+    def laczny_kwalifikowany_vat(self) -> Decimal:
+        """Suma VAT podlegająca faktycznemu odliczeniu po uwzględnieniu stawek 100%, 50% i 0%."""
+        return sum((item.kwalifikowany_vat for item in self.koszty), Decimal("0.00"))
+
+    @property
+    def laczne_kwalifikowane_netto(self) -> Decimal:
+        """Koszty netto kwalifikujące się do KUP."""
+        return sum((item.kwalifikowane_netto for item in self.koszty), Decimal("0.00"))
+
+    @property
+    def laczny_odrzucony_vat_prywatny(self) -> Decimal:
+        """Suma VAT wykluczona z odliczenia (wydatki osobiste/prywatne)."""
+        return sum((item.odrzucony_vat_prywatny for item in self.koszty), Decimal("0.00"))
+
+    @property
+    def laczne_odrzucone_netto_prywatne(self) -> Decimal:
+        """Suma netto wykluczona z KUP."""
+        return sum((item.odrzucone_netto_prywatne for item in self.koszty), Decimal("0.00"))
+
     @classmethod
     def build(cls, profile: CompanyProfile, rok: str, miesiac: str) -> "PreSettlementReview":
         """Tworzy deterministyczny raport przeglądu dokumentów za podany miesiąc."""
@@ -157,10 +213,10 @@ class PreSettlementReview:
         # 2. Wykrycie potencjalnych duplikatów i kolizji źródłowych
         duplikaty = InvoiceStorage.get_duplicate_anomalies(profile, rok_str, miesiac_str)
 
-        # 2. Faktury sprzedaży
+        # 2. Faktury sprzedaży (z uwzględnieniem korekt wstecznych dla PIT)
         reguly_sprzedazy = RegulySprzedazyFirmy.load(profile)
-        faktury_sprzedaz = InvoiceStorage.list_invoices(
-            profile=profile, rok=rok_str, miesiac=miesiac_str, typ=InvoiceType.SPRZEDAZ
+        faktury_sprzedaz = InvoiceStorage.list_sales_invoices_for_pit(
+            profile=profile, rok=rok_str, miesiac=miesiac_str
         )
         domyslna_stawka_ryczaltu = Decimal(str(profile.domyslna_stawka_ryczaltu))
 
@@ -192,14 +248,15 @@ class PreSettlementReview:
                 else:
                     res = "🟢 Czysty"
             else:
-                mswia, ue, _ = check_sanctions(clean, c_nazwa)
-                res = "🚨 STOP (Sankcje)" if (mswia or ue) else "🟢 Czysty"
+                # Nie uruchamiamy audytu live AML w module przeglądu – od tego jest dedykowany widok AML
+                res = "⚪ Nie weryfikowano"
 
             kontrahent_aml_cache[clean] = res
             return res
 
         for idx, inv in enumerate(faktury_sprzedaz, start=1):
-            przedmiot = ", ".join([p.opis for p in inv.pozycje]) if inv.pozycje else "Usługi IT"
+            pelny_przedmiot = ", ".join([p.opis for p in inv.pozycje]) if inv.pozycje else "Usługi IT"
+            przedmiot = pelny_przedmiot
             if len(przedmiot) > 55:
                 przedmiot = przedmiot[:52] + "..."
 
@@ -214,6 +271,21 @@ class PreSettlementReview:
             # Weryfikacja sankcyjna z cache (jeden kontrahent sprawdzany 1 raz)
             status_aml = get_contractor_aml_status(inv.nabywca.nip, inv.nabywca.nazwa)
 
+            pozycje_sprzedaz = []
+            for p_idx, p in enumerate(inv.pozycje, start=1):
+                pozycje_sprzedaz.append({
+                    "lp": p_idx,
+                    "opis": p.opis,
+                    "ilosc": str(p.ilosc),
+                    "jednostka": p.jednostka,
+                    "cena_jednostkowa_netto": p.cena_jednostkowa_netto,
+                    "wartosc_netto": p.wartosc_netto,
+                    "stawka_vat": p.stawka_vat,
+                    "kwota_vat": p.kwota_vat,
+                    "wartosc_brutto": p.wartosc_brutto,
+                    "stawka_ryczaltu": str(buyer_stawka),
+                })
+
             sales_items.append(
                 SalesItemReview(
                     lp=idx,
@@ -222,23 +294,35 @@ class PreSettlementReview:
                     nabywca_nazwa=inv.nabywca.nazwa,
                     nabywca_nip=inv.nabywca.nip,
                     przedmiot=przedmiot,
+                    pelny_przedmiot=pelny_przedmiot,
                     kwota_netto=inv.suma_netto,
                     stawka_ryczaltu=buyer_stawka,
                     kwota_vat=inv.suma_vat,
                     kwota_brutto=inv.suma_brutto,
                     zrodlo=zrodlo_val,
                     status_aml=status_aml,
+                    pozycje=pozycje_sprzedaz,
+                    plik_zrodlowy=inv.plik_zrodlowy,
+                    ksef_numer_referencyjny=inv.ksef_numer_referencyjny,
                 )
             )
             suma_sprzedaz_netto += inv.suma_netto
-            suma_sprzedaz_vat += inv.suma_vat
-            suma_sprzedaz_brutto += inv.suma_brutto
+            if inv.okres_rozliczeniowy == (rok_str, miesiac_str):
+                suma_sprzedaz_vat += inv.suma_vat
+                suma_sprzedaz_brutto += inv.suma_brutto
+            else:
+                # Korekta wsteczna dla celów PIT rozlicza VAT w miesiącu wystawienia (art. 29a ust. 13 VAT)
+                suma_sprzedaz_brutto += inv.suma_netto
 
         # 3. Faktury kosztowe i audyt
         faktury_koszt = InvoiceStorage.list_invoices(
             profile=profile, rok=rok_str, miesiac=miesiac_str, typ=InvoiceType.KOSZT
         )
         reguly_firmy = RegulyKosztoweFirmy.load(profile)
+        reczne_overrides = ReczneKwalifikacjeService.load_overrides(profile, rok_str, miesiac_str)
+        
+        from src.web.services.ai_cost_qualifier import AICostQualifierService
+        ai_sugestie = AICostQualifierService.load_suggestions(profile, rok_str, miesiac_str)
 
         expense_items: List[ExpenseItemReview] = []
         clarification_items: List[ClarificationItemReview] = []
@@ -248,7 +332,12 @@ class PreSettlementReview:
 
         clarification_idx = 1
         for idx, inv in enumerate(faktury_koszt, start=1):
-            audit = audit_invoice_expense(inv, reguly_firmy, kody_pkd=profile.kody_pkd)
+            audit = audit_invoice_expense(
+                inv,
+                reguly_firmy,
+                kody_pkd=profile.kody_pkd,
+                reczne_overrides=reczne_overrides,
+            )
             opis_glowny = ", ".join([p.opis for p in inv.pozycje[:3]]) if inv.pozycje else "Zakup towarów/usług"
             if len(opis_glowny) > 50:
                 opis_glowny = opis_glowny[:47] + "..."
@@ -258,26 +347,227 @@ class PreSettlementReview:
             if any(k == KwalifikacjaKosztu.DO_WYJASNIENIA for k in kwalifikacje):
                 kwal_tekst = "⚠️ Wymaga wyjaśnienia"
                 status_tekst = "Wymaga decyzji"
+                kwal_kod = "DO_WYJASNIENIA"
             elif any(k == KwalifikacjaKosztu.PRYWATNY_0 for k in kwalifikacje) and any(k == KwalifikacjaKosztu.FIRMOWY_100 for k in kwalifikacje):
                 kwal_tekst = "Mieszana (wykluczenia prywatne)"
                 status_tekst = "Do akceptacji"
+                kwal_kod = "MIESZANA"
             elif all(k == KwalifikacjaKosztu.PRYWATNY_0 for k in kwalifikacje):
                 kwal_tekst = "⛔ Prywatny (0% VAT/KUP)"
                 status_tekst = "Wykluczona"
+                kwal_kod = "PRYWATNY_0"
             elif all(k == KwalifikacjaKosztu.SAMOCHOD_50 for k in kwalifikacje):
                 kwal_tekst = "🚗 Samochód 50% (art. 86a)"
                 status_tekst = "Do akceptacji"
+                kwal_kod = "SAMOCHOD_50"
             elif all(k == KwalifikacjaKosztu.FIRMOWY_100 for k in kwalifikacje):
                 kwal_tekst = "✅ 100% Firmowy"
                 status_tekst = "Do akceptacji"
+                kwal_kod = "FIRMOWY_100"
             else:
                 kwal_tekst = "Częściowo odliczalny"
                 status_tekst = "Do akceptacji"
+                kwal_kod = "MIESZANA"
 
             zrodlo_val = "Non-KSeF" if getattr(inv, "zrodlo", "") == "NON_KSEF" else "KSeF"
 
             # Weryfikacja sankcyjna z cache (jeden kontrahent sprawdzany 1 raz)
             status_aml = get_contractor_aml_status(inv.sprzedawca.nip, inv.sprzedawca.nazwa)
+
+            # Pozycje faktury kosztowej
+            pozycje_koszt = []
+            has_unapproved_ai = False
+            has_do_wyjasnienia = False
+            inv_ai_sugestia = None
+            inv_ai_porada = None
+
+            for p_idx, pw in enumerate(audit.pozycje_wyniki, start=1):
+                item_key = f"{inv.numer.strip()}::{pw.opis.strip().lower()}"
+                item_key_norm = f"{inv.numer.strip()}::{CostClassifier.normalize_desc(pw.opis)}"
+                p_kwal = pw.kwalifikacja.value
+                p_label = (
+                    "✅ 100% Firmowy" if pw.kwalifikacja == KwalifikacjaKosztu.FIRMOWY_100
+                    else "🚗 50% Samochód" if pw.kwalifikacja == KwalifikacjaKosztu.SAMOCHOD_50
+                    else "⛔ 0% Prywatny (Wykluczono)" if pw.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0
+                    else "⚠️ Wymaga decyzji"
+                )
+                p_uzasadnienie = pw.uzasadnienie
+                p_zrodlo = pw.zrodlo_decyzji
+                p_wymaga_zatwierdzenia = (pw.kwalifikacja == KwalifikacjaKosztu.DO_WYJASNIENIA)
+                p_zatwierdzony = (pw.zrodlo_decyzji == "DECYZJA_RECZNA")
+                p_ai_sugestia = None
+                p_ai_porada = None
+
+                # Sprawdź czy pozycja ma sugestię AI
+                sug = ai_sugestie.get(item_key) or ai_sugestie.get(item_key_norm)
+                if sug:
+                    p_ai_sugestia = sug.kwalifikacja_sugerowana
+                    p_ai_porada = sug.porada_ksiegowa
+                    if not inv_ai_sugestia:
+                        inv_ai_sugestia = sug.kwalifikacja_sugerowana
+                        inv_ai_porada = sug.porada_ksiegowa
+
+                    if pw.zrodlo_decyzji == "DECYZJA_RECZNA":
+                        # Przedsiębiorca podjął decyzję ręczną - ma ona bezwzględne pierwszeństwo przed AI!
+                        p_zatwierdzony = True
+                        p_wymaga_zatwierdzenia = False
+                        p_kwal = pw.kwalifikacja.value
+                        p_label = (
+                            "✅ 100% Firmowy" if pw.kwalifikacja == KwalifikacjaKosztu.FIRMOWY_100
+                            else "🚗 50% Samochód" if pw.kwalifikacja == KwalifikacjaKosztu.SAMOCHOD_50
+                            else "⛔ 0% Prywatny (Wykluczono)" if pw.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0
+                            else "⚠️ Wymaga decyzji"
+                        )
+                    elif sug.zatwierdzony:
+                        p_zatwierdzony = True
+                        p_wymaga_zatwierdzenia = False
+                        p_kwal = sug.kwalifikacja_sugerowana
+                        p_label = (
+                            "✅ 100% Firmowy" if sug.kwalifikacja_sugerowana == "FIRMOWY_100"
+                            else "🚗 50% Samochód" if sug.kwalifikacja_sugerowana == "SAMOCHOD_50"
+                            else "⛔ 0% Prywatny (Wykluczono)" if sug.kwalifikacja_sugerowana == "PRYWATNY_0"
+                            else "⚠️ Wymaga decyzji"
+                        )
+                    else:
+                        has_unapproved_ai = True
+                        p_wymaga_zatwierdzenia = True
+                        p_kwal = sug.kwalifikacja_sugerowana
+                        p_label = (
+                            "🤖 100% Firmowy (AI)" if sug.kwalifikacja_sugerowana == "FIRMOWY_100"
+                            else "🤖 50% Samochód (AI)" if sug.kwalifikacja_sugerowana == "SAMOCHOD_50"
+                            else "🤖 0% Prywatny (AI)"
+                        )
+                        p_uzasadnienie = sug.porada_ksiegowa
+                        p_zrodlo = "AI_SUGESTIA"
+
+                if (p_kwal == "DO_WYJASNIENIA" or pw.kwalifikacja == KwalifikacjaKosztu.DO_WYJASNIENIA) and pw.zrodlo_decyzji != "DECYZJA_RECZNA" and not p_zatwierdzony:
+                    has_do_wyjasnienia = True
+                    p_wymaga_zatwierdzenia = True
+
+                if p_kwal == "FIRMOWY_100":
+                    p_vat_do_odliczenia = pw.kwota_vat
+                    p_netto_do_kup = pw.wartosc_netto
+                elif p_kwal == "SAMOCHOD_50":
+                    p_vat_do_odliczenia = (pw.kwota_vat * Decimal("0.50")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    p_netto_do_kup = pw.wartosc_netto
+                elif p_kwal == "PRYWATNY_0":
+                    p_vat_do_odliczenia = Decimal("0.00")
+                    p_netto_do_kup = Decimal("0.00")
+                else:  # DO_WYJASNIENIA
+                    p_vat_do_odliczenia = Decimal("0.00")
+                    p_netto_do_kup = Decimal("0.00")
+
+                pozycje_koszt.append({
+                    "lp": p_idx,
+                    "opis": pw.opis,
+                    "wartosc_netto": pw.wartosc_netto,
+                    "stawka_vat": pw.stawka_vat,
+                    "kwota_vat": pw.kwota_vat,
+                    "wartosc_brutto": pw.wartosc_brutto,
+                    "kwalifikacja": p_kwal,
+                    "kwalifikacja_label": p_label,
+                    "vat_do_odliczenia": p_vat_do_odliczenia,
+                    "netto_do_kup": p_netto_do_kup,
+                    "uzasadnienie": p_uzasadnienie,
+                    "zrodlo_decyzji": p_zrodlo,
+                    "ai_sugestia": p_ai_sugestia,
+                    "ai_porada": p_ai_porada,
+                    "wymaga_zatwierdzenia": p_wymaga_zatwierdzenia,
+                    "zatwierdzony": p_zatwierdzony,
+                })
+
+            # Zasadność biznesowa i wykluczenia (na podstawie faktycznych pozycji po uwzględnieniu AI/decyzji)
+            liczba_wykluczen = len([p for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"])
+            if liczba_wykluczen > 0 and liczba_wykluczen < len(pozycje_koszt):
+                zasadnosc_opis = f"Wydatek mieszany: wykluczono {liczba_wykluczen} pozycji prywatnych bez prawa odliczenia (np. TV, pakiet osobisty)."
+            elif all(p["kwalifikacja"] == "PRYWATNY_0" for p in pozycje_koszt):
+                zasadnosc_opis = "Wydatek w całości prywatny (0% VAT/KUP) – wykluczony z ewidencji podatkowej."
+            elif any(p["kwalifikacja"] == "SAMOCHOD_50" for p in pozycje_koszt):
+                zasadnosc_opis = "Eksploatacja pojazdu w trybie mieszanym (art. 86a ustawy o VAT – 50% odliczenia)."
+            elif any(p["kwalifikacja"] == "DO_WYJASNIENIA" for p in pozycje_koszt):
+                zasadnosc_opis = "Wymagana weryfikacja celowości gospodarczej z przedsiębiorcą."
+            else:
+                zasadnosc_opis = "Wydatek w 100% uzasadniony gospodarczo (zgodny z PKD i profilem firmy)."
+
+            inv_wymaga_zatwierdzenia = has_unapproved_ai or has_do_wyjasnienia or any(p.get("wymaga_zatwierdzenia") for p in pozycje_koszt)
+
+            # Obliczenie kwot kwalifikowanych i odrzuconych dla całej faktury na podstawie pozycji
+            unikalne_p_kwal = set(p["kwalifikacja"] for p in pozycje_koszt)
+            if len(unikalne_p_kwal) == 1:
+                jedyna_kwal = next(iter(unikalne_p_kwal))
+                if jedyna_kwal == "FIRMOWY_100":
+                    inv_kwalifikowane_netto = inv.suma_netto
+                    inv_kwalifikowany_vat = inv.suma_vat
+                    inv_odrzucone_netto = Decimal("0.00")
+                    inv_odrzucony_vat = Decimal("0.00")
+                elif jedyna_kwal == "SAMOCHOD_50":
+                    inv_kwalifikowane_netto = inv.suma_netto
+                    inv_kwalifikowany_vat = (inv.suma_vat * Decimal("0.50")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    inv_odrzucone_netto = Decimal("0.00")
+                    inv_odrzucony_vat = Decimal("0.00")
+                elif jedyna_kwal == "PRYWATNY_0":
+                    inv_kwalifikowane_netto = Decimal("0.00")
+                    inv_kwalifikowany_vat = Decimal("0.00")
+                    inv_odrzucone_netto = inv.suma_netto
+                    inv_odrzucony_vat = inv.suma_vat
+                else:
+                    inv_kwalifikowane_netto = Decimal("0.00")
+                    inv_kwalifikowany_vat = Decimal("0.00")
+                    inv_odrzucone_netto = Decimal("0.00")
+                    inv_odrzucony_vat = Decimal("0.00")
+            else:
+                inv_kwalifikowane_netto = sum((p["netto_do_kup"] for p in pozycje_koszt), Decimal("0.00"))
+                inv_kwalifikowany_vat = sum((p["vat_do_odliczenia"] for p in pozycje_koszt), Decimal("0.00"))
+                inv_odrzucone_netto = sum(
+                    (p["wartosc_netto"] for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"),
+                    Decimal("0.00")
+                )
+                inv_odrzucony_vat = sum(
+                    (p["kwota_vat"] for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"),
+                    Decimal("0.00")
+                )
+
+            # Dla faktury jednopozycyjnej upewnij się, że kwalifikacja ogólna odpowiada jedynej pozycji
+            if len(pozycje_koszt) == 1:
+                kwal_kod = pozycje_koszt[0]["kwalifikacja"]
+                if kwal_kod == "SAMOCHOD_50":
+                    kwal_tekst = "🚗 Samochód 50% (art. 86a)"
+                    status_tekst = "Zatwierdzona" if pozycje_koszt[0]["zatwierdzony"] else "Do akceptacji"
+                elif kwal_kod == "FIRMOWY_100":
+                    kwal_tekst = "✅ 100% Firmowy"
+                    status_tekst = "Zatwierdzona" if pozycje_koszt[0]["zatwierdzony"] else "Do akceptacji"
+                elif kwal_kod == "PRYWATNY_0":
+                    kwal_tekst = "⛔ Prywatny (0% VAT/KUP)"
+                    status_tekst = "Wykluczona"
+                elif kwal_kod == "DO_WYJASNIENIA":
+                    kwal_tekst = "⚠️ Wymaga wyjaśnienia"
+                    status_tekst = "Wymaga decyzji"
+            elif len(pozycje_koszt) > 1:
+                kwalifikacje = [p["kwalifikacja"] for p in pozycje_koszt]
+                if any(k == "DO_WYJASNIENIA" for k in kwalifikacje):
+                    kwal_tekst = "⚠️ Wymaga wyjaśnienia"
+                    status_tekst = "Wymaga decyzji"
+                    kwal_kod = "DO_WYJASNIENIA"
+                elif any(k == "PRYWATNY_0" for k in kwalifikacje) and any(k == "FIRMOWY_100" for k in kwalifikacje):
+                    kwal_tekst = "Mieszana (wykluczenia prywatne)"
+                    status_tekst = "Do akceptacji"
+                    kwal_kod = "MIESZANA"
+                elif all(k == "PRYWATNY_0" for k in kwalifikacje):
+                    kwal_tekst = "⛔ Prywatny (0% VAT/KUP)"
+                    status_tekst = "Wykluczona"
+                    kwal_kod = "PRYWATNY_0"
+                elif all(k == "SAMOCHOD_50" for k in kwalifikacje):
+                    kwal_tekst = "🚗 Samochód 50% (art. 86a)"
+                    status_tekst = "Do akceptacji"
+                    kwal_kod = "SAMOCHOD_50"
+                elif all(k == "FIRMOWY_100" for k in kwalifikacje):
+                    kwal_tekst = "✅ 100% Firmowy"
+                    status_tekst = "Do akceptacji"
+                    kwal_kod = "FIRMOWY_100"
+                else:
+                    kwal_tekst = "Częściowo odliczalny"
+                    status_tekst = "Do akceptacji"
+                    kwal_kod = "MIESZANA"
 
             expense_items.append(
                 ExpenseItemReview(
@@ -294,6 +584,19 @@ class PreSettlementReview:
                     status_weryfikacji=status_tekst,
                     zrodlo=zrodlo_val,
                     status_aml=status_aml,
+                    pozycje=pozycje_koszt,
+                    kwalifikowany_vat=inv_kwalifikowany_vat,
+                    kwalifikowane_netto=inv_kwalifikowane_netto,
+                    odrzucony_vat_prywatny=inv_odrzucony_vat,
+                    odrzucone_netto_prywatne=inv_odrzucone_netto,
+                    zasadnosc_opis=zasadnosc_opis,
+                    ai_sugestia=inv_ai_sugestia,
+                    ai_porada=inv_ai_porada,
+                    wymaga_zatwierdzenia=inv_wymaga_zatwierdzenia,
+                    zatwierdzony=all(p.get("zatwierdzony", False) for p in pozycje_koszt) if pozycje_koszt else False,
+                    plik_zrodlowy=inv.plik_zrodlowy,
+                    ksef_numer_referencyjny=inv.ksef_numer_referencyjny,
+                    kwalifikacja_kod=kwal_kod,
                 )
             )
             suma_koszt_netto += inv.suma_netto
@@ -301,38 +604,27 @@ class PreSettlementReview:
             suma_koszt_brutto += inv.suma_brutto
 
             # Wykrycie pozycji do wyjaśnienia lub pozycji prywatnych do zatwierdzenia
-            for p in audit.pozycje_wyniki:
-                if p.kwalifikacja == KwalifikacjaKosztu.DO_WYJASNIENIA:
+            for p in pozycje_koszt:
+                kwal = p.get("kwalifikacja")
+                wymaga_zatw = p.get("wymaga_zatwierdzenia", False)
+                zatwierdzony = p.get("zatwierdzony", False)
+                zrodlo = p.get("zrodlo_decyzji", "")
+
+                # Tylko pozycje niejednoznaczne lub unapproved AI suggestions trafiają do do_wyjasnienia
+                if (kwal == "DO_WYJASNIENIA" or wymaga_zatw) and not zatwierdzony and zrodlo not in ("REGULA_KONTRAHENTA", "REGULA_GLOBALNA"):
                     clarification_items.append(
                         ClarificationItemReview(
                             lp=clarification_idx,
                             numer_faktury=inv.numer,
                             kontrahent_nazwa=inv.sprzedawca.nazwa,
                             kontrahent_nip=inv.sprzedawca.nip,
-                            pozycja_opis=p.opis,
-                            kwota_netto=p.wartosc_netto,
-                            kwota_vat=p.kwota_vat,
+                            pozycja_opis=p["opis"],
+                            kwota_netto=p["wartosc_netto"],
+                            kwota_vat=p["kwota_vat"],
                             status="DO_WYJASNIENIA",
-                            uzasadnienie="Niejednoznaczny opis pozycji w fakturze.",
-                            pytanie_do_uzytkownika=f"Pozycja '{p.opis}' ({p.wartosc_netto:.2f} zł netto) – czy zaliczyć do kosztów firmy (np. stałe IP/usługa serwerowa), czy jest to wydatek prywatny?",
-                            sugerowana_odpowiedz="Określ: 'firmowe 100%' lub 'prywatne 0%'.",
-                        )
-                    )
-                    clarification_idx += 1
-                elif p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0:
-                    clarification_items.append(
-                        ClarificationItemReview(
-                            lp=clarification_idx,
-                            numer_faktury=inv.numer,
-                            kontrahent_nazwa=inv.sprzedawca.nazwa,
-                            kontrahent_nip=inv.sprzedawca.nip,
-                            pozycja_opis=p.opis,
-                            kwota_netto=p.wartosc_netto,
-                            kwota_vat=p.kwota_vat,
-                            status="PRYWATNY_0",
-                            uzasadnienie=p.uzasadnienie,
-                            pytanie_do_uzytkownika=f"Pozycja '{p.opis}' ({p.wartosc_netto:.2f} zł netto) została zakwalifikowana jako wydatek prywatny (0% VAT, 0% KUP). Czy potwierdzasz wykluczenie?",
-                            sugerowana_odpowiedz="Napisz: 'potwierdzam wykluczenie' lub wskaż związek gospodarczy z IT.",
+                            uzasadnienie=p.get("uzasadnienie", "Wymaga decyzji przedsiębiorcy"),
+                            pytanie_do_uzytkownika=f"Pozycja '{p['opis']}' ({p['wartosc_netto']:.2f} zł netto) – zatwierdź lub wybierz kwalifikację.",
+                            sugerowana_odpowiedz=p.get("ai_porada", "Zatwierdź lub wybierz stawkę"),
                         )
                     )
                     clarification_idx += 1
@@ -373,6 +665,10 @@ class PreSettlementReview:
             "laczny_koszt_netto": str(self.laczny_koszt_netto),
             "laczny_koszt_vat": str(self.laczny_koszt_vat),
             "laczny_koszt_brutto": str(self.laczny_koszt_brutto),
+            "laczny_kwalifikowany_vat": str(self.laczny_kwalifikowany_vat),
+            "laczne_kwalifikowane_netto": str(self.laczne_kwalifikowane_netto),
+            "laczny_odrzucony_vat_prywatny": str(self.laczny_odrzucony_vat_prywatny),
+            "laczne_odrzucone_netto_prywatne": str(self.laczne_odrzucone_netto_prywatne),
             "sprzedaz": [s.to_dict() for s in self.sprzedaz],
             "koszty": [k.to_dict() for k in self.koszty],
             "do_wyjasnienia": [c.to_dict() for c in self.do_wyjasnienia],

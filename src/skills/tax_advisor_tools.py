@@ -324,3 +324,119 @@ def audit_expense_leaks(profile: CompanyProfile, rok: str, miesiac: str) -> Expe
         alerty=alerty,
     )
 
+
+def _load_single_year_data(profile: CompanyProfile, target_rok: str):
+    """Pobiera sumę przychodów i kosztów dla zadanego roku ze wszystkich 12 miesięcy."""
+    import json
+    months_data = {}
+    total_przychod = Decimal("0.00")
+    total_koszt = Decimal("0.00")
+
+    for m in range(1, 13):
+        ms = f"{m:02d}"
+        settlement_file = profile.katalog_firmy / "rozliczenia" / str(target_rok) / ms / "rozliczenie.json"
+        p = Decimal("0.00")
+        k = Decimal("0.00")
+        has_data = False
+
+        if settlement_file.exists():
+            try:
+                with open(settlement_file, "r", encoding="utf-8") as f:
+                    settle = json.load(f)
+                if settle and settle.get("ewidencja"):
+                    ew = settle["ewidencja"]
+                    p = Decimal(str(ew.get("ewidencja_przychodow", {}).get("laczny_przychod_netto", "0.00")))
+                    rv_zakupy = ew.get("rejestr_vat", {}).get("zakupy", {})
+                    if isinstance(rv_zakupy, dict):
+                        k = Decimal(str(rv_zakupy.get("suma_netto", "0.00")))
+                    has_data = True
+            except Exception:
+                has_data = False
+
+        if not has_data:
+            invs_s = InvoiceStorage.list_invoices(profile, str(target_rok), ms, typ=InvoiceType.SPRZEDAZ)
+            invs_k = InvoiceStorage.list_invoices(profile, str(target_rok), ms, typ=InvoiceType.KOSZT)
+            if invs_s or invs_k:
+                p = sum((Decimal(str(i.suma_netto)) for i in invs_s), Decimal("0.00"))
+                k = sum((Decimal(str(i.suma_netto)) for i in invs_k), Decimal("0.00"))
+                has_data = True
+
+        if has_data and (p > 0 or k > 0):
+            months_data[ms] = {"przychod": p, "koszt": k}
+            total_przychod += p
+            total_koszt += k
+
+    return months_data, total_przychod, total_koszt
+
+
+def get_annual_financial_summary(
+    profile: CompanyProfile,
+    rok: str,
+    current_month: str = "01"
+) -> Dict[str, Any]:
+    """
+    Zwraca rzeczywiste roczne podsumowanie przychodów i kosztów firmy:
+    - Sumuje dane ze wszystkich miesięcy z rozliczeń lub faktur w danym roku podatkowym.
+    - Jeśli jest styczeń i brak danych w bieżącym roku (lub rok pusty), pobiera dane z roku poprzedniego.
+    - Wylicza ekstrapolację do 12 miesięcy na podstawie dotychczasowych miesięcy.
+    """
+    if not profile:
+        return {
+            "rok": rok,
+            "source_year": rok,
+            "is_fallback_prev_year": False,
+            "months_count": 0,
+            "months_data": {},
+            "actual_przychod": Decimal("240000.00"),
+            "actual_koszt": Decimal("24000.00"),
+            "extrapolated_przychod": Decimal("240000.00"),
+            "extrapolated_koszt": Decimal("24000.00"),
+            "can_extrapolate": False,
+        }
+
+    months_data, total_przychod, total_koszt = _load_single_year_data(profile, rok)
+    is_fallback = False
+    source_year = str(rok)
+
+    # Gdy jest styczeń i nie ma z czego symulować (lub brak jakichkolwiek danych w bieżącym roku)
+    if (str(current_month) == "01" and (len(months_data) <= 1 or total_przychod == Decimal("0.00"))) or len(months_data) == 0:
+        prev_rok = str(int(rok) - 1)
+        prev_months, prev_p, prev_k = _load_single_year_data(profile, prev_rok)
+        if len(prev_months) > 0 and (prev_p > 0 or prev_k > 0):
+            months_data = prev_months
+            total_przychod = prev_p
+            total_koszt = prev_k
+            source_year = prev_rok
+            is_fallback = True
+
+    m_count = len(months_data)
+
+    if m_count > 0 and m_count < 12 and not is_fallback:
+        extrapolated_przychod = ((total_przychod / Decimal(str(m_count))) * Decimal("12")).quantize(Decimal("1"))
+        extrapolated_koszt = ((total_koszt / Decimal(str(m_count))) * Decimal("12")).quantize(Decimal("1"))
+        can_extrapolate = True
+    else:
+        extrapolated_przychod = total_przychod if total_przychod > 0 else Decimal("240000.00")
+        extrapolated_koszt = total_koszt if total_koszt > 0 else Decimal("24000.00")
+        can_extrapolate = False
+
+    if total_przychod == Decimal("0.00") and total_koszt == Decimal("0.00"):
+        total_przychod = Decimal("240000.00")
+        total_koszt = Decimal("24000.00")
+        extrapolated_przychod = total_przychod
+        extrapolated_koszt = total_koszt
+
+    return {
+        "rok": str(rok),
+        "source_year": source_year,
+        "is_fallback_prev_year": is_fallback,
+        "months_count": m_count,
+        "months_data": months_data,
+        "actual_przychod": total_przychod,
+        "actual_koszt": total_koszt,
+        "extrapolated_przychod": extrapolated_przychod,
+        "extrapolated_koszt": extrapolated_koszt,
+        "can_extrapolate": can_extrapolate,
+    }
+
+

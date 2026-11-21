@@ -5,6 +5,37 @@
 {% block content %}
 <div class="space-y-8">
 
+  <!-- Baner Pomocy i Przewodnik po module -->
+  <div x-data="{ guideOpen: false }" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-white shadow-sm transition-all duration-200">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">💡</span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Przewodnik: Doradca Podatkowy & Symulacja Form Opodatkowania</h2>
+          <p class="text-xs text-slate-400">Deterministyczne porównanie opłacalności Ryczałtu, Podatku Liniowego 19% i Skali Podatkowej 12%/32% oraz audyt kosztów.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Pomaga podjąć optymalną decyzję podatkową na kolejny rok podatkowy (termin zmiany formy opodatkowania w CEIDG do 20. lutego). Symuluje dochód na rękę po podatkach i składkach ZUS dla różnych poziomów przychodów i kosztów.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Dane roczne:</strong> Wartości początkowe suwaków wyliczane są z rzeczywistych danych firmy za cały rok podatkowy.</li>
+          <li><strong>Ekstrapolacja:</strong> Przycisk prognozy uzupełnia brakujące miesiące do pełnych 12 na podstawie dotychczasowej średniej.</li>
+          <li><strong>Styczeń / Nowy rok:</strong> Przy braku danych w styczniu system automatycznie podstawia dane referencyjne za poprzedni rok.</li>
+          <li><strong>Audyt kosztów:</strong> Wykrywa brakujące faktury abonamentowe (leasing, telefon, hosting) przed zamknięciem roku.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <!-- Nagłówek Doradcy -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
     <div>
@@ -46,8 +77,47 @@
       </span>
     </div>
 
+    <!-- Pasek Informacyjny o Danych Rocznych i Przycisk Ekstrapolacji -->
+    <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+      <div class="space-y-0.5">
+        {% if annual_summary and annual_summary.is_fallback_prev_year %}
+          <div class="flex items-center space-x-1.5 font-bold text-amber-800">
+            <span>⚠️</span>
+            <span>Dane referencyjne z poprzedniego roku podatkowego ({{ annual_summary.source_year }}):</span>
+          </div>
+          <p class="text-slate-600 text-[11px]">
+            Brak wystarczających danych w roku {{ rok }} (lub styczeń) – załadowano dane z roku {{ annual_summary.source_year }}: <strong>{{ "%.2f"|format(annual_summary.actual_przychod|float) }} zł</strong> przychodu, <strong>{{ "%.2f"|format(annual_summary.actual_koszt|float) }} zł</strong> kosztów (pełny rok).
+          </p>
+        {% elif annual_summary %}
+          <div class="flex items-center space-x-1.5 font-bold text-slate-800">
+            <span>📊</span>
+            <span>Rzeczywiste dane firmy za rok {{ rok }} ({{ annual_summary.months_count }} m-cy z danymi):</span>
+          </div>
+          <p class="text-slate-600 text-[11px]">
+            Suma YTD: <strong>{{ "%.2f"|format(annual_summary.actual_przychod|float) }} zł</strong> przychodu netto oraz <strong>{{ "%.2f"|format(annual_summary.actual_koszt|float) }} zł</strong> kosztów netto.
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="flex items-center space-x-2 shrink-0">
+        {% if annual_summary and annual_summary.can_extrapolate %}
+          <button type="button"
+                  @click="przychodVal = {{ annual_summary.extrapolated_przychod|int }}; kosztVal = {{ annual_summary.extrapolated_koszt|int }}; $nextTick(() => { document.querySelector('#advisor-sim-form').dispatchEvent(new Event('input', { bubbles: true })); })"
+                  class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer">
+            <span>🔮 Zasymuluj pełny rok (uzupełnij do 12 m-cy: {{ annual_summary.extrapolated_przychod|int }} zł)</span>
+          </button>
+          <button type="button"
+                  @click="przychodVal = {{ annual_summary.actual_przychod|int }}; kosztVal = {{ annual_summary.actual_koszt|int }}; $nextTick(() => { document.querySelector('#advisor-sim-form').dispatchEvent(new Event('input', { bubbles: true })); })"
+                  class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+            <span>📊 Przywróć YTD</span>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Formularz HTMX z opóźnieniem delay:200ms -->
-    <form hx-post="/api/advisor/simulate"
+    <form id="advisor-sim-form"
+          hx-post="/api/advisor/simulate"
           hx-target="#simulation-result"
           hx-swap="outerHTML"
           hx-trigger="input delay:200ms, change"
@@ -59,13 +129,13 @@
           <label class="font-bold text-slate-700">Roczne Przychody Netto:</label>
           <span class="font-mono font-bold text-slate-900 text-sm" x-text="przychodVal.toLocaleString() + ' zł'"></span>
         </div>
-        <input type="range" name="przychod" min="20000" max="1000000" step="5000" 
+        <input type="range" name="przychod" min="20000" max="2000000" step="5000" 
                x-model="przychodVal"
                class="w-full accent-blue-600 cursor-pointer">
         <div class="flex justify-between text-[10px] text-slate-400 font-mono">
           <span>20k zł</span>
-          <span>500k zł</span>
           <span>1 mln zł</span>
+          <span>2 mln zł</span>
         </div>
       </div>
 
@@ -75,9 +145,35 @@
           <label class="font-bold text-slate-700">Roczne Koszty Netto:</label>
           <span class="font-mono font-bold text-slate-900 text-sm" x-text="kosztVal.toLocaleString() + ' zł'"></span>
         </div>
-        <input type="range" name="koszt" min="0" max="500000" step="2000" 
+        <input type="range" name="koszt" min="0" max="1000000" step="2000" 
                x-model="kosztVal"
                class="w-full accent-blue-600 cursor-pointer">
+        <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+          <span>0 zł</span>
+          <span>500k zł</span>
+          <span>1 mln zł</span>
+        </div>
+      </div>
+
+      <!-- Wybór Stawki Ryczałtu -->
+      <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Stawka Ryczałtu (Twoja branża):</label>
+          <select name="stawka_ryczaltu" x-model="stawkaVal" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            <option value="0.085">8.5% – Usługi powszechne / Gastronomia</option>
+            <option value="0.12">12.0% – Branża IT / Programiści (Default)</option>
+            <option value="0.14">14.0% – Inżynierowie / Architekci</option>
+            <option value="0.15">15.0% – Usługi doradcze / Marketing</option>
+            <option value="0.17">17.0% – Pośrednictwo handlowe</option>
+          </select>
+        </div>
+        <p class="text-[10px] text-slate-400">
+          Zgodnie z art. 12 ustawy o zryczałtowanym podatku dochodowym.
+        </p>
+      </div>
+
+    </form>
+  </div>
         <div class="flex justify-between text-[10px] text-slate-400 font-mono">
           <span>0 zł</span>
           <span>250k zł</span>

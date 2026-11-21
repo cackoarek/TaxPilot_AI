@@ -3,7 +3,54 @@
 {% block title %}Pulpit & Paczka Przelewów – TaxPilot AI{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="{ qrModalOpen: false, copiedAccount: false, copiedAmount: false, copiedTitle: false }">
+<div class="space-y-6" x-data="{ qrModalOpen: false, copiedAccount: false, copiedAmount: false, copiedTitle: false, guideOpen: false }">
+
+  {% if request.query_params.get("nowa_firma") == "1" %}
+  <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3.5 rounded-2xl flex items-center justify-between shadow-xs animate-fade-in">
+    <div class="flex items-center space-x-3">
+      <span class="text-2xl">🎉</span>
+      <div>
+        <h3 class="text-sm font-bold text-emerald-900">Nowa firma została pomyślnie dodana i aktywowana!</h3>
+        <p class="text-xs text-emerald-700 mt-0.5">
+          Jesteś teraz w profilu firmy <strong>{{ profile.nazwa }}</strong> (NIP: <code class="font-mono font-bold">{{ profile.nip }}</code>). Możesz rozpocząć pobieranie faktur z KSeF lub zaimportować dokumenty kosztowe.
+        </p>
+      </div>
+    </div>
+    <a href="/" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold px-2 py-1 rounded-lg hover:bg-emerald-100 transition-colors">
+      ✕ Zamknij
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Baner Pomocy i Przewodnik po module -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-white shadow-sm transition-all duration-200">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">💡</span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Przewodnik: Pulpit Przedsiębiorcy & Paczka Przelewów</h2>
+          <p class="text-xs text-slate-400">Centrum dowodzenia rozliczeniami podatkowymi JDG, kwotami zobowiązań ZUS/US i kodami QR do przelewów.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Umożliwia błyskawiczne opłacenie podatków za pomocą dedykowanych kodów QR przelewu (dla aplikacji bankowych mBank, PKO, Santander, ING) lub skopiowanie numerów indywidualnych rachunków ZUS (NRS) i mikrorachunku podatkowego US.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Terminy płatności:</strong> ZUS oraz zaliczka PIT do 20. dnia kolejnego miesiąca, podatek VAT-7 do 25. dnia.</li>
+          <li><strong>Mikrorachunek US:</strong> Indywidualny rachunek przypisany do Twojego NIP (PIT i VAT wpłaca się na ten sam numer).</li>
+          <li><strong>Kody QR:</strong> Zeskanuj aparatem w telefonie, aby wyeliminować błędy w kwotach i numerach rachunków.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 
   <!-- Baner Stanu Rozliczenia -->
   {% if settlement %}
@@ -228,29 +275,46 @@
       {% if aml_stats %}
         <div class="grid grid-cols-3 gap-2 text-center text-xs">
           <div class="p-2.5 bg-green-50 text-green-800 rounded-lg border border-green-200">
-            <span class="text-xl font-bold block">{{ aml_stats.niski_ryzyko_akceptacja }}</span>
+            <span class="text-xl font-bold block">{{ aml_stats.get('niski_ryzyko_akceptacja', 0) if aml_stats.get else (aml_stats.niski_ryzyko_akceptacja or 0) }}</span>
             <span class="text-[10px] uppercase font-bold">🟢 Czystych</span>
           </div>
           <div class="p-2.5 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">
-            <span class="text-xl font-bold block">{{ aml_stats.srednie_ryzyko_uwaga }}</span>
+            <span class="text-xl font-bold block">{{ aml_stats.get('srednie_ryzyko_uwaga', 0) if aml_stats.get else (aml_stats.srednie_ryzyko_uwaga or 0) }}</span>
             <span class="text-[10px] uppercase font-bold">🟡 Uwagi</span>
           </div>
           <div class="p-2.5 bg-red-50 text-red-800 rounded-lg border border-red-200">
-            <span class="text-xl font-bold block">{{ aml_stats.krytyczne_stop_sankcje }}</span>
+            <span class="text-xl font-bold block">{{ aml_stats.get('krytyczne_stop_sankcje', 0) if aml_stats.get else (aml_stats.krytyczne_stop_sankcje or 0) }}</span>
             <span class="text-[10px] uppercase font-bold">🔴 Sankcje</span>
           </div>
         </div>
-        {% if aml_stats.bledy_polaczenia_offline > 0 %}
+        <!-- Status Weryfikacji Kont Bankowych (Biała Lista) -->
+        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-center justify-between">
+          <span class="flex items-center space-x-1 font-medium">
+            <span>🏦 Rachunki na Białej Liście:</span>
+          </span>
+          <span class="font-mono text-xs">
+            {% if aml_stats and aml_stats.get('rachunki_sprawdzone', 0) > 0 %}
+              <span class="text-emerald-700 font-bold">✅ {{ aml_stats.get('rachunki_zgodne', 0) }} zgodnych</span>
+              {% if aml_stats.get('rachunki_niezgodne', 0) > 0 %}
+                <span class="text-amber-600 font-bold ml-1">/ ⚠️ {{ aml_stats.get('rachunki_niezgodne', 0) }} poza listą</span>
+              {% endif %}
+            {% else %}
+              <span class="text-slate-400">Brak rachunków w dokumentach</span>
+            {% endif %}
+          </span>
+        </div>
+
+        {% if aml_stats.get and aml_stats.get('bledy_polaczenia_offline', 0) > 0 %}
           <div class="p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center space-x-2">
             <span>⚠️</span>
-            <span>Wykryto <strong>{{ aml_stats.bledy_polaczenia_offline }}</strong> weryfikacji offline (błąd połączenia z API MF). Zalecane ponowienie online.</span>
+            <span>Wykryto <strong>{{ aml_stats.get('bledy_polaczenia_offline', 0) }}</strong> weryfikacji offline (błąd połączenia z API MF). Zalecane ponowienie online.</span>
           </div>
         {% endif %}
       {% else %}
         <p class="text-xs text-slate-500 py-3">Brak danych weryfikacji AML za ten miesiąc.</p>
       {% endif %}
       <div class="pt-2 flex justify-between items-center text-xs text-slate-500">
-        <span>Zweryfikowano łącznie: <strong>{{ aml_stats.lacznie_kontrahentow if aml_stats else 0 }}</strong></span>
+        <span>Zweryfikowano łącznie: <strong>{{ aml_stats.get('lacznie_kontrahentow', 0) if aml_stats and aml_stats.get else (aml_stats.lacznie_kontrahentow if aml_stats else 0) }}</strong></span>
         <a href="/aml" class="text-blue-600 font-semibold underline">Generuj raport PDF</a>
       </div>
     </div>

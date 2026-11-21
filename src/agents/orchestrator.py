@@ -123,7 +123,7 @@ AGENT_TOOL_DECLARATIONS = [
                 "forma_opodatkowania": {"type": "string", "enum": ["RYCZALT", "LINIOWY", "SKALA"], "default": "RYCZALT"},
                 "stawka_ryczaltu": {"type": "number", "description": "Domyślna stawka ryczałtu (np. 0.12 dla IT)", "default": 0.12},
                 "platnik_vat": {"type": "boolean", "default": True},
-                "zus_typ": {"type": "string", "enum": ["PELNY_ZUS", "MALY_ZUS_PLUS", "ULGA_NA_START"], "default": "PELNY_ZUS"},
+                "zus_typ": {"type": "string", "enum": ["PELNY_ZUS", "MALY_ZUS_PLUS", "ULGA_NA_START", "TYLKO_ZDROWOTNA"], "default": "PELNY_ZUS"},
                 "chorobowe_dobrowolne": {"type": "boolean", "default": True},
                 "kody_pkd": {"type": "array", "items": {"type": "string"}, "description": "Lista kodów PKD (np. ['62.01.Z', '62.02.Z'])"},
                 "token_ksef": {"type": "string", "description": "Opcjonalny token KSeF podany przez użytkownika"},

@@ -15,6 +15,7 @@ from src.web.dependencies import get_global_context
 from src.skills.tax_advisor_tools import (
     simulate_tax_regimes,
     audit_expense_leaks,
+    get_annual_financial_summary,
     TaxRegimeComparison,
     ExpenseAuditResult,
 )
@@ -34,32 +35,26 @@ def clean_decimal(val: Any, default: str = "0.00") -> Decimal:
 
 
 @router.get("/doradca", response_class=HTMLResponse)
-async def advisor_dashboard(request: Request):
+async def advisor_dashboard(
+    request: Request,
+    symuluj: Optional[str] = Query(None),
+):
     """Główny widok Doradcy Podatkowego."""
     ctx = get_global_context(request)
     profile = ctx["profile"]
     rok = ctx["rok"]
     miesiac = ctx["miesiac"]
 
-    # Domyślne wartości z bieżącego rozliczenia lub profilu firmy
-    settlement = load_settlement_data(profile, rok, miesiac) if profile else None
+    # Pobierz deterministyczne podsumowanie za cały rok podatkowy (lub poprzedni rok w razie stycznia/braku danych)
+    annual_summary = get_annual_financial_summary(profile, rok, miesiac)
 
-    if settlement and settlement.get("ewidencja"):
-        msc_netto = clean_decimal(
-            settlement["ewidencja"]
-            .get("ewidencja_przychodow", {})
-            .get("laczny_przychod_netto", "20000.00")
-        )
-        msc_koszt = clean_decimal(
-            settlement["ewidencja"]
-            .get("rejestr_vat_zakupow", {})
-            .get("suma_netto", "2000.00")
-        )
-        roczny_przychod = msc_netto * Decimal("12")
-        roczny_koszt = msc_koszt * Decimal("12")
+    czy_symuluj_pelny = (symuluj in ["1", "true", "True"])
+    if czy_symuluj_pelny and annual_summary["can_extrapolate"]:
+        roczny_przychod = annual_summary["extrapolated_przychod"]
+        roczny_koszt = annual_summary["extrapolated_koszt"]
     else:
-        roczny_przychod = Decimal("240000.00")
-        roczny_koszt = Decimal("24000.00")
+        roczny_przychod = annual_summary["actual_przychod"]
+        roczny_koszt = annual_summary["actual_koszt"]
 
     stawka_ryczaltu = Decimal(str(profile.domyslna_stawka_ryczaltu if profile else "0.12"))
 
@@ -81,6 +76,8 @@ async def advisor_dashboard(request: Request):
     ctx["przychod"] = roczny_przychod
     ctx["koszt"] = roczny_koszt
     ctx["stawka_ryczaltu"] = stawka_ryczaltu
+    ctx["annual_summary"] = annual_summary
+    ctx["is_extrapolated"] = czy_symuluj_pelny
     ctx["active_tab"] = "advisor"
 
     return templates.TemplateResponse(request=request, name="pages/advisor.html", context=ctx)

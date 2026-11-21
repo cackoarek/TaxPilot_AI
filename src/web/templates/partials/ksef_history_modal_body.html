@@ -1,0 +1,43 @@
+<!-- Fragment tabeli historii synchronizacji KSeF: partials/ksef_history_modal_body.html -->
+<div id="ksef-history-modal-body" class="flex-1 overflow-y-auto">
+  {% if sync_history %}
+    <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+      <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+        <tr>
+          <th class="p-2.5">Data i czas</th>
+          <th class="p-2.5">Okres</th>
+          <th class="p-2.5">Środowisko</th>
+          <th class="p-2.5">Status</th>
+          <th class="p-2.5 text-right">Sprzedaż</th>
+          <th class="p-2.5 text-right">Koszty</th>
+          <th class="p-2.5">Komunikat</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for h in sync_history %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-2.5 font-mono text-slate-600">{{ h.timestamp }}</td>
+            <td class="p-2.5 font-mono text-slate-700 font-semibold">{{ h.okres }}</td>
+            <td class="p-2.5">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {% if h.srodowisko == 'PROD' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                {{ h.srodowisko }}
+              </span>
+            </td>
+            <td class="p-2.5">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {% if h.status == 'SUKCES' %}bg-emerald-100 text-emerald-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                {{ h.status }}
+              </span>
+            </td>
+            <td class="p-2.5 text-right font-mono font-medium text-emerald-700">{{ h.lacznie_sprzedaz }}</td>
+            <td class="p-2.5 text-right font-mono font-medium text-blue-700">{{ h.lacznie_kosztow }}</td>
+            <td class="p-2.5 text-slate-500 text-[11px] truncate max-w-xs" title="{{ h.komunikat }}">{{ h.komunikat }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="p-8 text-center text-slate-400 italic">
+      Brak odnotowanych prób synchronizacji dla tej firmy.
+    </div>
+  {% endif %}
+</div>

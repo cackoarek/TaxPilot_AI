@@ -1,54 +1,411 @@
-<!-- Fragment wiersza kosztowego: partials/expense_row.html -->
-<tr id="expense-row-{{ item.lp }}" class="hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs">
-  <td class="p-3 text-slate-400 font-mono text-center">{{ item.lp }}</td>
-  <td class="p-3 font-mono text-slate-600 whitespace-nowrap">{{ item.data }}</td>
-  <td class="p-3 font-mono font-medium text-slate-800">{{ item.numer }}</td>
-  <td class="p-3">
-    <div class="font-bold text-slate-900 truncate max-w-xs">{{ item.sprzedawca_nazwa }}</div>
-    <div class="text-[10px] text-slate-400 font-mono">NIP: {{ item.sprzedawca_nip }} • {{ item.zrodlo }}</div>
-  </td>
-  <td class="p-3 text-slate-600 truncate max-w-xs" title="{{ item.glowny_przedmiot }}">
-    {{ item.glowny_przedmiot }}
-  </td>
-  <td class="p-3 font-mono text-right font-semibold text-slate-900">
-    {{ "%.2f"|format(item.kwota_netto) }} zł
-  </td>
-  <td class="p-3 font-mono text-right text-slate-600">
-    {{ "%.2f"|format(item.kwota_vat) }} zł
-  </td>
-  
-  <!-- Dynamiczny selektor kwalifikacji HTMX -->
-  <td class="p-3">
-    <form class="inline-block" hx-post="/api/costs/qualify?lp={{ item.lp }}&numer={{ item.numer }}" hx-target="#expense-row-{{ item.lp }}" hx-swap="outerHTML">
-      <input type="hidden" name="sprzedawca_nip" value="{{ item.sprzedawca_nip }}">
-      <input type="hidden" name="opis" value="{{ item.glowny_przedmiot }}">
-      <select name="kwalifikacja" onchange="this.form.requestSubmit()"
-              class="text-xs font-semibold rounded-lg px-2.5 py-1 border 
-                     {% if '100%' in item.kwalifikacja_podatkowa or 'FIRMOWY' in item.kwalifikacja_podatkowa %}bg-emerald-50 text-emerald-800 border-emerald-300
-                     {% elif '50%' in item.kwalifikacja_podatkowa or 'SAMOCHOD' in item.kwalifikacja_podatkowa %}bg-blue-50 text-blue-800 border-blue-300
-                     {% elif '0%' in item.kwalifikacja_podatkowa or 'PRYWATNY' in item.kwalifikacja_podatkowa %}bg-slate-100 text-slate-600 border-slate-300
-                     {% else %}bg-amber-50 text-amber-800 border-amber-300 animate-pulse{% endif %}
-                     focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
-        <option value="FIRMOWY_100" {% if '100%' in item.kwalifikacja_podatkowa or 'FIRMOWY' in item.kwalifikacja_podatkowa %}selected{% endif %}>
-          ✅ 100% Firmowy (Pełny VAT)
-        </option>
-        <option value="SAMOCHOD_50" {% if '50%' in item.kwalifikacja_podatkowa or 'SAMOCHOD' in item.kwalifikacja_podatkowa %}selected{% endif %}>
-          🚗 Samochód 50% (art. 86a)
-        </option>
-        <option value="PRYWATNY_0" {% if '0%' in item.kwalifikacja_podatkowa or 'PRYWATNY' in item.kwalifikacja_podatkowa %}selected{% endif %}>
-          ⛔ 0% Prywatny (Bez odliczenia)
-        </option>
-      </select>
-    </form>
-  </td>
+<!-- Blok faktury kosztowej: partials/expense_row.html -->
+{% set has_do_wyjasnienia = item.wymaga_zatwierdzenia or 'DO_WYJASNIENIA' in item.kwalifikacja_podatkowa or 'Wymaga' in item.kwalifikacja_podatkowa or (item.pozycje and item.pozycje|selectattr('kwalifikacja', 'equalto', 'DO_WYJASNIENIA')|list|length > 0) or (item.pozycje and item.pozycje|selectattr('wymaga_zatwierdzenia', 'equalto', True)|list|length > 0) %}
+<tbody id="expense-block-{{ item.lp }}" class="divide-y divide-slate-100 border-b border-slate-200">
 
-  <!-- Status AML -->
-  <td class="p-3 text-center whitespace-nowrap">
-    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold 
-                 {% if 'Czysty' in item.status_aml or 'Niskie' in item.status_aml %}bg-emerald-100 text-emerald-800
-                 {% elif 'Błąd sieci' in item.status_aml %}bg-amber-100 text-amber-800
-                 {% else %}bg-slate-100 text-slate-700{% endif %}">
-      {{ item.status_aml }}
-    </span>
-  </td>
-</tr>
+  <!-- ======================================================== -->
+  <!-- 1. WIERSZ GŁÓWNY (AGREGACJA FAKTURY)                     -->
+  <!-- ======================================================== -->
+  <tr id="expense-row-{{ item.lp }}" 
+      class="{% if has_do_wyjasnienia and not item.zatwierdzony %}bg-amber-50/80 border-l-4 border-l-amber-500 font-medium
+             {% elif item.pozycje and item.pozycje|length > 1 %}bg-slate-50/80 font-medium
+             {% else %}hover:bg-slate-50{% endif %} transition-colors text-xs">
+    
+    <!-- LP -->
+    <td class="p-3 text-slate-400 font-mono text-center font-bold">
+      {{ item.lp }}
+    </td>
+
+    <!-- Data -->
+    <td class="p-3 font-mono text-slate-600 whitespace-nowrap">
+      {{ item.data }}
+    </td>
+
+    <!-- Numer Faktury + Badge -->
+    <td class="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+      <div class="flex items-center space-x-1.5">
+        <span>{{ item.numer }}</span>
+        {% if item.pozycje and item.pozycje|length > 1 %}
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800" title="Faktura wielopozycyjna">
+            📋 {{ item.pozycje|length }} poz.
+          </span>
+        {% endif %}
+      </div>
+      <div class="text-[10px] text-slate-400 font-normal">
+        Źródło: {{ item.zrodlo }}
+      </div>
+    </td>
+
+    <!-- Sprzedawca -->
+    <td class="p-3">
+      <div class="font-bold text-slate-900 truncate max-w-xs">{{ item.sprzedawca_nazwa }}</div>
+      <div class="text-[10px] text-slate-400 font-mono">NIP: {{ item.sprzedawca_nip }}</div>
+    </td>
+
+    <!-- Przedmiot Wydatku & Zasadność Biznesowa -->
+    <td class="p-3 max-w-xs">
+      <div class="text-slate-800 font-medium truncate" title="{{ item.glowny_przedmiot }}">
+        {{ item.glowny_przedmiot }}
+      </div>
+      
+      <!-- Porada Księgowa AI (jeśli wygenerowano) -->
+      {% if item.ai_porada and not item.zatwierdzony %}
+        <div class="text-[11px] text-indigo-950 font-medium mt-1.5 p-2 bg-indigo-50/90 rounded-lg border border-indigo-200 shadow-2xs space-y-1">
+          <div class="flex items-center space-x-1.5 font-bold text-indigo-900 text-[10px] uppercase tracking-wide">
+            <span>💡 Porada Księgowa AI:</span>
+            {% if item.ai_sugestia %}
+              <span class="px-1.5 py-0.2 rounded bg-indigo-200/70 text-indigo-800 font-mono">
+                Sugestia: {{ '100% Firmowy' if item.ai_sugestia == 'FIRMOWY_100' else ('50% Samochód' if item.ai_sugestia == 'SAMOCHOD_50' else '0% Prywatny') }}
+              </span>
+            {% endif %}
+          </div>
+          <p class="text-indigo-900 leading-relaxed text-[11px]">{{ item.ai_porada }}</p>
+        </div>
+      {% elif has_do_wyjasnienia and not item.zatwierdzony %}
+        <div class="text-[11px] text-amber-900 font-bold mt-1 p-1.5 bg-amber-100/90 rounded border border-amber-300 flex items-start space-x-1">
+          <span class="text-amber-700">⚠️</span>
+          <span>{{ item.zasadnosc_opis or 'Wymaga wyjaśnienia przed zaksięgowaniem – wskaż cel gospodarczy lub potwierdź wydatek.' }}</span>
+        </div>
+      {% elif item.zasadnosc_opis %}
+        <div class="text-[10px] text-slate-500 mt-0.5 italic flex items-center space-x-1">
+          <span class="text-xs">💡</span>
+          <span class="truncate" title="{{ item.zasadnosc_opis }}">{{ item.zasadnosc_opis }}</span>
+        </div>
+      {% endif %}
+    </td>
+
+    <!-- Kwota Netto -->
+    <td class="p-3 font-mono text-right font-bold text-slate-900 whitespace-nowrap">
+      {{ "%.2f"|format(item.kwota_netto) }} zł
+      {% if item.odrzucone_netto_prywatne and item.odrzucone_netto_prywatne > 0 %}
+        <div class="text-[10px] text-rose-600 font-normal" title="Część wykluczona z KUP">
+          ⛔ {{ "%.2f"|format(item.kwalifikowane_netto) }} zł KUP
+        </div>
+      {% endif %}
+    </td>
+
+    <!-- Kwota VAT i Kwalifikowany VAT -->
+    <td class="p-3 font-mono text-right whitespace-nowrap">
+      <div class="font-bold text-slate-900">
+        {{ "%.2f"|format(item.kwota_vat) }} zł
+      </div>
+      <div class="text-[10px] font-semibold 
+                  {% if item.odrzucony_vat_prywatny and item.odrzucony_vat_prywatny > 0 %}text-amber-700
+                  {% elif '50%' in item.kwalifikacja_podatkowa %}text-blue-700
+                  {% else %}text-emerald-700{% endif %}">
+        Odliczenie: <strong>{{ "%.2f"|format(item.kwalifikowany_vat) }} zł</strong>
+      </div>
+    </td>
+    
+    <!-- Kwalifikacja & Akcje (Zespolona, kompaktowa kolumna) -->
+    <td class="p-3 text-center whitespace-nowrap">
+      <div class="flex flex-col items-center justify-center space-y-1.5">
+        {% if item.pozycje and item.pozycje|length > 1 %}
+          <!-- Faktura wielopozycyjna: Status zbiorczy agregacji -->
+          <div class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg border text-xs font-bold
+                      {% if item.kwalifikacja_kod == 'MIESZANA' or 'Mieszana' in item.kwalifikacja_podatkowa %}bg-purple-50 text-purple-800 border-purple-300
+                      {% elif item.kwalifikacja_kod == 'FIRMOWY_100' or '100%' in item.kwalifikacja_podatkowa %}bg-emerald-50 text-emerald-800 border-emerald-300
+                      {% elif item.kwalifikacja_kod == 'SAMOCHOD_50' or '50%' in item.kwalifikacja_podatkowa %}bg-blue-50 text-blue-800 border-blue-300
+                      {% elif item.kwalifikacja_kod == 'PRYWATNY_0' or 'Prywatny' in item.kwalifikacja_podatkowa or '(0%' in item.kwalifikacja_podatkowa %}bg-rose-50 text-rose-800 border-rose-300
+                      {% else %}bg-amber-100 text-amber-900 border-amber-300 animate-pulse{% endif %}">
+            <span>{{ item.kwalifikacja_podatkowa }}</span>
+          </div>
+        {% else %}
+          <!-- Faktura jednopozycyjna: Selektor inline HTMX + Dedykowany przycisk reguły -->
+          <div class="flex items-center space-x-1.5">
+            <form class="inline-block" 
+                  hx-post="/api/costs/qualify?lp={{ item.lp }}&numer={{ item.numer|urlencode }}" 
+                  hx-target="#expense-block-{{ item.lp }}" 
+                  hx-swap="outerHTML">
+              <input type="hidden" name="sprzedawca_nip" value="{{ item.sprzedawca_nip }}">
+              <input type="hidden" name="opis" value="{{ item.glowny_przedmiot }}">
+              <select name="kwalifikacja" onchange="this.form.requestSubmit()"
+                      class="text-xs font-semibold rounded-lg px-2.5 py-1 border 
+                             {% if item.kwalifikacja_kod == 'FIRMOWY_100' or (not item.kwalifikacja_kod and ('100%' in item.kwalifikacja_podatkowa or 'FIRMOWY' in item.kwalifikacja_podatkowa)) %}bg-emerald-50 text-emerald-800 border-emerald-300
+                             {% elif item.kwalifikacja_kod == 'SAMOCHOD_50' or (not item.kwalifikacja_kod and ('50%' in item.kwalifikacja_podatkowa or 'SAMOCHOD' in item.kwalifikacja_podatkowa)) %}bg-blue-50 text-blue-800 border-blue-300
+                             {% elif item.kwalifikacja_kod == 'PRYWATNY_0' or (not item.kwalifikacja_kod and ('Prywatny' in item.kwalifikacja_podatkowa or 'PRYWATNY' in item.kwalifikacja_podatkowa or '(0%' in item.kwalifikacja_podatkowa)) %}bg-slate-100 text-slate-600 border-slate-300
+                             {% else %}bg-amber-100 text-amber-900 border-amber-300 animate-pulse{% endif %}
+                             focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+                <option value="FIRMOWY_100" {% if item.kwalifikacja_kod == 'FIRMOWY_100' or (not item.kwalifikacja_kod and ('100%' in item.kwalifikacja_podatkowa or 'FIRMOWY' in item.kwalifikacja_podatkowa)) %}selected{% endif %}>
+                  ✅ 100% Firmowy (Pełny VAT)
+                </option>
+                <option value="SAMOCHOD_50" {% if item.kwalifikacja_kod == 'SAMOCHOD_50' or (not item.kwalifikacja_kod and ('50%' in item.kwalifikacja_podatkowa or 'SAMOCHOD' in item.kwalifikacja_podatkowa)) %}selected{% endif %}>
+                  🚗 Samochód 50% (art. 86a)
+                </option>
+                <option value="PRYWATNY_0" {% if item.kwalifikacja_kod == 'PRYWATNY_0' or (not item.kwalifikacja_kod and ('Prywatny' in item.kwalifikacja_podatkowa or 'PRYWATNY' in item.kwalifikacja_podatkowa or '(0%' in item.kwalifikacja_podatkowa)) %}selected{% endif %}>
+                  ⛔ 0% Prywatny (Bez odliczenia)
+                </option>
+              </select>
+            </form>
+
+            <!-- Dedykowany przycisk zapisu stałej reguły firmy -->
+            <form class="inline-block"
+                  hx-post="/api/rules/save-from-item"
+                  hx-target="#expense-block-{{ item.lp }}"
+                  hx-swap="outerHTML">
+              <input type="hidden" name="lp" value="{{ item.lp }}">
+              <input type="hidden" name="numer" value="{{ item.numer }}">
+              <input type="hidden" name="sprzedawca_nip" value="{{ item.sprzedawca_nip }}">
+              <input type="hidden" name="opis" value="{{ item.glowny_przedmiot }}">
+              <input type="hidden" name="kwalifikacja" value="{{ item.kwalifikacja_kod if item.kwalifikacja_kod in ['FIRMOWY_100', 'SAMOCHOD_50', 'PRYWATNY_0'] else ('FIRMOWY_100' if '100%' in item.kwalifikacja_podatkowa else ('SAMOCHOD_50' if '50%' in item.kwalifikacja_podatkowa else 'PRYWATNY_0')) }}">
+              <button type="submit"
+                      class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer inline-flex items-center space-x-1"
+                      title="Zapisz ten wydatek jako stałą regułę firmy w reguly_kosztowe.json">
+                <span>💾</span>
+                <span>Reguła</span>
+              </button>
+            </form>
+          </div>
+        {% endif %}
+
+        {% if regula_zapisana_msg %}
+          <div class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center space-x-1">
+            <span>✓</span>
+            <span>{{ regula_zapisana_msg }}</span>
+          </div>
+        {% endif %}
+
+        <!-- Przyciski akcji: Zatwierdź -->
+        {% if has_do_wyjasnienia and not item.zatwierdzony %}
+          <div class="flex items-center space-x-1.5 pt-0.5">
+            <button type="button"
+                    hx-post="/api/costs/approve?numer={{ item.numer|urlencode }}&lp={{ item.lp }}&kwalifikacja={{ item.kwalifikacja_kod }}"
+                    hx-target="#expense-block-{{ item.lp }}"
+                    hx-swap="outerHTML"
+                    class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
+                    title="Zatwierdź tę pozycję (usuwa oznaczenie 'Do wyjaśnienia')">
+              <span>✓</span>
+              <span>Zatwierdź</span>
+            </button>
+          </div>
+        {% elif item.zatwierdzony %}
+          <span class="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            <span>✓</span>
+            <span>Zatwierdzone</span>
+          </span>
+        {% endif %}
+
+        <!-- Przycisk Podglądu Faktury -->
+        <div class="flex items-center text-[10px]">
+          <button type="button"
+                  hx-get="/api/invoices/preview?numer={{ item.numer|urlencode }}&typ=koszt"
+                  hx-target="#invoice-modal-container"
+                  hx-swap="innerHTML"
+                  hx-select="#invoice-modal"
+                  onclick="openInvoiceModal()"
+                  class="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-semibold transition-colors cursor-pointer shadow-2xs inline-flex items-center space-x-1"
+                  title="Podejrzyj fakturę i surowy JSON/XML">
+            <span>👁️</span>
+            <span>Podgląd</span>
+          </button>
+        </div>
+      </div>
+    </td>
+
+  </tr>
+
+  <!-- ======================================================== -->
+  <!-- 2. ROZBICIE NA POZYCJE DLA FAKTUR WIELOPOZYCYJNYCH       -->
+  <!-- ======================================================== -->
+  {% if item.pozycje and item.pozycje|length > 1 %}
+    {% if item.pozycje|length > 5 %}
+      <!-- Pasek zbiorczej kwalifikacji dla faktur z > 5 pozycji -->
+      <tr class="bg-indigo-50/80 border-y border-indigo-200">
+        <td colspan="8" class="p-2.5 px-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center space-x-2">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-xs shadow-2xs">⚡</span>
+              <span class="text-xs font-bold text-indigo-950">
+                Faktura wielopozycyjna ({{ item.pozycje|length }} pozycji) – Zbiorcza kwalifikacja:
+              </span>
+              <span class="text-[11px] text-indigo-700 hidden sm:inline">
+                Ustaw dla wszystkich pozycji jednocześnie:
+              </span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button type="button"
+                      hx-post="/api/costs/qualify-all-items?numer={{ item.numer|urlencode }}&lp={{ item.lp }}&kwalifikacja=FIRMOWY_100"
+                      hx-target="#expense-block-{{ item.lp }}"
+                      hx-swap="outerHTML"
+                      class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
+                      title="Ustaw 100% Firmowy dla wszystkich {{ item.pozycje|length }} pozycji">
+                <span>✅</span>
+                <span>Wszystkie: 100%</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/costs/qualify-all-items?numer={{ item.numer|urlencode }}&lp={{ item.lp }}&kwalifikacja=SAMOCHOD_50"
+                      hx-target="#expense-block-{{ item.lp }}"
+                      hx-swap="outerHTML"
+                      class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
+                      title="Ustaw 50% Samochód dla wszystkich {{ item.pozycje|length }} pozycji">
+                <span>🚗</span>
+                <span>Wszystkie: 50%</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/costs/qualify-all-items?numer={{ item.numer|urlencode }}&lp={{ item.lp }}&kwalifikacja=PRYWATNY_0"
+                      hx-target="#expense-block-{{ item.lp }}"
+                      hx-swap="outerHTML"
+                      class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
+                      title="Ustaw 0% Prywatny dla wszystkich {{ item.pozycje|length }} pozycji">
+                <span>⛔</span>
+                <span>Wszystkie: 0%</span>
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    {% endif %}
+    {% for pos in item.pozycje %}
+      {% set pos_is_do_wyjasnienia = (pos.wymaga_zatwierdzenia or pos.kwalifikacja == 'DO_WYJASNIENIA' or 'Wymaga' in pos.kwalifikacja_label) and not pos.zatwierdzony %}
+      <tr class="{% if pos_is_do_wyjasnienia %}bg-amber-50/80 border-l-4 border-l-amber-500
+                 {% else %}bg-indigo-50/30 hover:bg-indigo-50/60{% endif %} transition-colors text-xs border-b border-indigo-100/50">
+        
+        <!-- Pod-LP -->
+        <td class="p-2.5 text-center font-mono text-[11px] text-indigo-400 font-semibold pl-6">
+          {{ item.lp }}.{{ loop.index }}
+        </td>
+
+        <!-- Data pozycji -->
+        <td class="p-2.5 text-slate-400 font-mono text-[11px]">
+          ↳ pozycja
+        </td>
+
+        <!-- Puste pod numerem -->
+        <td class="p-2.5 font-mono text-[11px] text-slate-400">
+          poz. {{ loop.index }} z {{ item.pozycje|length }}
+        </td>
+
+        <!-- Sprzedawca podgląd -->
+        <td class="p-2.5 text-slate-400 text-[11px] italic">
+          {{ item.sprzedawca_nazwa|truncate(25) }}
+        </td>
+
+        <!-- Opis Konkretnej Pozycji + Uzasadnienie / Pytanie -->
+        <td class="p-2.5 max-w-sm">
+          <div class="font-medium text-slate-900 flex items-center space-x-1">
+            {% if pos.kwalifikacja == 'PRYWATNY_0' %}
+              <span class="text-rose-600 font-bold" title="Pozycja wykluczona">⛔</span>
+            {% elif pos.kwalifikacja == 'SAMOCHOD_50' %}
+              <span class="text-blue-600" title="Pozycja samochodowa">🚗</span>
+            {% elif pos_is_do_wyjasnienia %}
+              <span class="text-amber-600 font-bold animate-pulse" title="Wymaga wyjaśnienia">⚠️</span>
+            {% else %}
+              <span class="text-emerald-600" title="Pozycja firmowa">✅</span>
+            {% endif %}
+            <span class="{% if pos.kwalifikacja == 'PRYWATNY_0' %}line-through text-slate-500{% elif pos_is_do_wyjasnienia %}font-bold text-amber-950{% endif %}">
+              {{ pos.opis }}
+            </span>
+          </div>
+
+          <!-- Porada Księgowa AI dla pozycji -->
+          {% if pos.ai_porada and not pos.zatwierdzony %}
+            <div class="text-[11px] text-indigo-950 font-medium mt-1 p-2 bg-indigo-50/90 rounded border border-indigo-200 shadow-2xs space-y-0.5">
+              <div class="flex items-center space-x-1 font-bold text-indigo-900 text-[10px] uppercase">
+                <span>💡 Porada Księgowa AI:</span>
+              </div>
+              <p class="text-indigo-900 text-[11px]">{{ pos.ai_porada }}</p>
+            </div>
+          {% elif pos_is_do_wyjasnienia %}
+            <div class="text-[11px] text-amber-900 font-bold mt-1 p-1.5 bg-amber-100/90 rounded border border-amber-300 flex items-start space-x-1">
+              <span>❓</span>
+              <span>{{ pos.uzasadnienie or 'Niejednoznaczna pozycja – wybierz czy wydatek dotyczy firmy czy jest prywatny.' }}</span>
+            </div>
+          {% elif pos.uzasadnienie %}
+            <div class="text-[10px] text-slate-500 italic mt-0.5">
+              {{ pos.uzasadnienie }}
+            </div>
+          {% endif %}
+        </td>
+
+        <!-- Netto Pozycji -->
+        <td class="p-2.5 font-mono text-right text-slate-700 text-xs font-semibold">
+          {{ "%.2f"|format(pos.wartosc_netto) }} zł
+        </td>
+
+        <!-- VAT Pozycji i Kwota Odliczenia -->
+        <td class="p-2.5 font-mono text-right text-xs">
+          <div class="text-slate-500 text-[11px]">
+            {{ pos.stawka_vat }}% • {{ "%.2f"|format(pos.kwota_vat) }} zł
+          </div>
+          <div class="font-semibold {% if pos.kwalifikacja == 'PRYWATNY_0' %}text-rose-600{% elif pos_is_do_wyjasnienia %}text-amber-800{% else %}text-emerald-700{% endif %}">
+            Odlicz: {{ "%.2f"|format(pos.vat_do_odliczenia) }} zł
+          </div>
+        </td>
+
+        <!-- Kwalifikacja konkretnej pozycji & Akcja -->
+        <td class="p-2.5 text-center whitespace-nowrap">
+          <div class="flex flex-col items-center justify-center space-y-1">
+            <div class="flex items-center space-x-1">
+              <form class="inline-block" 
+                    hx-post="/api/costs/qualify-item?numer={{ item.numer|urlencode }}&item_idx={{ loop.index0 }}&lp={{ item.lp }}" 
+                    hx-target="#expense-block-{{ item.lp }}" 
+                    hx-swap="outerHTML">
+                <input type="hidden" name="opis" value="{{ pos.opis }}">
+                <input type="hidden" name="sprzedawca_nip" value="{{ item.sprzedawca_nip }}">
+                
+                <select name="kwalifikacja" onchange="this.form.requestSubmit()"
+                        class="text-[11px] font-semibold rounded-md px-2 py-1 border 
+                               {% if pos.kwalifikacja == 'FIRMOWY_100' %}bg-emerald-50 text-emerald-800 border-emerald-300
+                               {% elif pos.kwalifikacja == 'SAMOCHOD_50' %}bg-blue-50 text-blue-800 border-blue-300
+                               {% elif pos.kwalifikacja == 'PRYWATNY_0' %}bg-rose-50 text-rose-800 border-rose-300 font-bold
+                               {% else %}bg-amber-100 text-amber-900 border-amber-300 font-bold animate-pulse{% endif %}
+                               focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+                  <option value="FIRMOWY_100" {% if pos.kwalifikacja == 'FIRMOWY_100' %}selected{% endif %}>
+                    ✅ 100% Firmowy
+                  </option>
+                  <option value="SAMOCHOD_50" {% if pos.kwalifikacja == 'SAMOCHOD_50' %}selected{% endif %}>
+                    🚗 50% Samochód
+                  </option>
+                  <option value="PRYWATNY_0" {% if pos.kwalifikacja == 'PRYWATNY_0' %}selected{% endif %}>
+                    ⛔ 0% Prywatny (Wyklucz)
+                  </option>
+                </select>
+              </form>
+
+              <!-- Dedykowany przycisk zapisu stałej reguły firmy dla pozycji -->
+              <form class="inline-block"
+                    hx-post="/api/rules/save-from-item"
+                    hx-target="#expense-block-{{ item.lp }}"
+                    hx-swap="outerHTML">
+                <input type="hidden" name="lp" value="{{ item.lp }}">
+                <input type="hidden" name="numer" value="{{ item.numer }}">
+                <input type="hidden" name="sprzedawca_nip" value="{{ item.sprzedawca_nip }}">
+                <input type="hidden" name="opis" value="{{ pos.opis }}">
+                <input type="hidden" name="kwalifikacja" value="{{ pos.kwalifikacja if pos.kwalifikacja in ['FIRMOWY_100', 'SAMOCHOD_50', 'PRYWATNY_0'] else 'FIRMOWY_100' }}">
+                <button type="submit"
+                        class="px-1.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded text-[10px] font-bold transition-colors cursor-pointer inline-flex items-center space-x-0.5"
+                        title="Zapisz tę pozycję jako stałą regułę firmy w reguly_kosztowe.json">
+                  <span>💾</span>
+                  <span>Reguła</span>
+                </button>
+              </form>
+            </div>
+
+            {% if pos_is_do_wyjasnienia %}
+              <div class="flex items-center space-x-1 pt-0.5">
+                <button type="button"
+                        hx-post="/api/costs/approve-item?numer={{ item.numer|urlencode }}&item_idx={{ loop.index0 }}&lp={{ item.lp }}&opis={{ pos.opis|urlencode }}&kwalifikacja={{ pos.kwalifikacja }}"
+                        hx-target="#expense-block-{{ item.lp }}"
+                        hx-swap="outerHTML"
+                        class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer flex items-center space-x-1"
+                        title="Zatwierdź tę pozycję">
+                  <span>✓</span>
+                  <span>Zatwierdź</span>
+                </button>
+              </div>
+            {% elif pos.zatwierdzony %}
+              <span class="text-[10px] font-bold text-emerald-700">✓ Zatwierdzona</span>
+            {% endif %}
+
+            <span class="text-[10px] font-mono text-slate-400">{{ pos.zrodlo_decyzji }}</span>
+          </div>
+        </td>
+
+      </tr>
+    {% endfor %}
+  {% endif %}
+
+</tbody>
+
+{% if include_summary_oob and review %}
+  {% include "partials/costs_summary.html" %}
+{% endif %}

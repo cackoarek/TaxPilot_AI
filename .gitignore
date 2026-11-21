@@ -34,6 +34,10 @@ ENV/
 .coverage
 htmlcov/
 
+# Logs
+*.log
+taxpilot.log
+
 # Analysis
 /analysis/
 

@@ -1,0 +1,18 @@
+{
+  "2025": {
+    "rok": "2025",
+    "podstawa_pelny_zus": "5203.80",
+    "podstawa_preferencyjny_zus": "1399.80",
+    "przecietne_wynagrodzenie_zdrowotna": "8549.18",
+    "zrodlo": "OFICJALNE_GUS",
+    "ostrzezenie": null
+  },
+  "2026": {
+    "rok": "2026",
+    "podstawa_pelny_zus": "5652.00",
+    "podstawa_preferencyjny_zus": "1441.80",
+    "przecietne_wynagrodzenie_zdrowotna": "9228.64",
+    "zrodlo": "OFICJALNE_GUS",
+    "ostrzezenie": null
+  }
+}

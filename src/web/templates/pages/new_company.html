@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Dodaj nową firmę do księgowania – TaxPilot AI{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6" x-data="{
+  forma: '{{ form_data.forma_opodatkowania or 'RYCZALT' }}',
+  loadingMf: false,
+  lookupStatus: '',
+  lookupError: '',
+  lookupSource: '',
+  fetchMfData() {
+    const nipVal = document.getElementById('nip_input').value.replace(/[^0-9]/g, '');
+    if (nipVal.length !== 10) {
+      this.lookupError = 'Wpisz poprawny 10-cyfrowy NIP przed pobraniem danych.';
+      this.lookupStatus = '';
+      return;
+    }
+    this.loadingMf = true;
+    this.lookupStatus = '';
+    this.lookupError = '';
+    
+    fetch('/firmy/lookup-nip?nip=' + encodeURIComponent(nipVal), {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      this.loadingMf = false;
+      if (data.success && data.data) {
+        const d = data.data;
+        if (d.nazwa) document.getElementById('nazwa_input').value = d.nazwa;
+        if (d.adres) document.getElementById('adres_input').value = d.adres;
+        if (d.regon) document.getElementById('regon_input').value = d.regon;
+        if (d.kody_pkd) document.getElementById('kody_pkd_input').value = d.kody_pkd;
+        
+        const vatCheckbox = document.getElementById('platnik_vat_input');
+        if (vatCheckbox) vatCheckbox.checked = d.platnik_vat;
+        
+        this.lookupStatus = 'Pomyślnie pobrano oficjalne dane z rejestru: ' + (d.zrodlo || 'Biała Lista MF');
+        this.lookupSource = d.status_vat || 'Czynny podatnik VAT';
+      } else {
+        this.lookupError = data.error || 'Nie znaleziono firmy w publicznym wykazie MF/CEIDG. Możesz wpisać dane ręcznie.';
+      }
+    })
+    .catch(err => {
+      this.loadingMf = false;
+      this.lookupError = 'Błąd połączenia z rejestrem MF (tryb offline / brak sieci). Wpisz dane firmy ręcznie.';
+    });
+  }
+}">
+
+  <!-- Breadcrumbs & Nagłówek -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+        <a href="/" class="hover:text-blue-600 transition-colors">Pulpit</a>
+        <span>/</span>
+        <span class="text-slate-700 font-semibold">Dodaj nową firmę</span>
+      </div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center space-x-2">
+        <span class="text-blue-600">🏢</span>
+        <span>Dodaj nową firmę do księgowania</span>
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">
+        Skonfiguruj profil jednoosobowej działalności gospodarczej (JDG), formę opodatkowania, parametry ZUS oraz integrację KSeF 2.0.
+      </p>
+    </div>
+    
+    <a href="/" class="inline-flex items-center text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors self-start">
+      ← Wróć do pulpitu
+    </a>
+  </div>
+
+  <!-- Komunikaty Błędów / Sukcesu -->
+  {% if error_message %}
+  <div class="bg-rose-50 border border-rose-200 text-rose-900 px-4 py-3 rounded-2xl flex items-start space-x-3 text-xs shadow-xs animate-fade-in">
+    <span class="text-rose-500 text-lg">⚠️</span>
+    <div class="flex-1">
+      <h4 class="font-bold text-rose-950">Wystąpił problem przy tworzeniu firmy</h4>
+      <p class="mt-0.5 text-rose-800">{{ error_message }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Główny Formularz Onboardingu Firmy -->
+  <form action="/firmy/nowa" method="POST" class="space-y-6">
+
+    <!-- Sekcja 1: Dane Rejestrowe & Auto-Lookup -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">1</span>
+          <h2 class="text-sm font-bold text-slate-900">Dane Rejestrowe z Ministerstwa Finansów (MF) i CEIDG</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">Rejestry Publiczne</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label for="nip_input" class="block text-xs font-bold text-slate-700 mb-1">
+            Numer NIP działalności <span class="text-rose-500">*</span>
+          </label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <input type="text" 
+                     id="nip_input" 
+                     name="nip" 
+                     required
+                     maxlength="13"
+                     value="{{ form_data.nip }}"
+                     placeholder="np. 7770001122" 
+                     @keydown.enter.prevent="fetchMfData()"
+                     class="w-full px-3.5 py-2 text-sm font-mono font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+            </div>
+            <button type="button" 
+                    @click="fetchMfData()" 
+                    :disabled="loadingMf"
+                    class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50">
+              <span x-show="!loadingMf">🔍 Pobierz dane z MF / CEIDG</span>
+              <span x-show="loadingMf" x-cloak class="inline-flex items-center space-x-1">
+                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>Odpytywanie rejestrów...</span>
+              </span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">
+            Wpisz 10 cyfr i kliknij przycisk – pobierzemy oficjalną nazwę, adres, REGON i status VAT prosto z Białej Listy MF.
+          </p>
+
+          <!-- Baner statusu wyszukiwania MF -->
+          <div x-show="lookupStatus" x-cloak class="mt-2.5 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span>✅</span>
+              <span x-text="lookupStatus" class="font-semibold"></span>
+            </div>
+            <span x-text="lookupSource" class="bg-emerald-200/70 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full"></span>
+          </div>
+
+          <div x-show="lookupError" x-cloak class="mt-2.5 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center space-x-2">
+            <span>ℹ️</span>
+            <span x-text="lookupError"></span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div>
+            <label for="nazwa_input" class="block text-xs font-bold text-slate-700 mb-1">
+              Pełna oficjalna nazwa firmy <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" 
+                   id="nazwa_input" 
+                   name="nazwa" 
+                   required
+                   value="{{ form_data.nazwa }}"
+                   placeholder="np. CloudTech Solutions Jan Kowalski" 
+                   class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          </div>
+
+          <div>
+            <label for="regon_input" class="block text-xs font-bold text-slate-700 mb-1">
+              Numer REGON
+            </label>
+            <input type="text" 
+                   id="regon_input" 
+                   name="regon" 
+                   maxlength="14"
+                   value="{{ form_data.regon }}"
+                   placeholder="np. 389123456" 
+                   class="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+
+        <div>
+          <label for="adres_input" class="block text-xs font-bold text-slate-700 mb-1">
+            Adres rejestrowy (siedziba działalności)
+          </label>
+          <input type="text" 
+                 id="adres_input" 
+                 name="adres" 
+                 value="{{ form_data.adres }}"
+                 placeholder="np. ul. Roosevelta 22, 60-829 Poznań" 
+                 class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 2: Forma Opodatkowania & Podatek VAT -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">2</span>
+          <h2 class="text-sm font-bold text-slate-900">Forma Opodatkowania & Podatek VAT</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">Podatki Dochód / VAT</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-2">
+            Wybierz formę opodatkowania dochodu:
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            
+            <!-- Ryczałt -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition-all"
+                   :class="forma === 'RYCZALT' ? 'border-blue-600 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">Ryczałt ewidencjonowany</span>
+                <input type="radio" name="forma_opodatkowania" value="RYCZALT" x-model="forma" class="text-blue-600 focus:ring-blue-500">
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1">PIT-28 (najpopularniejszy dla IT i B2B)</span>
+              <span class="text-[10px] text-blue-700 font-semibold mt-2 inline-block">Rekomendowane</span>
+            </label>
+
+            <!-- Liniowy -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition-all"
+                   :class="forma === 'LINIOWY' ? 'border-blue-600 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">Podatek Liniowy</span>
+                <input type="radio" name="forma_opodatkowania" value="LINIOWY" x-model="forma" class="text-blue-600 focus:ring-blue-500">
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1">Stała stawka 19% od dochodu (PIT-36L)</span>
+            </label>
+
+            <!-- Skala -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition-all"
+                   :class="forma === 'SKALA' ? 'border-blue-600 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300 bg-white'">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">Skala Podatkowa</span>
+                <input type="radio" name="forma_opodatkowania" value="SKALA" x-model="forma" class="text-blue-600 focus:ring-blue-500">
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1">12% / 32% (Kwota wolna 30 000 zł)</span>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Domyślna stawka ryczałtu (widoczna gdy wybrano RYCZALT) -->
+        <div x-show="forma === 'RYCZALT'" x-transition class="p-3.5 bg-blue-50/50 rounded-xl border border-blue-100">
+          <label for="stawka_ryczaltu_select" class="block text-xs font-bold text-blue-900 mb-1">
+            Domyślna stawka ryczałtu dla Twoich usług:
+          </label>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <select id="stawka_ryczaltu_select" 
+                    name="domyslna_stawka_ryczaltu"
+                    class="px-3 py-2 text-xs font-bold bg-white border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800">
+              <option value="0.12" {% if form_data.domyslna_stawka_ryczaltu == '0.12' %}selected{% endif %}>12% – Usługi IT, programistyczne, architektura cloud, DevOps (PKWiU 62.01)</option>
+              <option value="0.085" {% if form_data.domyslna_stawka_ryczaltu == '0.085' %}selected{% endif %}>8.5% – Działalność usługowa ogólna, doradztwo operacyjne</option>
+              <option value="0.15" {% if form_data.domyslna_stawka_ryczaltu == '0.15' %}selected{% endif %}>15% – Pośrednictwo handlowe, zarządzanie i marketing</option>
+              <option value="0.17" {% if form_data.domyslna_stawka_ryczaltu == '0.17' %}selected{% endif %}>17% – Wolne zawody (adwokaci, lekarze, tłumacze)</option>
+              <option value="0.055" {% if form_data.domyslna_stawka_ryczaltu == '0.055' %}selected{% endif %}>5.5% – Wytwórczość, roboty budowlane</option>
+              <option value="0.03" {% if form_data.domyslna_stawka_ryczaltu == '0.03' %}selected{% endif %}>3% – Gastronomia i działalność handlowa</option>
+            </select>
+            <span class="text-[11px] text-blue-700">Dla poszczególnych kontrahentów możesz przypisać inne stawki w regułach sprzedaży.</span>
+          </div>
+        </div>
+
+        <!-- Checkbox VAT -->
+        <div class="pt-2">
+          <label class="flex items-start space-x-3 cursor-pointer select-none">
+            <input type="checkbox" 
+                   id="platnik_vat_input" 
+                   name="platnik_vat" 
+                   value="true"
+                   {% if form_data.platnik_vat %}checked{% endif %}
+                   class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 mt-0.5">
+            <div>
+              <span class="text-xs font-bold text-slate-800">Firma jest czynnym podatnikiem podatku VAT (VAT-7 / JPK_V7M)</span>
+              <p class="text-[11px] text-slate-500">
+                Zaznacz, jeśli wystawiasz faktury z podatkiem VAT i odliczasz VAT od wydatków firmowych. Odznacz, jeśli korzystasz ze zwolnienia podmiotowego (art. 113 ust. 1).
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 3: Schemat Składek ZUS -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">3</span>
+          <h2 class="text-sm font-bold text-slate-900">Ubezpieczenia Społeczne i Składka Zdrowotna ZUS</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">ZUS Podatnika</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="zus_typ_select" class="block text-xs font-bold text-slate-700 mb-1">
+              Aktualny schemat składek ZUS:
+            </label>
+            <select id="zus_typ_select" 
+                    name="zus_typ"
+                    class="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800">
+              <option value="PELNY_ZUS" {% if form_data.zus_typ == 'PELNY_ZUS' %}selected{% endif %}>Pełny ZUS (Duży ZUS – standardowa podstawa 60% prognozowanego)</option>
+              <option value="MALY_ZUS_PLUS" {% if form_data.zus_typ == 'MALY_ZUS_PLUS' %}selected{% endif %}>Mały ZUS Plus / Preferencyjny (obniżona podstawa 30% minimalnego)</option>
+              <option value="ULGA_NA_START" {% if form_data.zus_typ == 'ULGA_NA_START' %}selected{% endif %}>Ulga na Start (0 zł na składki społeczne przez pierwsze 6 miesięcy)</option>
+              <option value="TYLKO_ZDROWOTNA" {% if form_data.zus_typ == 'TYLKO_ZDROWOTNA' %}selected{% endif %}>Tylko Zdrowotna (np. zbieg tytułów, etat powyżej pensji minimalnej)</option>
+            </select>
+          </div>
+
+          <div class="flex items-center pt-5 sm:pt-4">
+            <label class="flex items-start space-x-3 cursor-pointer select-none">
+              <input type="checkbox" 
+                     name="chorobowe_dobrowolne" 
+                     value="true"
+                     {% if form_data.chorobowe_dobrowolne %}checked{% endif %}
+                     class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 mt-0.5">
+              <div>
+                <span class="text-xs font-bold text-slate-800">Dobrowolne ubezpieczenie chorobowe</span>
+                <p class="text-[11px] text-slate-500">
+                  Daje prawo do świadczeń i zasiłków chorobowych/macierzyńskich ZUS.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 4: Kody PKD & KSeF 2.0 -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="text-base text-blue-600 font-bold">4</span>
+          <h2 class="text-sm font-bold text-slate-900">Kody PKD (Ochrona Kosztów) & Integracja KSeF 2.0</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded">Compliance & Integracje</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label for="kody_pkd_input" class="block text-xs font-bold text-slate-700 mb-1">
+            Kody PKD działalności (oddzielone przecinkami):
+          </label>
+          <input type="text" 
+                 id="kody_pkd_input" 
+                 name="kody_pkd" 
+                 value="{{ form_data.kody_pkd }}"
+                 placeholder="np. 62.01.Z, 62.02.Z, 63.11.Z" 
+                 class="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          <p class="text-[11px] text-slate-500 mt-1">
+            💡 <strong>Dlaczego to ważne?</strong> Rejestracja kodów PKD w profilu pozwala silnikowi AI automatycznie kwalifikować zakupy biznesowe (np. serwery chmurowe AWS, licencje oprogramowania, sprzęt) jako w 100% koszty uzyskania przychodów (KUP) zgodnie z art. 22 ust. 1 ustawy o PIT.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          <div>
+            <label for="srodowisko_ksef_select" class="block text-xs font-bold text-slate-700 mb-1">
+              Środowisko KSeF 2.0:
+            </label>
+            <select id="srodowisko_ksef_select" 
+                    name="srodowisko_ksef"
+                    class="w-full px-3 py-2 text-xs font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800">
+              <option value="PROD" {% if form_data.srodowisko_ksef == 'PROD' %}selected{% endif %}>PROD – Środowisko Produkcyjne (rzeczywiste e-Faktury)</option>
+              <option value="TEST" {% if form_data.srodowisko_ksef == 'TEST' %}selected{% endif %}>TEST – Środowisko Testowe MF (bezpieczny sandbox)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="token_ksef_input" class="block text-xs font-bold text-slate-700 mb-1">
+              Token autoryzacyjny KSeF <span class="text-slate-400 font-normal">(opcjonalny na start)</span>:
+            </label>
+            <input type="password" 
+                   id="token_ksef_input" 
+                   name="token_ksef" 
+                   value="{{ form_data.token_ksef }}"
+                   placeholder="Wklej token KSeF lub uzupełnij go później w Ustawieniach" 
+                   class="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ukryty parametr auto_fetch -->
+    <input type="hidden" name="auto_fetch" value="true">
+
+    <!-- Pasek Akcji i Zatwierdzenia -->
+    <div class="flex items-center justify-between pt-2">
+      <a href="/" class="text-xs font-bold text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+        Anuluj
+      </a>
+
+      <button type="submit" 
+              class="px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2">
+        <span>Utwórz firmę i przejdź do księgowania</span>
+        <span class="text-base">🚀</span>
+      </button>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}

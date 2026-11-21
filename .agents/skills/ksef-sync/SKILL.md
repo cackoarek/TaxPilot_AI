@@ -61,9 +61,25 @@ Klient `KSeFClient` automatycznie:
    `firmy/{NIP-Nazwa}/faktury/{ROK}/{MIESIAC}/sprzedaz/ksef/`
    `firmy/{NIP-Nazwa}/faktury/{ROK}/{MIESIAC}/koszty/ksef/`
 
-### 3. Komunikat dla Użytkownika
+### 3. Rejestr Historii Synchronizacji i Audyt
+Każda próba synchronizacji (zarówno zakończona sukcesem, jak i błędem) jest automatycznie rejestrowana w trwałym pliku audytowym firmy:
+`firmy/{NIP-Nazwa}/ksef_sync_history.json`
+
+Struktura pojedynczego wpisu:
+* `timestamp`: dokładna data i godzina próby (np. `2026-11-14 08:30:15`),
+* `rok`, `miesiac`: badany okres rozliczeniowy,
+* `status`: `SUKCES` lub `BLAD`,
+* `srodowisko`: `PROD` lub `TEST`,
+* `nowe_sprzedaz`, `nowe_kosztow`: liczba nowo pobranych dokumentów z KSeF,
+* `lacznie_sprzedaz`, `lacznie_kosztow`: łączna liczba dokumentów w archiwum po synchronizacji,
+* `komunikat`: podsumowanie lub szczegóły błędu (np. kod błędu HTTP / brak połączenia sieciowego).
+
+W panelu WWW (`/faktury`) status ostatniej synchronizacji oraz przycisk pełnej historii są prezentowane w kafelku *Krajowy System e-Faktur (KSeF 2.0)*.
+
+### 4. Komunikat dla Użytkownika
 Po zakończeniu poinformuj użytkownika o:
 * Liczbie pobranych faktur sprzedaży oraz łącznej kwocie netto i VAT,
 * Liczbie pobranych faktur kosztowych oraz kontrahentach,
+* Odnotowaniu wpisu w historii synchronizacji (`ksef_sync_history.json`),
 * Zapytaj, czy chce od razu przeprowadzić rozliczenie miesiąca za pomocą skilla `rozlicz-miesiac`.
 

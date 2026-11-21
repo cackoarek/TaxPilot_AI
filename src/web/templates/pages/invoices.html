@@ -3,7 +3,40 @@
 {% block title %}Magazyn Faktur & KSeF 2.0 – TaxPilot AI{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ historyModalOpen: false }">
+
+  <!-- Przewodnik po module (Ogólne - Zadanie 4) -->
+  <div x-data="{ guideOpen: false }" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-sm border border-slate-800 p-4 transition-all">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">📁</span>
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <span>Magazyn Faktur & KSeF 2.0</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Krok 1</span>
+          </h2>
+          <p class="text-xs text-slate-300 mt-0.5">Centralne repozytorium dokumentów finansowych – pobieranie z Krajowego Systemu e-Faktur oraz import plików zewnętrznych.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Gwarantuje kompletność dokumentacji podatkowej przed przystąpieniem do księgowania. Eliminuje ryzyko pominięcia faktur kosztowych oraz automatycznie chroni przed duplikatami (zasada KSeF First).</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>KSeF First:</strong> Faktury z KSeF mają nadrzędną moc dowodową nad plikami PDF.</li>
+          <li><strong>Non-KSeF:</strong> Dokumenty zagraniczne (np. Google Cloud, AWS, GitHub) lub paragony z NIP wrzucaj w strefie Drag & Drop.</li>
+          <li><strong>Auto-routing:</strong> Nawet jeśli omyłkowo upuścisz fakturę sprzedaży jako koszt, system rozpozna NIP i przeniesie ją automatycznie.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 
   <!-- Nagłówek Magazynu Dokumentów -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
@@ -26,11 +59,14 @@
     </div>
   </div>
 
+  <!-- Komunikat o nieprzetworzonych dokumentach i przycisk AI -->
+  {% include "partials/unprocessed_invoices_banner.html" %}
+
   <!-- Górna Sekcja: Upload Drag&Drop oraz Synchronizacja KSeF 2.0 -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
     <!-- 1. Strefa Drag & Drop (Non-KSeF) -->
-    <div x-data="{ isDropping: false, fileName: '' }" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+    <div x-data="{ isDropping: false, fileCount: 0, fileNames: '' }" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-2">
         <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
           <span>📁 Dodaj Faktury Spoza KSeF</span>
@@ -44,24 +80,32 @@
             hx-swap="outerHTML"
             hx-indicator="#upload-indicator"
             enctype="multipart/form-data" 
-            class="space-y-3">
+            class="space-y-3"
+            @htmx:after-request="fileNames = ''; fileCount = 0; if ($refs.fileInput) $refs.fileInput.value = '';">
         
         <!-- Drag & Drop Dropzone -->
         <div @dragover.prevent="isDropping = true"
              @dragleave.prevent="isDropping = false"
-             @drop.prevent="isDropping = false; $refs.fileInput.files = $event.dataTransfer.files; fileName = $refs.fileInput.files[0] ? $refs.fileInput.files[0].name : ''"
+             @drop.prevent="isDropping = false; 
+                            if ($event.dataTransfer && $event.dataTransfer.files.length) {
+                              $refs.fileInput.files = $event.dataTransfer.files;
+                              fileCount = $refs.fileInput.files.length;
+                              fileNames = Array.from($refs.fileInput.files).map(f => f.name).join(', ');
+                            }"
              :class="isDropping ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-slate-400 bg-slate-50/50'"
              class="border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer relative">
           
-          <input type="file" name="file" x-ref="fileInput" required
-                 @change="fileName = $refs.fileInput.files[0] ? $refs.fileInput.files[0].name : ''"
+          <input type="file" name="files" x-ref="fileInput" multiple required
+                 @change="fileCount = $el.files.length; 
+                          fileNames = Array.from($el.files).map(f => f.name).join(', ')"
                  accept=".pdf,.json,.txt,.md,.jpg,.jpeg,.png"
                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
 
           <div class="space-y-1">
             <span class="text-2xl block">📄</span>
-            <div class="text-xs text-slate-700 font-semibold" x-text="fileName ? 'Wybrano: ' + fileName : 'Przeciągnij plik tutaj lub kliknij, aby wybrać'"></div>
-            <p class="text-[11px] text-slate-400">PDF, zdjęcia faktur (JPG/PNG), JSON (np. Google Cloud, AWS, GitHub)</p>
+            <div class="text-xs text-slate-700 font-semibold" 
+                 x-text="fileCount > 0 ? (fileCount === 1 ? 'Wybrano: ' + fileNames : 'Wybrano ' + fileCount + ' plików: ' + fileNames) : 'Przeciągnij plik(i) tutaj lub kliknij, aby wybrać'"></div>
+            <p class="text-[11px] text-slate-400">Możesz zaznaczyć lub przeciągnąć wiele plików naraz: PDF, zdjęcia faktur (JPG/PNG), JSON (np. Google Cloud, AWS, GitHub)</p>
           </div>
         </div>
 
@@ -86,7 +130,7 @@
         <!-- Wskaźnik ładowania -->
         <div id="upload-indicator" class="htmx-indicator flex items-center justify-center space-x-2 py-2 text-xs text-blue-600 font-semibold">
           <span class="animate-spin">🔄</span>
-          <span>Przetwarzanie dokumentu i deterministyczna ekstrakcja...</span>
+          <span>Przetwarzanie dokumentów i deterministyczna ekstrakcja...</span>
         </div>
 
         <p class="text-[10px] text-slate-400">
@@ -113,7 +157,7 @@
             TaxPilot AI łączy się bezpośrednio z bramką Ministerstwa Finansów KSeF 2.0 z wykorzystaniem szyfrowania 
             <strong>RSA-OAEP SHA-256</strong>.
           </p>
-          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
             <div class="flex justify-between items-center text-[11px]">
               <span class="text-slate-500">Status Tokena Autoryzacyjnego:</span>
               {% if profile and profile.ksef.token and profile.ksef.token != 'twoj_tajny_token_ksef_tutaj' %}
@@ -129,6 +173,9 @@
             <div class="text-[10px] text-slate-400 font-mono truncate">
               Token: {{ profile.ksef.token[:25] if profile and profile.ksef.token else 'Brak' }}...
             </div>
+
+            <!-- Status ostatniej synchronizacji (KSeF 2.0 - Zadanie 1) -->
+            {% include "partials/ksef_sync_status.html" %}
           </div>
         </div>
       </div>
@@ -172,6 +219,35 @@
 
   <!-- Tabela Dokumentów (Fragment) -->
   {% include "partials/invoices_table.html" %}
+
+  <!-- Modal Historii Synchronizacji KSeF -->
+  <div x-cloak x-show="historyModalOpen" 
+       class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+       role="dialog" aria-modal="true">
+    <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col"
+         @click.away="historyModalOpen = false">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">📜</span>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Historia Synchronizacji KSeF 2.0</h3>
+            <p class="text-xs text-slate-500">Rejestr wszystkich prób połączeń, statusów oraz ilości pobranych dokumentów.</p>
+          </div>
+        </div>
+        <button type="button" @click="historyModalOpen = false" class="text-slate-400 hover:text-slate-600 text-lg p-1 rounded-lg">✕</button>
+      </div>
+
+      <div id="ksef-history-modal-body" class="flex-1 overflow-y-auto">
+        {% include "partials/ksef_history_modal_body.html" %}
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 text-right">
+        <button type="button" @click="historyModalOpen = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors">
+          Zamknij
+        </button>
+      </div>
+    </div>
+  </div>
 
 </div>
 {% endblock %}

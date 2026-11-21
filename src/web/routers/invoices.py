@@ -91,26 +91,67 @@ async def invoices_dashboard(
     miesiac = ctx["miesiac"]
 
     summary = None
+    last_sync = None
+    sync_history = []
     if profile:
         summary = get_month_invoices_summary(profile, rok, miesiac, typ_filter=tab if tab != "all" else None)
+        last_sync = KSeFClient.get_last_sync(profile, rok, miesiac)
+        sync_history = KSeFClient.load_sync_history(profile)
 
     ctx["summary"] = summary
+    ctx["last_sync"] = last_sync
+    ctx["sync_history"] = sync_history
     ctx["tab"] = tab
     ctx["active_tab"] = "invoices"
 
     return templates.TemplateResponse(request=request, name="pages/invoices.html", context=ctx)
 
 
+@router.get("/table", response_class=HTMLResponse)
+async def invoices_table_partial(
+    request: Request,
+    tab: Optional[str] = Query("all"),
+):
+    """Zwraca odświeżony fragment tabeli dokumentów (dla HTMX events np. invoices-refresh)."""
+    ctx = get_global_context(request)
+    profile = ctx["profile"]
+    rok = ctx["rok"]
+    miesiac = ctx["miesiac"]
+
+    tab_clean = tab if tab in ("all", "sprzedaz", "koszty") else "all"
+    summary = None
+    last_sync = None
+    sync_history = []
+    if profile:
+        summary = get_month_invoices_summary(profile, rok, miesiac, typ_filter=tab_clean if tab_clean != "all" else None)
+        last_sync = KSeFClient.get_last_sync(profile, rok, miesiac)
+        sync_history = KSeFClient.load_sync_history(profile)
+
+    render_ctx = {
+        "request": request,
+        "summary": summary,
+        "tab": tab_clean,
+        "profile": profile,
+        "rok": rok,
+        "miesiac": miesiac,
+        "last_sync": last_sync,
+        "sync_history": sync_history,
+        "upload_alert": None,
+    }
+    return templates.TemplateResponse(request=request, name="partials/invoices_table.html", context=render_ctx)
+
+
 @router.post("/upload", response_class=HTMLResponse)
 async def upload_invoice_file(
     request: Request,
-    file: UploadFile = File(...),
+    files: Optional[List[UploadFile]] = File(None),
+    file: Optional[UploadFile] = File(None),
     kategoria: str = Form("koszt"),  # "koszt" lub "sprzedaz"
 ):
     """
-    Obsługa uploadu pliku dokumentu (Drag & Drop lub formularz).
-    Zapisuje plik w non-ksef-raw, uruchamia dwuetapową ekstrakcję z auto-routingiem
-    i zwraca zaktualizowany fragment tabeli lub alert.
+    Obsługa uploadu dokumentów spoza KSeF (wielo-plikowy Drag & Drop lub formularz).
+    Zapisuje pliki w non-ksef-raw, uruchamia dwuetapową ekstrakcję z auto-routingiem
+    i zwraca zaktualizowany fragment tabeli z raportem.
     """
     ctx = get_global_context(request)
     profile = ctx["profile"]
@@ -120,57 +161,130 @@ async def upload_invoice_file(
     if not profile:
         raise HTTPException(status_code=400, detail="Brak profilu firmy")
 
-    filename = Path(file.filename).name
-    ext = Path(filename).suffix.lower()
+    # Zbierz wszystkie przekazane pliki (zarówno z 'files' jak i wstecznie z 'file')
+    all_files: List[UploadFile] = []
+    if files:
+        for f in files:
+            if f and f.filename and f.filename.strip():
+                all_files.append(f)
+    if file and file.filename and file.filename.strip() and file not in all_files:
+        all_files.append(file)
 
-    if ext not in ALLOWED_EXTENSIONS:
+    if not all_files:
+        alert_html = """
+        <div class="p-3 bg-amber-50 text-amber-800 text-xs font-semibold rounded-lg border border-amber-200 flex items-center space-x-2 mb-4">
+            <span>⚠️</span>
+            <span>Nie wybrano żadnego pliku do wgrania. Wybierz lub przeciągnij pliki PDF, JSON, JPG lub PNG.</span>
+        </div>
+        """
+        summary = get_month_invoices_summary(profile, rok, miesiac)
+        from src.level_1_ingestion.extraction_service import ExtractionService
+        unprocessed = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
+        ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
+        return templates.TemplateResponse(
+            request=request,
+            name="partials/invoices_table.html",
+            context={
+                "request": request,
+                "summary": summary,
+                "tab": "all",
+                "profile": profile,
+                "rok": rok,
+                "miesiac": miesiac,
+                "upload_alert": alert_html,
+                "unprocessed_invoices": unprocessed,
+                "unprocessed_count": len(unprocessed),
+                "extraction_status": ext_status,
+                "banner_swap_oob": True,
+            },
+        )
+
+    target_type = InvoiceType.SPRZEDAZ if kategoria.lower() == "sprzedaz" else InvoiceType.KOSZT
+    raw_dir = InvoiceStorage.get_non_ksef_raw_dir(profile, rok, miesiac, typ=target_type)
+
+    saved_files: List[str] = []
+    rejected_files: List[tuple] = []
+    relocated_files: List[str] = []
+
+    for f in all_files:
+        filename = Path(f.filename).name
+        ext = Path(filename).suffix.lower()
+
+        if ext not in ALLOWED_EXTENSIONS:
+            rejected_files.append((filename, f"Niedozwolony format {ext}"))
+            continue
+
+        dest_path = raw_dir / filename
+        content_bytes = await f.read()
+        with open(dest_path, "wb") as out_f:
+            out_f.write(content_bytes)
+        saved_files.append(filename)
+
+    # Uruchomienie ekstrakcji dla zapisanych plików
+    if saved_files:
+        try:
+            NonKSeFExtractor.extract_all(profile, rok, miesiac, force=True)
+        except Exception as e:
+            logger.error("Błąd podczas ekstrakcji Non-KSeF: %s", e)
+
+        for filename in saved_files:
+            marker_path = raw_dir / f"{filename}.PRZENIESIONO.txt"
+            if marker_path.exists():
+                relocated_files.append(filename)
+
+    # Budowanie komunikatu
+    alert_parts = []
+    if saved_files:
+        count = len(saved_files)
+        msg_title = f"Przetworzono dokument pomyślnie (wgrano {count} {'plik' if count == 1 else 'pliki' if count < 5 else 'plików'})"
+        files_html = ", ".join([f"<strong>{fn}</strong>" for fn in saved_files])
+        reloc_msg = ""
+        if relocated_files:
+            reloc_msg = f"<div class='mt-1 text-blue-800'>📁 <strong>Auto-Routing:</strong> Zrelokowano do właściwej kategorii: {', '.join(relocated_files)}.</div>"
+
+        alert_parts.append(f"""
+        <div class="p-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs space-y-1 shadow-xs fade-in mb-4">
+            <div class="flex items-center space-x-2 font-bold">
+                <span>✅</span>
+                <span>{msg_title}</span>
+            </div>
+            <div>Przetworzone pliki: {files_html}</div>
+            {reloc_msg}
+        </div>
+        """)
+
+    if rejected_files:
+        rej_html = ", ".join([f"<strong>{fn}</strong> ({reason})" for fn, reason in rejected_files])
+        alert_parts.append(f"""
+        <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-1 shadow-xs fade-in mb-4">
+            <div class="flex items-center space-x-2 font-bold">
+                <span>⚠️</span>
+                <span>Niedozwolony format pliku – pominięto:</span>
+            </div>
+            <div>{rej_html}. Dozwolone formaty: PDF, JSON, TXT, JPG, PNG.</div>
+        </div>
+        """)
+
+    # Jeśli nie zapisano żadnego pliku z powodu niedozwolonych rozszerzeń, zwróć status 400 z komunikatem błędu
+    if not saved_files and rejected_files:
+        rej_names = ", ".join([fn for fn, _ in rejected_files])
         return HTMLResponse(
             content=f"""
             <div class="p-3 bg-red-50 text-red-800 text-xs font-semibold rounded-lg border border-red-200 flex items-center space-x-2">
                 <span>⛔</span>
-                <span>Niedozwolony format pliku: <code>{ext}</code>. Dozwolone: PDF, JSON, TXT, JPG, PNG.</span>
+                <span>Niedozwolony format pliku: <code>{rej_names}</code>. Dozwolone: PDF, JSON, TXT, JPG, PNG.</span>
             </div>
             """,
             status_code=400,
         )
 
-    target_type = InvoiceType.SPRZEDAZ if kategoria.lower() == "sprzedaz" else InvoiceType.KOSZT
-    raw_dir = InvoiceStorage.get_non_ksef_raw_dir(profile, rok, miesiac, typ=target_type)
-    dest_path = raw_dir / filename
-
-    # Zapis surowych bajtów dokumentu
-    content_bytes = await file.read()
-    with open(dest_path, "wb") as f:
-        f.write(content_bytes)
-
-    # Uruchomienie deterministycznej ekstrakcji Non-KSeF z auto-routingiem
-    extracted_paths = NonKSeFExtractor.extract_all(profile, rok, miesiac, force=True)
-
-    # Sprawdzenie czy plik został zrelokowany (np. omyłkowa sprzedaż w kosztach)
-    relokowany = False
-    marker_path = raw_dir / f"{filename}.PRZENIESIONO.txt"
-    if marker_path.exists():
-        relokowany = True
-
-    msg = f"Dokument <strong>{filename}</strong> został pomyślnie wgrany i wyekstrahowany."
-    if relokowany:
-        msg = (
-            f"⚠️ <strong>Auto-Routing:</strong> Dokument <strong>{filename}</strong> zawierał fakturę innego typu "
-            f"niż wskazany ({kategoria}). Został automatycznie przeniesiony do właściwego folderu."
-        )
-
-    alert_html = f"""
-    <div class="p-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs space-y-1 shadow-xs fade-in mb-4">
-        <div class="flex items-center space-x-2 font-bold">
-            <span>✅</span>
-            <span>Przetworzono dokument pomyślnie</span>
-        </div>
-        <div>{msg}</div>
-    </div>
-    """
-
-    # Zwrócenie zaktualizowanej tabeli faktur
+    alert_html = "".join(alert_parts)
     summary = get_month_invoices_summary(profile, rok, miesiac)
+    
+    from src.level_1_ingestion.extraction_service import ExtractionService
+    unprocessed = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
+    ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
+
     render_ctx = {
         "request": request,
         "summary": summary,
@@ -179,6 +293,10 @@ async def upload_invoice_file(
         "rok": rok,
         "miesiac": miesiac,
         "upload_alert": alert_html,
+        "unprocessed_invoices": unprocessed,
+        "unprocessed_count": len(unprocessed),
+        "extraction_status": ext_status,
+        "banner_swap_oob": True,
     }
     return templates.TemplateResponse(request=request, name="partials/invoices_table.html", context=render_ctx)
 
@@ -223,6 +341,14 @@ async def sync_ksef_invoices(request: Request):
         </div>
         """
     except Exception as e:
+        KSeFClient.record_sync_attempt(
+            profile=profile,
+            rok=rok,
+            miesiac=miesiac,
+            status="BLAD",
+            srodowisko=profile.ksef.srodowisko,
+            komunikat=str(e),
+        )
         alert_html = f"""
         <div class="p-4 bg-rose-50 text-rose-900 border border-rose-300 rounded-xl text-xs space-y-1 shadow-xs fade-in mb-4">
             <div class="flex items-center space-x-2 font-bold">
@@ -235,6 +361,9 @@ async def sync_ksef_invoices(request: Request):
         """
 
     summary = get_month_invoices_summary(profile, rok, miesiac)
+    last_sync = KSeFClient.get_last_sync(profile, rok, miesiac)
+    sync_history = KSeFClient.load_sync_history(profile)
+
     render_ctx = {
         "request": request,
         "summary": summary,
@@ -243,6 +372,9 @@ async def sync_ksef_invoices(request: Request):
         "rok": rok,
         "miesiac": miesiac,
         "upload_alert": alert_html,
+        "last_sync": last_sync,
+        "sync_history": sync_history,
+        "is_ksef_sync_response": True,
     }
     return templates.TemplateResponse(request=request, name="partials/invoices_table.html", context=render_ctx)
 
@@ -280,3 +412,93 @@ async def download_invoice_file(
         filename=target_path.name,
         media_type="application/octet-stream",
     )
+
+
+@router.post("/extract-ai", response_class=HTMLResponse)
+async def trigger_ai_extraction(request: Request):
+    """
+    Uruchamia asynchroniczne wyciąganie danych z nieodczytanych faktur w tle.
+    Proces wykonuje się niezależnie od nawigacji użytkownika.
+    """
+    ctx = get_global_context(request)
+    profile = ctx["profile"]
+    rok = ctx["rok"]
+    miesiac = ctx["miesiac"]
+
+    if not profile:
+        raise HTTPException(status_code=400, detail="Brak profilu firmy")
+
+    from src.level_1_ingestion.extraction_service import ExtractionService
+    ExtractionService.start_ai_extraction(profile, rok, miesiac)
+
+    # Odśwież stan kontekstu
+    ctx["extraction_status"] = ExtractionService.get_task_status(profile, rok, miesiac)
+    ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
+    ctx["unprocessed_count"] = len(ctx["unprocessed_invoices"])
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/unprocessed_invoices_banner.html",
+        context=ctx,
+    )
+
+
+@router.get("/extract-status", response_class=HTMLResponse)
+async def check_ai_extraction_status(request: Request):
+    """
+    Zwraca aktualny stan asynchronicznego zadania ekstrakcji AI.
+    Odpytywany przez HTMX co określony interwał podczas trwania zadania.
+    """
+    ctx = get_global_context(request)
+    profile = ctx["profile"]
+    rok = ctx["rok"]
+    miesiac = ctx["miesiac"]
+
+    headers = {}
+    if profile:
+        from src.level_1_ingestion.extraction_service import ExtractionService
+        ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
+        ctx["extraction_status"] = ext_status
+        ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
+        ctx["unprocessed_count"] = len(ctx["unprocessed_invoices"])
+
+        # Jeśli zadanie zakończyło się sukcesem, wyzwól odświeżenie tabeli faktur
+        # i dołącz zaktualizowaną tabelę przez OOB swap
+        if ext_status.get("status") == "completed":
+            headers["HX-Trigger"] = "invoices-refresh"
+            summary = get_month_invoices_summary(profile, rok, miesiac)
+            ctx["summary"] = summary
+            ctx["tab"] = "all"
+            ctx["table_swap_oob"] = True
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/unprocessed_invoices_banner.html",
+        context=ctx,
+        headers=headers,
+    )
+
+
+@router.post("/extract-status/dismiss", response_class=HTMLResponse)
+async def dismiss_ai_extraction_status(request: Request):
+    """
+    Resetuje status zadania po zakończeniu lub błędzie i ukrywa powiadomienie.
+    """
+    ctx = get_global_context(request)
+    profile = ctx["profile"]
+    rok = ctx["rok"]
+    miesiac = ctx["miesiac"]
+
+    if profile:
+        from src.level_1_ingestion.extraction_service import ExtractionService
+        ExtractionService.clear_task_status(profile, rok, miesiac)
+        ctx["extraction_status"] = {"status": "idle", "message": ""}
+        ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
+        ctx["unprocessed_count"] = len(ctx["unprocessed_invoices"])
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/unprocessed_invoices_banner.html",
+        context=ctx,
+    )
+

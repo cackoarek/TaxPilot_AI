@@ -33,7 +33,17 @@ def load_monthly_aml_report(profile, rok: str, miesiac: str) -> Optional[Dict[st
     if report_file.exists():
         try:
             with open(report_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+            if isinstance(data, dict):
+                st = data.setdefault("statystyki", {})
+                st.setdefault("bledy_polaczenia_offline", 0)
+                st.setdefault("zweryfikowani_kontrahenci", 0)
+                st.setdefault("niski_ryzyko_akceptacja", 0)
+                st.setdefault("niskie_ryzyko_zielone", 0)
+                st.setdefault("srednie_ryzyko_uwaga", 0)
+                st.setdefault("wysokie_ryzyko_wyjasnienia", 0)
+                st.setdefault("krytyczne_stop_sankcje", 0)
+            return data
         except Exception:
             return None
     return None

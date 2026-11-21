@@ -1,23 +1,32 @@
 """
 src/web/services/llm/gemini_provider.py
-Adapter dla modeli Google Gemini (np. gemini-2.5-flash, gemini-1.5-pro).
+Adapter dla modeli Google Gemini (np. gemini-1.5-flash, gemini-2.0-flash, gemini-1.5-pro).
 Działa w procesie Pythona (Zero-CLI) z wykorzystaniem asynchronicznego klienta HTTP httpx.
 """
 import os
 import json
+import logging
 from typing import List, Optional, AsyncGenerator
 
 import httpx
 
+from src.logging_config import get_logger
 from src.web.services.llm.base import BaseLLMProvider, ChatMessage
+
+logger = get_logger("taxpilot.llm.gemini")
 
 
 class GeminiProvider(BaseLLMProvider):
     """Adapter dla Google Gemini API."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-1.5-flash"):
         self._api_key = api_key or os.getenv("GEMINI_API_KEY", "")
-        self._model = model
+        clean_model = (model or "gemini-1.5-flash").strip()
+        if clean_model.startswith("models/"):
+            clean_model = clean_model[len("models/"):]
+        if clean_model in ("gemini-2.5-flash", "gemini-2.5"):
+            clean_model = "gemini-1.5-flash"
+        self._model = clean_model
         self._base_url = "https://generativelanguage.googleapis.com/v1beta/models"
 
     @property
@@ -63,10 +72,12 @@ class GeminiProvider(BaseLLMProvider):
 
         url = f"{self._base_url}/{self._model}:generateContent?key={self._api_key}"
         payload = self._build_payload(messages, system_prompt, temperature)
+        logger.info("Wysyłanie zapytania do Gemini API: model=%s", self._model)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code != 200:
+                logger.error("Błąd Gemini API (kod %d): %s", resp.status_code, resp.text)
                 raise RuntimeError(f"Błąd Gemini API ({resp.status_code}): {resp.text}")
 
             data = resp.json()
@@ -87,12 +98,15 @@ class GeminiProvider(BaseLLMProvider):
 
         url = f"{self._base_url}/{self._model}:streamGenerateContent?alt=sse&key={self._api_key}"
         payload = self._build_payload(messages, system_prompt, temperature)
+        logger.info("Rozpoczęcie strumieniowania z Gemini API: model=%s", self._model)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", url, json=payload) as response:
                 if response.status_code != 200:
                     err_body = await response.aread()
-                    raise RuntimeError(f"Błąd strumienia Gemini ({response.status_code}): {err_body.decode('utf-8')}")
+                    err_text = err_body.decode('utf-8')
+                    logger.error("Błąd strumienia Gemini API (kod %d): %s", response.status_code, err_text)
+                    raise RuntimeError(f"Błąd strumienia Gemini ({response.status_code}): {err_text}")
 
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):

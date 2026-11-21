@@ -201,6 +201,8 @@ class InvoiceDeduplicator:
                             inv.typ = current_type
                             if not getattr(inv, "zrodlo", None):
                                 inv.zrodlo = "KSEF"
+                            if not getattr(inv, "plik_zrodlowy", None):
+                                inv.plik_zrodlowy = str(json_file)
 
                             # Uzupełnij rachunek bankowy i dane z XML jeśli istnieją obok
                             xml_file = json_file.with_suffix(".xml")
@@ -238,6 +240,8 @@ class InvoiceDeduplicator:
                             inv = Invoice.from_dict(data)
                             inv.typ = current_type
                             inv.zrodlo = "NON_KSEF"
+                            if not getattr(inv, "plik_zrodlowy", None):
+                                inv.plik_zrodlowy = str(json_file)
                             non_ksef_list.append((inv, json_file))
                         except Exception:
                             continue

@@ -268,6 +268,79 @@ class TestAMLVerification(unittest.TestCase):
         self.assertIn("RAPORT ZAWIERA POZYCJE NIEZWERYFIKOWANE Z POWODU BRAKU SIECI", md)
         self.assertIn("--force", md)
 
+    def test_virtual_bank_account_verification(self):
+        """Testuje weryfikację rachunku wirtualnego (subkonta masowych płatności, np. Play) przez endpoint check."""
+        with patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.fetch_from_mf_biala_lista") as mock_mf, \
+             patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.check_bank_account_mf") as mock_check:
+            # Lista ogólna nie zawiera konta wirtualnego
+            mock_mf.return_value = {
+                "nip": "9512120077",
+                "nazwa": "P4 SP. Z O.O.",
+                "regon": "015808609",
+                "adres": "WYNALAZEK 1, 02-677 WARSZAWA",
+                "status_vat": "czynny",
+                "platnik_vat": True,
+                "rachunki_bankowe": ["74109000040000001178980015"],
+            }
+            # Dedykowany endpoint /api/check/nip/{nip}/bank-account/{acc} potwierdza powiązanie
+            mock_check.return_value = {"assigned": True, "request_id": "test-req-123", "blad_polaczenia": False}
+
+            karta = AMLVerificationEngine.verify_contractor(
+                nip="9512120077",
+                rachunek_bankowy="93109000047777010097655657",
+                force=True,
+            )
+
+            self.assertEqual(karta.status_rachunku, StatusRachunkuBankowego.ZGODNY_BIALA_LISTA)
+            mock_check.assert_called_once()
+
+    def test_foreign_company_verification_amazon(self):
+        """Testuje poprawność weryfikacji AML/compliance dla spółki zagranicznej zarejestrowanej do VAT w PL (Amazon)."""
+        AMLVerificationEngine.clear_cache()
+        with patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.fetch_from_mf_biala_lista") as mock_mf:
+            mock_mf.return_value = {
+                "nip": "5262907815",
+                "nazwa": "AMAZON EU S.A.R.L.",
+                "regon": None,
+                "krs": None,
+                "adres": "AVENUE JOHN F.KENNEDY 38, 1855 LUKSEMBURG",
+                "status_vat": "Czynny",
+                "platnik_vat": True,
+                "rachunki_bankowe": ["66103015080000000819700000"],
+                "zrodlo": "MF_BIALA_LISTA",
+                "blad_polaczenia": False,
+            }
+            karta = AMLVerificationEngine.verify_contractor(
+                nip="5262907815",
+                nazwa="Amazon EU S.a r.l.",
+                adres="38 avenue John F. Kennedy, Luksemburg L-1855",
+                force=True,
+            )
+
+            self.assertEqual(karta.forma_prawna, "SPÓŁKA ZAGRANICZNA (ZAREJESTROWANA DO VAT W POLSCE)")
+            self.assertEqual(karta.crbr_status, "NIE_DOTYCZY_ZAGRANICZNA")
+            self.assertIn("podmiot zagraniczny", karta.krs.lower())
+            self.assertTrue(karta.platnik_vat_czynny)
+            self.assertEqual(karta.poziom_ryzyka, PoziomRyzykaAML.NISKIE)
+            self.assertEqual(karta.decyzja, DecyzjaWspolpracy.AKCEPTACJA)
+            self.assertIn("spółka zagraniczna", karta.uzasadnienie_decyzji.lower())
+
+            # Generowanie Markdown
+            md = karta.generate_markdown_card()
+            self.assertIn("SPÓŁKA ZAGRANICZNA (ZAREJESTROWANA DO VAT W POLSCE)", md)
+            self.assertIn("Nie dotyczy polskiego CRBR", md)
+            self.assertIn("Zarząd / Dyrektorzy", md)
+            self.assertNotIn("właściciel JDG", md)
+
+            # Generowanie PDF
+            import tempfile
+            from pathlib import Path
+            with tempfile.TemporaryDirectory() as tmpdir:
+                pdf_path = Path(tmpdir) / "amazon-karta.pdf"
+                karta.generate_pdf_card(pdf_path)
+                self.assertTrue(pdf_path.exists())
+                self.assertGreater(pdf_path.stat().st_size, 1000)
+
 
 if __name__ == "__main__":
     unittest.main()

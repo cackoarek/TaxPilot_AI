@@ -273,6 +273,7 @@ class VATBalanceResult:
             "rok": self.rok,
             "miesiac": self.miesiac,
             "vat_nalezy": str(self.vat_nalezy),
+            "vat_nalezny": str(self.vat_nalezy),
             "vat_naliczony": str(self.vat_naliczony),
             "nadwyzka_z_poprzedniego_miesiaca": str(self.nadwyzka_z_poprzedniego_miesiaca),
             "roznica_vat": str(self.roznica_vat),

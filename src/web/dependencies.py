@@ -69,7 +69,14 @@ def get_global_context(request: Request) -> dict:
     profile = get_active_profile(request)
     all_companies = get_all_companies()
     rok, miesiac = get_active_period(request)
-    llm_status = get_llm_status()
+    llm_status = get_llm_status(profile)
+
+    unprocessed_invoices = []
+    extraction_status = {"status": "idle", "message": ""}
+    if profile:
+        from src.level_1_ingestion.extraction_service import ExtractionService
+        unprocessed_invoices = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
+        extraction_status = ExtractionService.get_task_status(profile, rok, miesiac)
 
     return {
         "request": request,
@@ -78,5 +85,9 @@ def get_global_context(request: Request) -> dict:
         "rok": rok,
         "miesiac": miesiac,
         "llm": llm_status,
+        "llm_status": llm_status,
         "llm_available": llm_status["available"],
+        "unprocessed_invoices": unprocessed_invoices,
+        "unprocessed_count": len(unprocessed_invoices),
+        "extraction_status": extraction_status,
     }

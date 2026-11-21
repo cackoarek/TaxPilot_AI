@@ -93,6 +93,20 @@ class Invoice:
         return False
 
     @property
+    def okres_rozliczeniowy_pit(self) -> tuple[str, str]:
+        """
+        Okres podatkowy dla celów PIT-28 / Ewidencji Przychodów:
+        - Dla korekt wstecznych (błąd rachunkowy/oczywista omyłka - art. 14 ust. 1m PIT):
+          okres pierwotnej faktury (data faktury korygowanej lub data sprzedaży).
+        - W pozostałych przypadkach: okres rozliczeniowy.
+        """
+        if self.typ == InvoiceType.SPRZEDAZ and self.czy_korekta and self.czy_korekta_wsteczna_pit:
+            dt = self.data_faktury_korygowanej or self.data_sprzedazy or self.data_wystawienia
+            parts = dt.split("-")
+            return parts[0], parts[1].zfill(2)
+        return self.okres_rozliczeniowy
+
+    @property
     def okres_rozliczeniowy(self) -> tuple[str, str]:
         """
         Wyznacza właściwy okres podatkowo-księgowy (rok, miesiac):

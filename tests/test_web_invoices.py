@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from src.web.app import app
 from src.core.company import CompanyProfile
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.extraction_service import ExtractionService
 
 
 class TestWebInvoices(unittest.TestCase):
@@ -18,8 +19,14 @@ class TestWebInvoices(unittest.TestCase):
         self.client = TestClient(app)
         self.profile = CompanyProfile.load_by_nip("5322030067")
         self.created_test_files = []
+        if self.profile:
+            ExtractionService.clear_task_status(self.profile, "2026", "01")
+            ExtractionService.clear_task_status(self.profile, "2026", "04")
 
     def tearDown(self):
+        if self.profile:
+            ExtractionService.clear_task_status(self.profile, "2026", "01")
+            ExtractionService.clear_task_status(self.profile, "2026", "04")
         # Czyszczenie utworzonych plików testowych
         for p in self.created_test_files:
             if p.exists():
@@ -113,6 +120,47 @@ class TestWebInvoices(unittest.TestCase):
         extracted_file = InvoiceStorage.get_non_ksef_extracted_dir(self.profile, "2026", "01", typ=None) / filename
         self.created_test_files.extend([raw_file, extracted_file])
 
+    def test_upload_multiple_files_simultaneously(self):
+        """Test jednoczesnego uploadu wielu plików (multi-file upload)."""
+        f1_data = {
+            "numer": "FV-MULTI-001",
+            "data_wystawienia": "2026-01-10",
+            "data_sprzedazy": "2026-01-10",
+            "sprzedawca": {"nazwa": "Dostawca A", "nip": "1112223344"},
+            "nabywca": {"nazwa": self.profile.nazwa, "nip": self.profile.nip},
+            "pozycje": [{"opis": "Usługa A", "ilosc": 1, "cena_jednostkowa_netto": 100.0, "wartosc_netto": 100.0, "stawka_vat": "23", "kwota_vat": 23.0, "wartosc_brutto": 123.0}],
+            "suma_netto": 100.0, "suma_vat": 23.0, "suma_brutto": 123.0, "waluta": "PLN", "typ": "koszt"
+        }
+        f2_data = {
+            "numer": "FV-MULTI-002",
+            "data_wystawienia": "2026-01-11",
+            "data_sprzedazy": "2026-01-11",
+            "sprzedawca": {"nazwa": "Dostawca B", "nip": "9998887766"},
+            "nabywca": {"nazwa": self.profile.nazwa, "nip": self.profile.nip},
+            "pozycje": [{"opis": "Usługa B", "ilosc": 1, "cena_jednostkowa_netto": 200.0, "wartosc_netto": 200.0, "stawka_vat": "23", "kwota_vat": 46.0, "wartosc_brutto": 246.0}],
+            "suma_netto": 200.0, "suma_vat": 46.0, "suma_brutto": 246.0, "waluta": "PLN", "typ": "koszt"
+        }
+
+        files_payload = [
+            ("files", ("f1.json", json.dumps(f1_data).encode("utf-8"), "application/json")),
+            ("files", ("f2.json", json.dumps(f2_data).encode("utf-8"), "application/json")),
+        ]
+        response = self.client.post("/faktury/upload", files=files_payload, data={"kategoria": "koszt"})
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+        self.assertIn("Przetworzono dokument pomyślnie", html)
+        self.assertIn("f1.json", html)
+        self.assertIn("f2.json", html)
+        self.assertIn("FV-MULTI-001", html)
+        self.assertIn("FV-MULTI-002", html)
+
+        raw_dir = InvoiceStorage.get_non_ksef_raw_dir(self.profile, "2026", "01", typ=None)
+        extracted_dir = InvoiceStorage.get_non_ksef_extracted_dir(self.profile, "2026", "01", typ=None)
+        self.created_test_files.extend([
+            raw_dir / "f1.json", extracted_dir / "f1.json",
+            raw_dir / "f2.json", extracted_dir / "f2.json"
+        ])
+
     def test_safe_download_invoice_file(self):
         """Test bezpiecznego pobierania pliku dokumentu faktury."""
         # Utwórz plik testowy w katalogu firmy
@@ -139,6 +187,132 @@ class TestWebInvoices(unittest.TestCase):
         html = response.text
         # Sprawdzenie czy wygenerowano odpowiedź (sukces lub bezpiecznie przechwycony błąd KSeF)
         self.assertTrue("Synchronizacja KSeF" in html or "Krajowym Systemem e-Faktur" in html or "Brak skonfigurowanego tokenu" in html)
+
+    def test_unprocessed_invoices_banner_and_ai_extraction_flow(self):
+        """Test wykrywania nieodczytanych faktur, wyświetlania ostrzeżenia i wywołania AI ekstrakcji."""
+        # 1. Wywołanie GET /faktury dla 2026-04
+        self.client.cookies.set("taxpilot_active_year", "2026")
+        self.client.cookies.set("taxpilot_active_month", "04")
+
+        # 2. Sprawdzenie endpointu POST /faktury/extract-ai
+        resp_extract = self.client.post("/faktury/extract-ai")
+        self.assertEqual(resp_extract.status_code, 200)
+        self.assertIn("unprocessed-banner-container", resp_extract.text)
+
+        # 3. Sprawdzenie endpointu GET /faktury/extract-status
+        resp_status = self.client.get("/faktury/extract-status")
+        self.assertEqual(resp_status.status_code, 200)
+        self.assertIn("unprocessed-banner-container", resp_status.text)
+
+        # 4. Sprawdzenie endpointu POST /faktury/extract-status/dismiss
+        resp_dismiss = self.client.post("/faktury/extract-status/dismiss")
+        self.assertEqual(resp_dismiss.status_code, 200)
+
+    def test_upload_oob_banner_swap_and_guidance(self):
+        """Test czy upload faktury zawiera OOB swap banera oraz wskazówkę o dodaniu kompletu plików."""
+        self.client.cookies.set("taxpilot_active_year", "2026")
+        self.client.cookies.set("taxpilot_active_month", "09")
+        ExtractionService.clear_task_status(self.profile, "2026", "09")
+
+        # Wgranie nieodczytywanego obrazu
+        test_jpg_content = b"\xFF\xD8\xFF\xE0\x00\x10JFIF"
+        files = [("files", ("test_unprocessed_upload.jpg", io.BytesIO(test_jpg_content), "image/jpeg"))]
+        data = {"kategoria": "koszt"}
+
+        response = self.client.post("/faktury/upload", files=files, data=data)
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+
+        # 1. Sprawdzenie czy jest OOB swap dla banera nieprzetworzonych dokumentów
+        self.assertIn('id="unprocessed-banner-container"', html)
+        self.assertIn('hx-swap-oob="true"', html)
+
+        # 2. Sprawdzenie czy zawiera wskazówkę dla użytkownika o dodaniu kompletu dokumentów
+        self.assertIn("dodaj najpierw wszystkie pliki", html)
+        self.assertIn("po dodaniu kompletu dokumentów", html)
+
+        # 3. Sprawdzenie czy przycisk AI ma hx-post do /faktury/extract-ai
+        self.assertIn('hx-post="/faktury/extract-ai"', html)
+
+        # Posprzątanie pliku
+        raw_dir = InvoiceStorage.get_non_ksef_raw_dir(self.profile, "2026", "09", typ=None)
+        self.created_test_files.append(raw_dir / "test_unprocessed_upload.jpg")
+        ExtractionService.clear_task_status(self.profile, "2026", "09")
+
+    def test_extract_ai_immediate_running_status(self):
+        """Test czy kliknięcie 'Wyciągnij dane z faktury (AI)' natychmiast zwraca stan running ze spinnerem."""
+        self.client.cookies.set("taxpilot_active_year", "2026")
+        self.client.cookies.set("taxpilot_active_month", "01")
+
+        response = self.client.post("/faktury/extract-ai")
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+
+        # Odpowiedź musi od razu (synchronicznie) zawierać sekcję trwającego przetwarzania w tle
+        self.assertIn("Trwa wyciąganie danych z faktur przez silnik AI", html)
+        self.assertIn('hx-trigger="every 1500ms"', html)
+        self.assertIn("Zadanie w tle", html)
+
+    def test_extract_status_completed_triggers_table_refresh(self):
+        """Test czy zakończenie ekstrakcji AI emituje nagłówek HX-Trigger oraz natychmiastowy OOB swap tabeli."""
+        self.client.cookies.set("taxpilot_active_year", "2026")
+        self.client.cookies.set("taxpilot_active_month", "01")
+
+        ExtractionService.set_task_status(
+            self.profile,
+            "2026",
+            "01",
+            status="completed",
+            message="Przetwarzanie zakończone testowo",
+        )
+
+        response = self.client.get("/faktury/extract-status")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("HX-Trigger"), "invoices-refresh")
+        self.assertIn("Zakończono wyciąganie danych z faktury!", response.text)
+        # Weryfikacja bezpośredniego OOB swapu tabeli faktur
+        self.assertIn('id="invoices-table-container"', response.text)
+        self.assertIn('hx-swap-oob="true"', response.text)
+
+    def test_invoices_table_partial_endpoint(self):
+        """Test endpointu GET /faktury/table odpytywanego przez event invoices-refresh."""
+        self.client.cookies.set("taxpilot_active_year", "2026")
+        self.client.cookies.set("taxpilot_active_month", "01")
+
+        response = self.client.get("/faktury/table?tab=all")
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+        self.assertIn('id="invoices-table-container"', html)
+        self.assertIn('hx-trigger="invoices-refresh from:body"', html)
+
+    def test_extract_status_running_renders_progress_bar(self):
+        """Test czy stan 'running' renderuje pasek postępu, licznik i aktualnie przetwarzany plik."""
+        self.client.cookies.set("taxpilot_active_year", "2026")
+        self.client.cookies.set("taxpilot_active_month", "01")
+
+        ExtractionService.set_task_status(
+            self.profile,
+            "2026",
+            "01",
+            status="running",
+            message="Przetwarzanie dokumentu 2 z 5...",
+            current=2,
+            total=5,
+            percent=40,
+            current_file="2026-05-paliwa10.jpg",
+        )
+
+        response = self.client.get("/faktury/extract-status")
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+
+        # 1. Sprawdzenie licznika
+        self.assertIn("2 / 5 (40%)", html)
+        # 2. Sprawdzenie nazwy aktualnego pliku
+        self.assertIn("2026-05-paliwa10.jpg", html)
+        # 3. Sprawdzenie paska postępu (width: 40%)
+        self.assertIn("width: 40%", html)
+        self.assertIn("40%", html)
 
 
 if __name__ == "__main__":

@@ -6,8 +6,10 @@ oraz automatyczną synchronizacją i zapisem faktur w archiwum firmy.
 
 import os
 import time
+import json
 import base64
 import calendar
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import requests
@@ -58,6 +60,75 @@ class KSeFClient:
     def set_auth_token(self, token: str, srodowisko: Optional[str] = None) -> None:
         """Zapisuje token KSeF bezpośrednio w pliku profil.json firmy."""
         self.profile.set_ksef_token(token, srodowisko)
+
+    @classmethod
+    def get_sync_history_file(cls, profile: CompanyProfile) -> Path:
+        """Zwraca ścieżkę do pliku historii synchronizacji KSeF firmy."""
+        return profile.katalog_firmy / "ksef_sync_history.json"
+
+    @classmethod
+    def load_sync_history(cls, profile: CompanyProfile) -> List[Dict[str, Any]]:
+        """Wczytuje historię synchronizacji KSeF dla firmy."""
+        file_path = cls.get_sync_history_file(profile)
+        if not file_path.exists():
+            return []
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    @classmethod
+    def record_sync_attempt(
+        cls,
+        profile: CompanyProfile,
+        rok: str,
+        miesiac: str,
+        status: str,
+        srodowisko: str,
+        nowe_sprzedaz: int = 0,
+        nowe_kosztow: int = 0,
+        lacznie_sprzedaz: int = 0,
+        lacznie_kosztow: int = 0,
+        komunikat: str = "",
+    ) -> Dict[str, Any]:
+        """Zapisuje wynik próby synchronizacji KSeF w historii firmy."""
+        file_path = cls.get_sync_history_file(profile)
+        history = cls.load_sync_history(profile)
+        entry = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "rok": str(rok),
+            "miesiac": str(miesiac).zfill(2),
+            "status": status,
+            "srodowisko": srodowisko,
+            "nowe_sprzedaz": nowe_sprzedaz,
+            "nowe_kosztow": nowe_kosztow,
+            "lacznie_sprzedaz": lacznie_sprzedaz,
+            "lacznie_kosztow": lacznie_kosztow,
+            "komunikat": komunikat,
+        }
+        history.insert(0, entry)
+        history = history[:100]  # Ograniczenie do 100 ostatnich zdarzeń
+        try:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+        return entry
+
+    @classmethod
+    def get_last_sync(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Optional[Dict[str, Any]]:
+        """Zwraca ostatnią próbę synchronizacji dla zadanego okresu (lub ogólnie ostatnią)."""
+        rok_str = str(rok)
+        miesiac_str = str(miesiac).zfill(2)
+        history = cls.load_sync_history(profile)
+        for h in history:
+            if h.get("rok") == rok_str and h.get("miesiac") == miesiac_str:
+                return h
+        return history[0] if history else None
+
 
     def authenticate(self) -> str:
         """
@@ -351,9 +422,28 @@ class KSeFClient:
             saved_koszty.append(inv)
             existing_koszty[ksef_nr] = inv
 
+        nowe_s = len(saved_sprzedaz) - len(existing_sprzedaz)
+        nowe_k = len(saved_koszty) - len(existing_koszty)
+
+        # Odnotowanie udanej próby synchronizacji w trwałej historii firmy
+        self.record_sync_attempt(
+            profile=self.profile,
+            rok=rok_str,
+            miesiac=miesiac_str,
+            status="SUKCES",
+            srodowisko=self.env,
+            nowe_sprzedaz=nowe_s,
+            nowe_kosztow=nowe_k,
+            lacznie_sprzedaz=len(saved_sprzedaz),
+            lacznie_kosztow=len(saved_koszty),
+            komunikat=f"Pobrano {nowe_s} nowych faktur sprzedaży i {nowe_k} nowych faktur kosztowych (łącznie: {len(saved_sprzedaz)} sprzedaży, {len(saved_koszty)} kosztów).",
+        )
+
         return {
             "rok": rok_str,
             "miesiac": miesiac_str,
+            "nowe_sprzedazy": nowe_s,
+            "nowe_kosztow": nowe_k,
             "liczba_sprzedazy": len(saved_sprzedaz),
             "liczba_kosztow": len(saved_koszty),
             "suma_sprzedaz_netto": str(sum((i.suma_netto for i in saved_sprzedaz), 0)),

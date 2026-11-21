@@ -13,18 +13,17 @@ from src.skills.zus_indicators import get_zus_indicators, ZUSMacroParams
 
 
 # Domyślne wskaźniki makroekonomiczne
-# 2026: Prognozowane przeciętne wynagrodzenie do składek społecznych (60% z ~8840 zł = 5304.00 zł)
-# Przeciętne wynagrodzenie w sektorze przedsiębiorstw w IV kw. do zdrowotnej (~9200.00 zł)
+# 2026: Prognozowane przeciętne wynagrodzenie (9 420 zł) -> podstawa 60% = 5 652.00 zł, zdrowotna IV kw. = 9 228.64 zł
 DEFAULT_ZUS_PARAMS = {
     "2026": {
-        "podstawa_pelny_zus": Decimal("5304.00"),
-        "podstawa_preferencyjny_zus": Decimal("1440.00"),  # 30% z płacy minimalnej (szac. 4800 zł)
-        "przecietne_wynagrodzenie_zdrowotna": Decimal("9200.00"),
+        "podstawa_pelny_zus": Decimal("5652.00"),
+        "podstawa_preferencyjny_zus": Decimal("1441.80"),  # 30% z płacy minimalnej 4806 zł
+        "przecietne_wynagrodzenie_zdrowotna": Decimal("9228.64"),
     },
     "2025": {
-        "podstawa_pelny_zus": Decimal("4694.40"),
-        "podstawa_preferencyjny_zus": Decimal("1399.80"),
-        "przecietne_wynagrodzenie_zdrowotna": Decimal("8500.00"),
+        "podstawa_pelny_zus": Decimal("5203.80"),  # 60% z 8673 zł
+        "podstawa_preferencyjny_zus": Decimal("1399.80"),  # 30% z płacy minimalnej 4666 zł
+        "przecietne_wynagrodzenie_zdrowotna": Decimal("8549.18"),
     }
 }
 
@@ -57,7 +56,8 @@ class ZUSCalculationResult:
     chorobowa: Decimal
     wypadkowa: Decimal
     fundusz_pracy: Decimal
-    suma_spoleczne: Decimal
+    suma_spoleczne: Decimal  # do przelewu ZUS (z FP)
+    spoleczne_odliczalne: Decimal  # do odliczenia w PIT (emerytalna + rentowa + chorobowa + wypadkowa, bez FP)
 
     # Składka zdrowotna
     prog_przychodow_zdrowotna: str  # "<60k" | "60k-300k" | ">300k"
@@ -90,6 +90,7 @@ class ZUSCalculationResult:
                 "wypadkowa": str(self.wypadkowa),
                 "fundusz_pracy": str(self.fundusz_pracy),
                 "suma": str(self.suma_spoleczne),
+                "odliczalne": str(self.spoleczne_odliczalne),
             },
             "skladka_zdrowotna": {
                 "prog": self.prog_przychodow_zdrowotna,
@@ -111,6 +112,7 @@ def calculate_zus(
     przychod_roczny_narastajaco: Decimal = Decimal("0.00"),
     custom_podstawa_spoleczne: Optional[Decimal] = None,
     custom_przecietne_wynagrodzenie: Optional[Decimal] = None,
+    uproszczona_zdrowotna_prog: Optional[str] = None,
 ) -> ZUSCalculationResult:
     """
     Deterministycznie oblicza komplet składek ZUS (społeczne + zdrowotna) dla danego miesiąca.
@@ -124,6 +126,7 @@ def calculate_zus(
         przychod_roczny_narastajaco: Suma przychodów od początku roku do danego miesiąca (do progów zdrowotnej na ryczałcie)
         custom_podstawa_spoleczne: Opcjonalne ręczne nadpisanie podstawy składek społecznych
         custom_przecietne_wynagrodzenie: Opcjonalne ręczne nadpisanie przeciętnego wynagrodzenia do zdrowotnej
+        uproszczona_zdrowotna_prog: Opcjonalny stały próg zdrowotnej wg przychodu z ubiegłego roku (art. 81 ust. 2h ustawy zdrowotnej)
     """
     overrides = {}
     if custom_podstawa_spoleczne:
@@ -134,7 +137,7 @@ def calculate_zus(
     macro = get_zus_indicators(rok, profile_overrides=overrides if overrides else None)
 
     # 1. Wyznaczenie podstawy składek społecznych
-    if typ_zus == TypZUS.ULGA_NA_START:
+    if typ_zus in (TypZUS.ULGA_NA_START, TypZUS.TYLKO_ZDROWOTNA):
         podstawa_spol = Decimal("0.00")
         emerytalna = Decimal("0.00")
         rentowa = Decimal("0.00")
@@ -157,17 +160,27 @@ def calculate_zus(
         wypadkowa = _round_money(podstawa_spol * STOPA_WYPADKOWA)
         fundusz_pracy = _round_money(podstawa_spol * STOPA_FP)
 
-    suma_spoleczne = emerytalna + rentowa + chorobowa + wypadkowa + fundusz_pracy
+    spoleczne_odliczalne = emerytalna + rentowa + chorobowa + wypadkowa
+    suma_spoleczne = spoleczne_odliczalne + fundusz_pracy
 
     # 2. Składka zdrowotna
     przecietne_wynagrodzenie = custom_przecietne_wynagrodzenie or macro.przecietne_wynagrodzenie_zdrowotna
 
     if forma_opodatkowania == FormaOpodatkowania.RYCZALT:
-        # Progi przychodu narastająco w roku podatkowym dla ryczałtu:
+        # Progi przychodu narastająco w roku podatkowym dla ryczałtu (lub metoda uproszczona wg art. 81 ust. 2h):
         # I próg: do 60 000 zł -> 60% przeciętnego wynagrodzenia
         # II próg: 60 000 zł do 300 000 zł -> 100% przeciętnego wynagrodzenia
         # III próg: powyżej 300 000 zł -> 180% przeciętnego wynagrodzenia
-        if przychod_roczny_narastajaco <= Decimal("60000.00"):
+        if uproszczona_zdrowotna_prog == "<60k":
+            prog_str = "<60k"
+            mnoznik = Decimal("0.60")
+        elif uproszczona_zdrowotna_prog == ">300k":
+            prog_str = ">300k"
+            mnoznik = Decimal("1.80")
+        elif uproszczona_zdrowotna_prog in ("60k-300k", "standard"):
+            prog_str = "60k-300k"
+            mnoznik = Decimal("1.00")
+        elif przychod_roczny_narastajaco <= Decimal("60000.00"):
             prog_str = "<60k"
             mnoznik = Decimal("0.60")
         elif przychod_roczny_narastajaco <= Decimal("300000.00"):
@@ -213,6 +226,7 @@ def calculate_zus(
         wypadkowa=wypadkowa,
         fundusz_pracy=fundusz_pracy,
         suma_spoleczne=suma_spoleczne,
+        spoleczne_odliczalne=spoleczne_odliczalne,
         prog_przychodow_zdrowotna=prog_str,
         podstawa_zdrowotna=podstawa_zdrowotna,
         zdrowotna=zdrowotna,

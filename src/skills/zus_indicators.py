@@ -40,28 +40,32 @@ class ZUSMacroParams:
 
 # Oficjalne wskaźniki zatwierdzone przez Prezesa GUS / MRPiPS w Monitorze Polskim:
 # - 2026:
-#   * podstawa pełny ZUS (60% prognozowanego przeciętnego wynagrodzenia): 5 304.00 zł
-#   * podstawa preferencyjny ZUS (30% płacy minimalnej): 1 440.00 zł
-#   * przeciętne wynagrodzenie w IV kw. do składki zdrowotnej: 9 008.11 zł
-#     (co przy 9% daje składkę: 810.73 zł dla II progu 60k-300k zł, 486.44 zł dla I progu, 1459.31 zł dla III progu)
+#   * prognozowane przeciętne wynagrodzenie miesięczne: 9 420.00 zł
+#   * podstawa pełny ZUS (60% prognozowanego przeciętnego wynagrodzenia): 5 652.00 zł
+#   * płaca minimalna: 4 806.00 zł
+#   * podstawa preferencyjny ZUS (30% płacy minimalnej): 1 441.80 zł
+#   * przeciętne wynagrodzenie w IV kw. do składki zdrowotnej: 9 228.64 zł
+#     (co przy 9% daje składkę: 830.58 zł dla II progu 60k-300k zł, 498.35 zł dla I progu, 1495.04 zł dla III progu)
 # - 2025:
-#   * podstawa pełny ZUS: 4 694.40 zł
-#   * podstawa preferencyjny ZUS: 1 399.80 zł
-#   * przeciętne wynagrodzenie w IV kw. do zdrowotnej: 8 500.00 zł
+#   * prognozowane przeciętne wynagrodzenie miesięczne: 8 673.00 zł
+#   * podstawa pełny ZUS (60% prognozowanego przeciętnego wynagrodzenia): 5 203.80 zł
+#   * płaca minimalna: 4 666.00 zł
+#   * podstawa preferencyjny ZUS (30% płacy minimalnej): 1 399.80 zł
+#   * przeciętne wynagrodzenie w IV kw. do zdrowotnej: 8 549.18 zł
 OFICJALNE_WSKAZNIKI: Dict[str, ZUSMacroParams] = {
     "2026": ZUSMacroParams(
         rok="2026",
-        podstawa_pelny_zus=Decimal("5304.00"),
-        podstawa_preferencyjny_zus=Decimal("1440.00"),
-        przecietne_wynagrodzenie_zdrowotna=Decimal("9008.11"),
+        podstawa_pelny_zus=Decimal("5652.00"),
+        podstawa_preferencyjny_zus=Decimal("1441.80"),
+        przecietne_wynagrodzenie_zdrowotna=Decimal("9228.64"),
         zrodlo="OFICJALNE_GUS",
         ostrzezenie=None,
     ),
     "2025": ZUSMacroParams(
         rok="2025",
-        podstawa_pelny_zus=Decimal("4694.40"),
+        podstawa_pelny_zus=Decimal("5203.80"),
         podstawa_preferencyjny_zus=Decimal("1399.80"),
-        przecietne_wynagrodzenie_zdrowotna=Decimal("8500.00"),
+        przecietne_wynagrodzenie_zdrowotna=Decimal("8549.18"),
         zrodlo="OFICJALNE_GUS",
         ostrzezenie=None,
     ),
@@ -137,6 +141,149 @@ def save_to_cache(params: ZUSMacroParams, cache_path: Optional[Path] = None) -> 
         logger.warning(f"Nie udało się zapisać wskaźników do cache {path}: {e}")
 
 
+def is_official(params: ZUSMacroParams) -> bool:
+    """
+    Zwraca True jeśli wskaźniki pochodzą z oficjalnej bazy GUS lub zostały
+    wprowadzone / zweryfikowane przez użytkownika.
+    Zwraca False, jeśli są to automatyczne szacunki algorytmiczne (PROGNOZA_SZACOWANA).
+    """
+    if params.zrodlo in ("OFICJALNE_GUS", "ZWERYFIKOWANE", "WPROWADZONE_RECZNIE", "PROFIL_UZYTKOWNIKA") and not params.ostrzezenie:
+        return True
+    return False
+
+
+def update_zus_indicators(
+    rok: str,
+    podstawa_pelny_zus: Decimal,
+    podstawa_preferencyjny_zus: Decimal,
+    przecietne_wynagrodzenie_zdrowotna: Decimal,
+    zrodlo: str = "WPROWADZONE_RECZNIE",
+    cache_path: Optional[Path] = None,
+) -> ZUSMacroParams:
+    """
+    Zapisuje lub aktualizuje wskaźniki makroekonomiczne ZUS/GUS dla danego roku w trwałym pliku cache.
+    """
+    params = ZUSMacroParams(
+        rok=str(rok),
+        podstawa_pelny_zus=podstawa_pelny_zus,
+        podstawa_preferencyjny_zus=podstawa_preferencyjny_zus,
+        przecietne_wynagrodzenie_zdrowotna=przecietne_wynagrodzenie_zdrowotna,
+        zrodlo=zrodlo,
+        ostrzezenie=None,
+    )
+    save_to_cache(params, cache_path=cache_path)
+    return params
+
+
+def calculate_zus_breakdown_preview(params: ZUSMacroParams) -> Dict[str, Any]:
+    """
+    Przygotowuje zestawienie podglądowe stawek i wyliczeń składek społecznych oraz zdrowotnej
+    w oparciu o podane wskaźniki makroekonomiczne na dany rok.
+    Używane w interfejsie webowym w zakładce 'Księgowanie'.
+    """
+    stopa_emerytalna = Decimal("0.1952")
+    stopa_rentowa = Decimal("0.0800")
+    stopa_chorobowa = Decimal("0.0245")
+    stopa_wypadkowa = Decimal("0.0167")
+    stopa_fp = Decimal("0.0245")
+    stopa_zdrowotna = Decimal("0.0900")
+
+    def _rnd(val: Decimal) -> Decimal:
+        return val.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # Pełny ZUS
+    p_pelny = params.podstawa_pelny_zus
+    pelny_emerytalna = _rnd(p_pelny * stopa_emerytalna)
+    pelny_rentowa = _rnd(p_pelny * stopa_rentowa)
+    pelny_chorobowa = _rnd(p_pelny * stopa_chorobowa)
+    pelny_wypadkowa = _rnd(p_pelny * stopa_wypadkowa)
+    pelny_fp = _rnd(p_pelny * stopa_fp)
+    pelny_suma_bez_chorobowego = pelny_emerytalna + pelny_rentowa + pelny_wypadkowa + pelny_fp
+    pelny_suma_z_chorobowym = pelny_suma_bez_chorobowego + pelny_chorobowa
+
+    # Preferencyjny ZUS (Mały ZUS Plus / 30% minimalnej)
+    p_pref = params.podstawa_preferencyjny_zus
+    pref_emerytalna = _rnd(p_pref * stopa_emerytalna)
+    pref_rentowa = _rnd(p_pref * stopa_rentowa)
+    pref_chorobowa = _rnd(p_pref * stopa_chorobowa)
+    pref_wypadkowa = _rnd(p_pref * stopa_wypadkowa)
+    pref_fp = Decimal("0.00")  # zwolnienie z FP poniżej minimalnego wynagrodzenia
+    pref_suma_bez_chorobowego = pref_emerytalna + pref_rentowa + pref_wypadkowa
+    pref_suma_z_chorobowym = pref_suma_bez_chorobowego + pref_chorobowa
+
+    # Zdrowotna ryczałt (3 progi)
+    baza_zdrowotna = params.przecietne_wynagrodzenie_zdrowotna
+    prog1_podstawa = _rnd(baza_zdrowotna * Decimal("0.60"))
+    prog1_kwota = _rnd(prog1_podstawa * stopa_zdrowotna)
+    prog1_odliczenie = _rnd(prog1_kwota * Decimal("0.50"))
+
+    prog2_podstawa = _rnd(baza_zdrowotna * Decimal("1.00"))
+    prog2_kwota = _rnd(prog2_podstawa * stopa_zdrowotna)
+    prog2_odliczenie = _rnd(prog2_kwota * Decimal("0.50"))
+
+    prog3_podstawa = _rnd(baza_zdrowotna * Decimal("1.80"))
+    prog3_kwota = _rnd(prog3_podstawa * stopa_zdrowotna)
+    prog3_odliczenie = _rnd(prog3_kwota * Decimal("0.50"))
+
+    return {
+        "rok": params.rok,
+        "podstawa_pelny_zus": params.podstawa_pelny_zus,
+        "podstawa_preferencyjny_zus": params.podstawa_preferencyjny_zus,
+        "przecietne_wynagrodzenie_zdrowotna": params.przecietne_wynagrodzenie_zdrowotna,
+        "zrodlo": params.zrodlo,
+        "ostrzezenie": params.ostrzezenie,
+        "pelny": {
+            "podstawa": p_pelny,
+            "emerytalna": pelny_emerytalna,
+            "rentowa": pelny_rentowa,
+            "chorobowa": pelny_chorobowa,
+            "wypadkowa": pelny_wypadkowa,
+            "fundusz_pracy": pelny_fp,
+            "suma_bez_chorobowego": pelny_suma_bez_chorobowego,
+            "suma_z_chorobowym": pelny_suma_z_chorobowym,
+        },
+        "preferencyjny": {
+            "podstawa": p_pref,
+            "emerytalna": pref_emerytalna,
+            "rentowa": pref_rentowa,
+            "chorobowa": pref_chorobowa,
+            "wypadkowa": pref_wypadkowa,
+            "fundusz_pracy": pref_fp,
+            "suma_bez_chorobowego": pref_suma_bez_chorobowego,
+            "suma_z_chorobowym": pref_suma_z_chorobowym,
+        },
+        "zdrowotna_ryczalt": [
+            {
+                "prog_nazwa": "I próg (przychody roczne do 60 000 zł)",
+                "zakres": "≤ 60 000 zł",
+                "mnoznik_bazy": "60%",
+                "podstawa": prog1_podstawa,
+                "stawka": "9%",
+                "kwota_miesieczna": prog1_kwota,
+                "odliczenie_50": prog1_odliczenie,
+            },
+            {
+                "prog_nazwa": "II próg (przychody roczne 60 000 – 300 000 zł)",
+                "zakres": "60 000 – 300 000 zł",
+                "mnoznik_bazy": "100%",
+                "podstawa": prog2_podstawa,
+                "stawka": "9%",
+                "kwota_miesieczna": prog2_kwota,
+                "odliczenie_50": prog2_odliczenie,
+            },
+            {
+                "prog_nazwa": "III próg (przychody roczne powyżej 300 000 zł)",
+                "zakres": "> 300 000 zł",
+                "mnoznik_bazy": "180%",
+                "podstawa": prog3_podstawa,
+                "stawka": "9%",
+                "kwota_miesieczna": prog3_kwota,
+                "odliczenie_50": prog3_odliczenie,
+            },
+        ],
+    }
+
+
 def get_zus_indicators(
     rok: str,
     profile_overrides: Optional[Dict[str, Any]] = None,
@@ -146,10 +293,11 @@ def get_zus_indicators(
     """
     Pobiera komplet wskaźników ZUS dla danego roku z uwzględnieniem priorytetów:
     1. Nadpisanie w profilu firmy (jeśli podano).
-    2. Baza oficjalnych wskaźników wbudowanych (OFICJALNE_WSKAZNIKI).
-    3. Trwały cache na dysku (data/wskazniki_zus_cache.json) z poprzednich udanych pobrań.
-    4. Próba pobrania online (jeśli włączona flaga try_online) i zapis do cache.
-    5. Bezpieczny fallback z wyliczoną prognozą szacunkową i alertem ostrzegawczym.
+    2. Ręcznie wprowadzone / zweryfikowane wskaźniki z cache (ZWERYFIKOWANE, WPROWADZONE_RECZNIE).
+    3. Baza oficjalnych wskaźników wbudowanych (OFICJALNE_WSKAZNIKI).
+    4. Trwały cache na dysku (data/wskazniki_zus_cache.json) z poprzednich udanych pobrań.
+    5. Próba pobrania online (jeśli włączona flaga try_online) i zapis do cache.
+    6. Bezpieczny fallback z wyliczoną prognozą szacunkową i alertem ostrzegawczym.
     """
     rok_str = str(rok)
 
@@ -168,23 +316,27 @@ def get_zus_indicators(
                 ostrzezenie="Zastosowano ręczne nadpisanie wskaźników ZUS z profilu firmy.",
             )
 
-    # 2. Oficjalna zatwierdzona baza wiedzy
+    # 2. Sprawdzenie trwałego cache (jeśli wpis został zweryfikowany lub ręcznie wprowadzony przez użytkownika)
+    cached = load_from_cache(rok_str, cache_path=cache_path)
+    if cached and cached.zrodlo in ("WPROWADZONE_RECZNIE", "ZWERYFIKOWANE", "PROFIL_UZYTKOWNIKA"):
+        return cached
+
+    # 3. Oficjalna zatwierdzona baza wiedzy
     if rok_str in OFICJALNE_WSKAZNIKI:
         return OFICJALNE_WSKAZNIKI[rok_str]
 
-    # 3. Trwały lokalny cache dyskowy
-    cached = load_from_cache(rok_str, cache_path=cache_path)
+    # 4. Trwały lokalny cache dyskowy (np. pobrane wcześniej online lub inne)
     if cached:
         return cached
 
-    # 4. Próba pobrania z internetu
+    # 5. Próba pobrania z internetu
     if try_online:
         online = fetch_online_indicators(rok_str)
         if online:
             save_to_cache(online, cache_path=cache_path)
             return online
 
-    # 4. Fallback: Estymacja na podstawie ostatniego znanego roku z alertem ostrzegawczym
+    # 6. Fallback: Estymacja na podstawie ostatniego znanego roku z alertem ostrzegawczym
     ostatni_znany = max(OFICJALNE_WSKAZNIKI.keys())
     wzorzec = OFICJALNE_WSKAZNIKI[ostatni_znany]
     

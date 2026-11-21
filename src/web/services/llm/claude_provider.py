@@ -69,7 +69,7 @@ class ClaudeProvider(BaseLLMProvider):
         }
         payload = self._build_payload(messages, system_prompt, temperature, stream=False)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             resp = await client.post(self._base_url, headers=headers, json=payload)
             if resp.status_code != 200:
                 raise RuntimeError(f"Błąd Anthropic API ({resp.status_code}): {resp.text}")
@@ -94,7 +94,7 @@ class ClaudeProvider(BaseLLMProvider):
         }
         payload = self._build_payload(messages, system_prompt, temperature, stream=True)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", self._base_url, headers=headers, json=payload) as response:
                 if response.status_code != 200:
                     err_body = await response.aread()

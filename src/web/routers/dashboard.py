@@ -33,7 +33,7 @@ def load_settlement_data(profile, rok: str, miesiac: str) -> Optional[Dict[str, 
 
 
 def load_aml_stats(profile, rok: str, miesiac: str) -> Optional[Dict[str, Any]]:
-    """Ładuje statystyki compliance z raportu weryfikacji."""
+    """Ładuje statystyki compliance z raportu weryfikacji z bezpiecznymi wartościami domyślnymi."""
     if not profile:
         return None
     aml_file = profile.katalog_firmy / "weryfikacje" / rok / miesiac / "raport-weryfikacji.json"
@@ -41,7 +41,28 @@ def load_aml_stats(profile, rok: str, miesiac: str) -> Optional[Dict[str, Any]]:
         try:
             with open(aml_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return data.get("statystyki")
+                stats = data.get("statystyki")
+                if isinstance(stats, dict):
+                    defaults = {
+                        "lacznie_kontrahentow": 0,
+                        "niski_ryzyko_akceptacja": 0,
+                        "srednie_ryzyko_uwaga": 0,
+                        "wysokie_ryzyko_wyjasnienia": 0,
+                        "krytyczne_stop_sankcje": 0,
+                        "bledy_polaczenia_offline": 0,
+                        "rachunki_sprawdzone": 0,
+                        "rachunki_zgodne": 0,
+                        "rachunki_niezgodne": 0,
+                    }
+                    defaults.update(stats)
+                    # Jeśli starszy format, zlicz rachunki z listy kontrahentów
+                    if "rachunki_sprawdzone" not in stats and "kontrahenci" in data:
+                        kontr = data.get("kontrahenci", [])
+                        defaults["rachunki_sprawdzone"] = sum(1 for k in kontr if k.get("status_rachunku") not in (None, "NIE_PODANO"))
+                        defaults["rachunki_zgodne"] = sum(1 for k in kontr if k.get("status_rachunku") == "ZGODNY_BIALA_LISTA")
+                        defaults["rachunki_niezgodne"] = sum(1 for k in kontr if k.get("status_rachunku") == "BRAK_NA_BIALEJ_LISCIE")
+                    return defaults
+                return None
         except Exception:
             return None
     return None

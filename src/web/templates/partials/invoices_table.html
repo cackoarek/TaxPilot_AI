@@ -1,5 +1,10 @@
 <!-- Fragment tabeli faktur: partials/invoices_table.html -->
-<div id="invoices-table-container" class="space-y-4">
+<div id="invoices-table-container" 
+     {% if table_swap_oob %}hx-swap-oob="true"{% endif %}
+     class="space-y-4"
+     hx-get="/faktury/table?tab={{ tab or 'all' }}" 
+     hx-trigger="invoices-refresh from:body" 
+     hx-swap="outerHTML">
   
   {% if upload_alert %}
     {{ upload_alert|safe }}
@@ -107,13 +112,23 @@
                   {{ "%.2f"|format(inv.suma_brutto|float) }} zł
                 </td>
                 <td class="p-3 text-center">
-                  {% if inv.plik_zrodlowy %}
-                    <span class="text-[11px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                      {{ inv.plik_zrodlowy }}
+                  <button type="button"
+                          hx-get="/api/invoices/preview?numer={{ inv.numer|urlencode }}&typ={{ inv.typ.value }}"
+                          hx-target="#invoice-modal-container"
+                          hx-swap="innerHTML"
+                          hx-select="#invoice-modal"
+                          onclick="openInvoiceModal()"
+                          class="inline-flex items-center space-x-1.5 px-2.5 py-1 text-[11px] font-mono font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer shadow-2xs group"
+                          title="Kliknij, aby otworzyć podgląd pliku i treści faktury">
+                    <span class="group-hover:scale-110 transition-transform">📄</span>
+                    <span class="truncate max-w-[130px] inline-block text-left">
+                      {% if inv.plik_zrodlowy %}
+                        {{ inv.plik_zrodlowy.replace('\\', '/').split('/')[-1] }}
+                      {% else %}
+                        XML KSeF
+                      {% endif %}
                     </span>
-                  {% else %}
-                    <span class="text-slate-400 text-xs">XML KSeF</span>
-                  {% endif %}
+                  </button>
                 </td>
               </tr>
             {% endfor %}
@@ -154,3 +169,34 @@
 
   </div>
 </div>
+
+{% if is_ksef_sync_response %}
+  <div id="ksef-last-sync-status" hx-swap-oob="true" class="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
+    <div>
+      <span class="text-slate-500">Ostatnia synchronizacja:</span>
+      {% if last_sync %}
+        <span class="font-bold {% if last_sync.status == 'SUKCES' %}text-emerald-700{% else %}text-rose-600{% endif %}">
+          {{ last_sync.timestamp }} ({{ last_sync.status }})
+        </span>
+        <div class="text-[10px] text-slate-500">
+          Pobrano: {{ last_sync.lacznie_sprzedaz }} sprzedaży, {{ last_sync.lacznie_kosztow }} kosztów
+        </div>
+      {% else %}
+        <span class="text-slate-400 font-medium">Brak prób w tym okresie</span>
+      {% endif %}
+    </div>
+    {% if sync_history %}
+      <button type="button" @click="historyModalOpen = true" class="text-blue-600 hover:text-blue-800 font-semibold underline text-[11px] self-start sm:self-auto cursor-pointer">
+        Historia synchronizacji ({{ sync_history|length }}) &rarr;
+      </button>
+    {% endif %}
+  </div>
+
+  <div id="ksef-history-modal-body" hx-swap-oob="true" class="flex-1 overflow-y-auto">
+    {% include "partials/ksef_history_modal_body.html" %}
+  </div>
+{% endif %}
+
+{% if banner_swap_oob %}
+  {% include "partials/unprocessed_invoices_banner.html" %}
+{% endif %}
