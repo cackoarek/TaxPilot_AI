@@ -4,15 +4,15 @@ Testy jednostkowe modułu wersjonowania aplikacji (src/version.py) oraz obecnoś
 """
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from src.version import (
     get_version,
     get_display_version,
     clear_version_cache,
-    _get_version_from_git,
-    DEFAULT_DEV_VERSION,
+    DEFAULT_VERSION,
 )
 from src.web.app import app
 
@@ -38,14 +38,14 @@ class TestVersion(unittest.TestCase):
             self.assertEqual(get_version(), "1.8.4")
             self.assertEqual(get_display_version(), "v1.8.4")
 
-    @patch("src.version._get_version_from_git")
-    def test_get_version_git_tag(self, mock_git):
-        """Gdy dostępny jest tag w git, wersja powinna pochodzić z git describe."""
-        mock_git.return_value = "v1.3.0"
+    def test_get_version_from_version_file(self):
+        """Odczyt wersji ze statycznego pliku VERSION (utrzymywanego przez GitHub Actions)."""
         with patch.dict(os.environ, {"APP_VERSION": "", "TAXPILOT_VERSION": ""}, clear=False):
-            clear_version_cache()
-            self.assertEqual(get_version(), "v1.3.0")
-            self.assertEqual(get_display_version(), "v1.3.0")
+            with patch.object(Path, "read_text", return_value="0.3.5"):
+                with patch.object(Path, "exists", return_value=True):
+                    clear_version_cache()
+                    self.assertEqual(get_version(), "0.3.5")
+                    self.assertEqual(get_display_version(), "v0.3.5")
 
     def test_get_display_version_adds_v_prefix_if_missing(self):
         """Upewnia się, że get_display_version() dodaje przedrostek 'v' tylko gdy go brakuje."""
@@ -68,7 +68,7 @@ class TestVersion(unittest.TestCase):
 
             # Sprawdzenie obecności wersji w stopce
             self.assertIn("v9.9.9", html)
-            self.assertIn("Wersja aplikacji (git tag)", html)
+            self.assertIn("Wersja aplikacji", html)
             self.assertIn("<footer", html)
 
 
