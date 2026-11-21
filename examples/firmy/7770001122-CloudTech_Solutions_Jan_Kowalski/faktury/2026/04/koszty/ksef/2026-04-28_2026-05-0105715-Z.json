@@ -1,0 +1,49 @@
+{
+  "numer": "2026-05-0105715-Z",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "KSEF",
+  "plik_zrodlowy": null,
+  "data_wystawienia": "2026-04-28",
+  "data_sprzedazy": "2026-04-28",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "8971793639",
+    "nazwa": "Sprzedawca 8971793639",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "48.78",
+  "suma_vat": "11.22",
+  "suma_brutto": "60.00",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "usługi inne",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "48.78",
+      "stawka_vat": "23",
+      "kwota_vat": "11.22",
+      "wartosc_brutto": "60.00",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "nip": "IE6388047V",
+  "nazwa": "Google Ireland Limited",
+  "adres": "Gordon House, Barrow Street, Dublin 4, Ireland",
+  "regon": null,
+  "krs": "Nie dotyczy (podmiot zagraniczny bez oddziału w polskim KRS)",
+  "forma_prawna": "SPÓŁKA ZAGRANICZNA (PODATNIK VAT-UE / MIĘDZYNARODOWY)",
+  "data_weryfikacji": "2026-11-20T16:53:02.998652+00:00",
+  "data_weryfikacji_tekst": "20.11.2026, 17:53",
+  "osoba_weryfikujaca": "TaxPilot AI – Verification & Compliance Agent",
+  "status_rejestru": "AKTYWNY",
+  "zrodlo_rejestru": "Właściwy rejestr handlowy państwa siedziby (np. RCS Luksemburg / CRO Irlandia)",
+  "reprezentacja": [
+    "Zarząd / Dyrektorzy zgodnie z właściwym rejestrem handlowym państwa siedziby (np. RCS Luksemburg / CRO)"
+  ],
+  "crbr_status": "NIE_DOTYCZY_ZAGRANICZNA",
+  "beneficjenci_rzeczywisci": [
+    "Beneficjenci rzeczywiści (UBO) zarejestrowani we właściwym rejestrze państwa siedziby (dyrektywa AML UE)"
+  ],
+  "sankcje_mswia": false,
+  "sankcje_ue": false,
+  "sankcje_szczegoly": [],
+  "status_vat": "Czynny podatnik VAT-UE / Międzynarodowy (art. 28b ustawy o VAT)",
+  "platnik_vat_czynny": true,
+  "zweryfikowany_rachunek": null,
+  "status_rachunku": "NIE_PODANO",
+  "rachunki_zgloszone_mf": [],
+  "status_pep": false,
+  "poziom_ryzyka": "NISKIE",
+  "decyzja": "AKCEPTACJA",
+  "uzasadnienie_decyzji": "Kontrahent zweryfikowany pozytywnie: spółka zagraniczna (podatnik VAT-UE / zarejestrowany do VAT), import/eksport usług B2B (art. 28b ustawy o VAT), brak sankcji (MSWiA / UE), pełna ochrona podatkowa.",
+  "uwagi_dodatkowe": null,
+  "blad_polaczenia": false,
+  "komunikat_bledu": null,
+  "sha256_hash": "21b41591c35805a4f23ded18c534cabc867870632dc955bb8c61543e582b5c7a"
+}

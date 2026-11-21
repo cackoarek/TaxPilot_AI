@@ -17,10 +17,26 @@ from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
 
 TEST_NIP = "7770001122"
 TEST_NAME = "CloudTech Solutions Jan Kowalski"
+EXAMPLE_COMPANY_DIR = Path(__file__).resolve().parent.parent / "examples" / "firmy" / "7770001122-CloudTech_Solutions_Jan_Kowalski"
 
 
 def setup_test_company() -> CompanyProfile:
-    """Tworzy zanonimizowany profil firmy testowej oraz strukturę faktur za kwiecień 2026."""
+    """Tworzy zanonimizowany profil firmy testowej oraz strukturę faktur z examples/."""
+    target_dir = Path(f"firmy/{TEST_NIP}-CloudTech_Solutions_Jan_Kowalski")
+    if EXAMPLE_COMPANY_DIR.exists():
+        if not target_dir.exists():
+            shutil.copytree(EXAMPLE_COMPANY_DIR, target_dir)
+        else:
+            for item in EXAMPLE_COMPANY_DIR.iterdir():
+                t = target_dir / item.name
+                if not t.exists():
+                    if item.is_dir():
+                        shutil.copytree(item, t)
+                    else:
+                        shutil.copy2(item, t)
+        profile = CompanyProfile.load_from_dir(target_dir)
+        return profile
+
     profile = CompanyProfile(
         nip=TEST_NIP,
         nazwa=TEST_NAME,

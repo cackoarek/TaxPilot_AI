@@ -1,0 +1,52 @@
+{
+  "numer": "F 40112/1561/26",
+  "ksef_numer_referencyjny": "7770001122-20260920-99AC41000001-1A",
+  "zrodlo": "KSEF",
+  "plik_zrodlowy": "firmy/7770001122-CloudTech_Test_Jan_Kowalski/faktury/2026/09/koszty/ksef/2026-09-20_F_40112_1561_26.json",
+  "data_wystawienia": "2026-09-20",
+  "data_sprzedazy": "2026-09-20",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": "",
+  "nr_faktury_korygowanej": "",
+  "data_faktury_korygowanej": "",
+  "rachunek_bankowy": "93109000047777010097655657",
+  "sprzedawca": {
+    "nip": "9512120077",
+    "nazwa": "T-MOBILE POLSKA S.A.",
+    "kraj": "PL",
+    "adres": "ul. Marynarska 12, 02-674 Warszawa",
+    "regon": "011417295"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": "ul. Roosevelta 22, 60-829 Poznań",
+    "regon": "389123456"
+  },
+  "suma_netto": "110.00",
+  "suma_vat": "25.30",
+  "suma_brutto": "135.30",
+  "stawki_netto": {
+    "23": "110.00"
+  },
+  "stawki_vat": {
+    "23": "25.30"
+  },
+  "pozycje": [
+    {
+      "opis": "Dostęp do sieci i łącze światłowodowe (T-Mobile)",
+      "ilosc": "1",
+      "jednostka": "szt.",
+      "cena_jednostkowa_netto": "110.00",
+      "wartosc_netto": "110.00",
+      "stawka_vat": "23",
+      "kwota_vat": "25.30",
+      "wartosc_brutto": "135.30",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

@@ -96,9 +96,9 @@ class TestSettlementService(unittest.TestCase):
         real_profile = CompanyProfile.load_from_dir(p_path)
         result = SettlementService.settle_month(real_profile, "2026", "10", zapisz_raporty=False)
 
-        self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 4468)
-        self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 8782)
-        self.assertEqual(result.zus.lacznie_do_zaplaty, Decimal("3283.33"))
+        self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 6276)
+        self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 7327)
+        self.assertEqual(result.zus.lacznie_do_zaplaty, Decimal("2757.34"))
 
     def test_settle_may_2026_retroactive_correction(self):
         """Test rozliczenia 2026-05: korekta wsteczna 1/KOR/06/2026 (-4000 zł) koryguje przychód maja dla PIT-28."""

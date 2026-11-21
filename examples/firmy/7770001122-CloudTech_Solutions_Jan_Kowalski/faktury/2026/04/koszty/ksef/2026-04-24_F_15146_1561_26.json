@@ -1,0 +1,49 @@
+{
+  "numer": "F 15146/1561/26",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "KSEF",
+  "plik_zrodlowy": null,
+  "data_wystawienia": "2026-04-24",
+  "data_sprzedazy": "2026-04-24",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "7740001454",
+    "nazwa": "Sprzedawca 7740001454",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "330.02",
+  "suma_vat": "26.40",
+  "suma_brutto": "356.42",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "EFECTA 95 CN27101245 paliwo",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "330.02",
+      "stawka_vat": "23",
+      "kwota_vat": "26.40",
+      "wartosc_brutto": "356.42",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

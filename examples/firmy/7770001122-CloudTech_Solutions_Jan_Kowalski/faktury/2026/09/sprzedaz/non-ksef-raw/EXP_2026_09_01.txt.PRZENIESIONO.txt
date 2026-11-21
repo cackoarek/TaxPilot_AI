@@ -1,0 +1,19 @@
+================================================================================
+INFORMACJA O AUTOMATYCZNEJ RELOKACJI DOKUMENTU NON-KSEF (Auto-Routing)
+================================================================================
+Data relokacji:     2026-11-21 20:55:16
+Oryginalny plik:    EXP_2026_09_01.txt
+Pierwotna ścieżka:  faktury/2026/09/sprzedaz/non-ksef-raw/EXP_2026_09_01.txt
+Nowa lokalizacja:   faktury/2026/09/koszty/non-ksef-raw/EXP_2026_09_01.txt
+Powód relokacji:    Wykryto faktyczny typ: KOSZTY (Sprzedawca: CloudTech Test Jan Kowalski, NIP: 7770001122, ul. Roosevelta [0000000000], Nabywca: CloudTech Test Jan Kowalski [7770001122])
+
+Dane faktury:
+  - Numer faktury:  EXP/2026/09/01
+  - Data faktury:   2026-09-28
+  - Sprzedawca:     CloudTech Test Jan Kowalski, NIP: 7770001122, ul. Roosevelta (NIP: 0000000000)
+  - Nabywca:        CloudTech Test Jan Kowalski (NIP: 7770001122)
+  - Kwota brutto:   0.00 PLN
+
+Ten plik informacyjny został wygenerowany automatycznie przez TaxPilot AI.
+Oryginalny plik dokumentu został bezpiecznie przeniesiony do właściwego folderu.
+================================================================================

@@ -29,6 +29,10 @@ Każdy agent operujący w tym projekcie ma bezwzględny obowiązek stosowania po
      - **Obowiązek Agenta:** Agent ma obowiązek wyraźnie zaakcentować użytkownikowi brak połączenia z rejestrem państwowym i zaproponować ponowne uruchomienie procedury weryfikacyjnej w środowisku z dostępem do Internetu (polecenie z parametrem `--force`).
      - Błędy połączenia sieciowego nie mogą zatruwać trwałego cache'a dyskowego – po przywróceniu sieci ponowna próba musi automatycznie odpytać rejestry live.
 
+5. **Zakaz Samodzielnego Tworzenia Commitów i Pushowania (Git Safety Policy):**
+   * **ZAKAZ:** Agentowi **bezwzględnie zabrania się** samodzielnego tworzenia commitów (`git commit`) oraz wysyłania zmian do zdalnego repozytorium (`git push`), chyba że użytkownik wyraźnie i jednoznacznie o to poprosi w bieżącej instrukcji.
+   * Agent przygotowuje i edytuje pliki w przestrzeni roboczej, weryfikuje testy i prezentuje wyniki użytkownikowi, pozostawiając decyzję o commicie i pushu wyłącznie użytkownikowi.
+
 ---
 
 ## 2. Architektura Zespołu Agentów i Schemat Współpracy

@@ -1,0 +1,49 @@
+{
+  "numer": "6468569",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "KSEF",
+  "plik_zrodlowy": null,
+  "data_wystawienia": "2026-04-02",
+  "data_sprzedazy": "2026-04-02",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "5270203968",
+    "nazwa": "Sprzedawca 5270203968",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "190.22",
+  "suma_vat": "43.76",
+  "suma_brutto": "233.98",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Kawa i akcesoria biurowe",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "190.22",
+      "stawka_vat": "23",
+      "kwota_vat": "43.76",
+      "wartosc_brutto": "233.98",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

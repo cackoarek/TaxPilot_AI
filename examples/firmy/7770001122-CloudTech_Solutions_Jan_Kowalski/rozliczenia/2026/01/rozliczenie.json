@@ -1,0 +1,111 @@
+{
+  "nip": "7770001122",
+  "firma": "CloudTech Test Jan Kowalski",
+  "rok": "2026",
+  "miesiac": "01",
+  "przychod_roczny_narastajaco": "0.00",
+  "suma_zobowiazan_lacznie": "2425.11",
+  "przelewy": [
+    {
+      "nazwa": "ZUS (Społeczne + Zdrowotna)",
+      "kwota": "2425.11",
+      "termin": "2026-02-20",
+      "rachunek": "Indywidualny Rachunek Składkowy ZUS (NRS)",
+      "tytul": "Składki ZUS za 01/2026"
+    }
+  ],
+  "zus": {
+    "rok": "2026",
+    "miesiac": "01",
+    "typ_zus": "PELNY_ZUS",
+    "chorobowe_dobrowolne": true,
+    "forma_opodatkowania": "RYCZALT",
+    "zrodlo_wskaznikow": "OFICJALNE_GUS",
+    "ostrzezenie_wskaznikow": null,
+    "podstawa_spoleczne": "5652.00",
+    "skladki_spoleczne": {
+      "emerytalna": "1103.27",
+      "rentowa": "452.16",
+      "chorobowa": "138.47",
+      "wypadkowa": "94.39",
+      "fundusz_pracy": "138.47",
+      "suma": "1926.76",
+      "odliczalne": "1788.29"
+    },
+    "skladka_zdrowotna": {
+      "prog": "<60k",
+      "podstawa": "5537.18",
+      "kwota": "498.35",
+      "odliczenie_ryczalt_50": "249.18"
+    },
+    "lacznie_do_zaplaty": "2425.11",
+    "termin_platnosci": "2026-02-20"
+  },
+  "pit28": {
+    "rok": "2026",
+    "miesiac": "01",
+    "przychod_laczny": "0.00",
+    "odliczenie_spoleczne": "1788.29",
+    "odliczenie_zdrowotna_50": "249.18",
+    "podstawa_opodatkowania": "0.00",
+    "podatek_wg_stawek": {},
+    "podatek_nalezy_dokladny": "0.00",
+    "zaliczka_pit28_zaokraglona": 0,
+    "termin_platnosci": "2026-02-20"
+  },
+  "vat": {
+    "rok": "2026",
+    "miesiac": "01",
+    "vat_nalezy": "0.00",
+    "vat_nalezny": "0.00",
+    "vat_naliczony": "0.00",
+    "nadwyzka_z_poprzedniego_miesiaca": "0.00",
+    "roznica_vat": "0.00",
+    "vat_do_zaplaty_zaokraglony": 0,
+    "vat_do_przeniesienia": "0.00",
+    "termin_platnosci": "2026-02-25"
+  },
+  "ewidencja": {
+    "nip": "7770001122",
+    "firma": "CloudTech Test Jan Kowalski",
+    "rok": "2026",
+    "miesiac": "01",
+    "ewidencja_przychodow": {
+      "rok": "2026",
+      "miesiac": "01",
+      "sumy_wg_stawek": {},
+      "laczny_przychod_netto": "0.00",
+      "liczba_faktur": 0,
+      "wpisy": []
+    },
+    "rejestr_vat": {
+      "rok": "2026",
+      "miesiac": "01",
+      "sprzedaz": {
+        "liczba_faktur": 0,
+        "suma_netto": "0.00",
+        "suma_vat_nalezy": "0.00",
+        "suma_brutto": "0.00",
+        "netto_wg_stawek": {},
+        "vat_wg_stawek": {},
+        "wpisy": []
+      },
+      "zakupy": {
+        "liczba_faktur": 0,
+        "suma_netto": "0.00",
+        "suma_vat_faktury": "0.00",
+        "suma_vat_naliczony_odliczenie": "0.00",
+        "suma_vat_nieodliczony": "0.00",
+        "suma_odrzucone_netto_prywatne": "0.00",
+        "suma_odrzucony_vat_prywatny": "0.00",
+        "suma_brutto": "0.00",
+        "wpisy": []
+      }
+    },
+    "audyt_kosztow": [],
+    "laczne_odrzucone_netto_prywatne": "0.00",
+    "laczny_odrzucony_vat_prywatny": "0.00",
+    "pytania_do_uzytkownika": [],
+    "duplikaty": []
+  }
+}

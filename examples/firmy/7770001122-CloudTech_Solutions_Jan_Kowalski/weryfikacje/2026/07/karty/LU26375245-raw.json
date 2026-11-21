@@ -1,0 +1,36 @@
+{
+  "nip": "LU26375245",
+  "nazwa": "Amazon Web Services EMEA SARL",
+  "adres": "38 Avenue John F. Kennedy, L-1855 Luxembourg",
+  "regon": null,
+  "krs": "Nie dotyczy (podmiot zagraniczny bez oddziału w polskim KRS)",
+  "forma_prawna": "SPÓŁKA ZAGRANICZNA (PODATNIK VAT-UE / MIĘDZYNARODOWY)",
+  "data_weryfikacji": "2026-11-20T16:53:04.088277+00:00",
+  "data_weryfikacji_tekst": "20.11.2026, 17:53",
+  "osoba_weryfikujaca": "TaxPilot AI – Verification & Compliance Agent",
+  "status_rejestru": "AKTYWNY",
+  "zrodlo_rejestru": "Właściwy rejestr handlowy państwa siedziby (np. RCS Luksemburg / CRO Irlandia)",
+  "reprezentacja": [
+    "Zarząd / Dyrektorzy zgodnie z właściwym rejestrem handlowym państwa siedziby (np. RCS Luksemburg / CRO)"
+  ],
+  "crbr_status": "NIE_DOTYCZY_ZAGRANICZNA",
+  "beneficjenci_rzeczywisci": [
+    "Beneficjenci rzeczywiści (UBO) zarejestrowani we właściwym rejestrze państwa siedziby (dyrektywa AML UE)"
+  ],
+  "sankcje_mswia": false,
+  "sankcje_ue": false,
+  "sankcje_szczegoly": [],
+  "status_vat": "Czynny podatnik VAT-UE / Międzynarodowy (art. 28b ustawy o VAT)",
+  "platnik_vat_czynny": true,
+  "zweryfikowany_rachunek": null,
+  "status_rachunku": "NIE_PODANO",
+  "rachunki_zgloszone_mf": [],
+  "status_pep": false,
+  "poziom_ryzyka": "NISKIE",
+  "decyzja": "AKCEPTACJA",
+  "uzasadnienie_decyzji": "Kontrahent zweryfikowany pozytywnie: spółka zagraniczna (podatnik VAT-UE / zarejestrowany do VAT), import/eksport usług B2B (art. 28b ustawy o VAT), brak sankcji (MSWiA / UE), pełna ochrona podatkowa.",
+  "uwagi_dodatkowe": null,
+  "blad_polaczenia": false,
+  "komunikat_bledu": null,
+  "sha256_hash": "81bfc3a911c49953ca4d21296c89591d91f79ef68d418898cc310c1e0e58d4db"
+}

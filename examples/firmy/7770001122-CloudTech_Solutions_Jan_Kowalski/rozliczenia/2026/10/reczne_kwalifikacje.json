@@ -1,0 +1,74 @@
+{
+  "CE/FAV/2026/0005129::dysk ssd samsung 990 pro 2tb nvme pcie 4.0 do stacji roboczej": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "CE/FAV/2026/0005129",
+    "opis_pozycji": "Dysk SSD Samsung 990 Pro 2TB NVMe PCIe 4.0 do stacji roboczej",
+    "data_zapisu": "2026-11-20 17:51:50"
+  },
+  "CE/FAV/2026/0005129::klawiatura mechaniczna bezprzewodowa logitech mx mechanical": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "CE/FAV/2026/0005129",
+    "opis_pozycji": "Klawiatura mechaniczna bezprzewodowa Logitech MX Mechanical",
+    "data_zapisu": "2026-11-20 17:51:50"
+  },
+  "FV/ALG/2026/10/9128::kable sieciowe patchcord rj45 cat 6a 10m - 5 szt": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "FV/ALG/2026/10/9128",
+    "opis_pozycji": "Kable sieciowe patchcord RJ45 Cat 6a 10m - 5 szt.",
+    "data_zapisu": "2026-11-20 17:52:11"
+  },
+  "FV/ALG/2026/10/9128::zestaw klocków lego star wars dla dzieci (wydatek prywatny)": {
+    "kwalifikacja": "PRYWATNY_0",
+    "numer_faktury": "FV/ALG/2026/10/9128",
+    "opis_pozycji": "Zestaw klocków LEGO Star Wars dla dzieci (wydatek prywatny)",
+    "data_zapisu": "2026-11-20 17:52:21"
+  },
+  "F/71029415/10/26::abonament biznes rozszerzony - internet światłowodowy dla biura": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "F/71029415/10/26",
+    "opis_pozycji": "Abonament Biznes Rozszerzony - Internet Światłowodowy dla Biura",
+    "data_zapisu": "2026-11-20 17:52:35"
+  },
+  "F/71029415/10/26::opłata za publiczny stały adres ipv4 dla serwera vpn": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "F/71029415/10/26",
+    "opis_pozycji": "Opłata za publiczny stały adres IPv4 dla serwera VPN",
+    "data_zapisu": "2026-11-20 17:52:35"
+  },
+  "F 41209/1561/26::efecta 95 cn27101245 paliwo benzyna": {
+    "kwalifikacja": "SAMOCHOD_50",
+    "numer_faktury": "F 41209/1561/26",
+    "opis_pozycji": "EFECTA 95 CN27101245 paliwo benzyna",
+    "data_zapisu": "2026-11-20 17:52:40"
+  },
+  "AWS-INV-2026-10-7419::amazon web services cloud infrastructure services (ec2, s3, rds) - october 2026": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "AWS-INV-2026-10-7419",
+    "opis_pozycji": "Amazon Web Services Cloud Infrastructure Services (EC2, S3, RDS) - October 2026",
+    "data_zapisu": "2026-11-20 17:52:45"
+  },
+  "FV/2026/10/FAST-891::serwer dedykowany nvme pro 64gb ram oraz backup w chmurze": {
+    "kwalifikacja": "FIRMOWY_100",
+    "numer_faktury": "FV/2026/10/FAST-891",
+    "opis_pozycji": "Serwer dedykowany NVMe Pro 64GB RAM oraz backup w chmurze",
+    "data_zapisu": "2026-11-20 17:52:48"
+  },
+  "PAR-2026-10-55912::paliwo benzyna milesplus 98": {
+    "kwalifikacja": "SAMOCHOD_50",
+    "numer_faktury": "PAR-2026-10-55912",
+    "opis_pozycji": "Paliwo benzyna milesPLUS 98",
+    "data_zapisu": "2026-11-20 17:52:50"
+  },
+  "FV/TEST/XYZ_999": {
+    "kwalifikacja": "SAMOCHOD_50",
+    "numer_faktury": "FV/TEST/XYZ_999",
+    "opis_pozycji": null,
+    "data_zapisu": "2026-11-21 20:55:21"
+  },
+  "F 9999/TEST/26::paliwo_vpower_racing_99": {
+    "kwalifikacja": "SAMOCHOD_50",
+    "numer_faktury": "F 9999/TEST/26",
+    "opis_pozycji": "paliwo_vpower_racing_99",
+    "data_zapisu": "2026-11-21 20:55:23"
+  }
+}

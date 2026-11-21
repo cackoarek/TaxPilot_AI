@@ -1,0 +1,14 @@
+{
+  "nip_firmy": "7770001122",
+  "reguly_kontrahentow": {
+    "7740001454": [
+      {
+        "wzorzec": "paliwo_vpower_racing_99",
+        "kwalifikacja": "SAMOCHOD_50",
+        "uzasadnienie": "Paliwo do samochodu służbowego",
+        "data_utworzenia": "2026-11-21 20:53:34"
+      }
+    ]
+  },
+  "reguly_globalne": []
+}

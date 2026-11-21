@@ -1,0 +1,52 @@
+{
+  "numer": "EXP/2026/08/01",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "EXP_2026_08_01.txt",
+  "data_wystawienia": "2026-08-25",
+  "data_sprzedazy": "2026-08-25",
+  "typ": "sprzedaz",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": "10101000550225777000112200",
+  "sprzedawca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": "ul. Roosevelta 22, 60-829 Poznań",
+    "regon": "389123456"
+  },
+  "nabywca": {
+    "nip": "IE6388047V",
+    "nazwa": "GOOGLE IRELAND LIMITED",
+    "kraj": "IE",
+    "adres": "Gordon House, Barrow Street, Dublin 4, Irlandia",
+    "regon": ""
+  },
+  "suma_netto": "17500.00",
+  "suma_vat": "0.00",
+  "suma_brutto": "17500.00",
+  "stawki_netto": {
+    "np": "17500.00"
+  },
+  "stawki_vat": {
+    "np": "0.00"
+  },
+  "pozycje": [
+    {
+      "opis": "Konsultacje Google Cloud Platform - okres 08/2026",
+      "ilosc": "1",
+      "jednostka": "usł.",
+      "cena_jednostkowa_netto": "17500.00",
+      "wartosc_netto": "17500.00",
+      "stawka_vat": "np",
+      "kwota_vat": "0.00",
+      "wartosc_brutto": "17500.00",
+      "stawka_ryczaltu": "0.12",
+      "pkwiu": "62.02.1"
+    }
+  ]
+}

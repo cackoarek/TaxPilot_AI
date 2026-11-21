@@ -1,0 +1,49 @@
+{
+  "numer": "00304026075090200",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "2026-03-paliwa3.jpg",
+  "data_wystawienia": "2026-03-18",
+  "data_sprzedazy": "2026-03-18",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "5341531304",
+    "nazwa": "M&M MICHAŁ SZYMUSIK",
+    "kraj": "PL",
+    "adres": "ul. Szosa Lubelska 36, 05-400 Otwock",
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "241.37",
+  "suma_vat": "55.52",
+  "suma_brutto": "296.89",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Paliwo PB95",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "241.37",
+      "wartosc_netto": "241.37",
+      "stawka_vat": "23",
+      "kwota_vat": "55.52",
+      "wartosc_brutto": "296.89",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

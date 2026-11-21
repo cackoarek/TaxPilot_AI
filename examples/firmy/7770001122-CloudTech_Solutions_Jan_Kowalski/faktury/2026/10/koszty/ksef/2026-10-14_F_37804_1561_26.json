@@ -1,0 +1,32 @@
+{
+  "numer": "F 37804/1561/26",
+  "ksef_numer_referencyjny": "7740001454-20261014-001122334455-DD",
+  "zrodlo": "KSEF",
+  "data_wystawienia": "2026-10-14",
+  "data_sprzedazy": "2026-10-14",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "sprzedawca": {
+    "nip": "7740001454",
+    "nazwa": "PKN ORLEN S.A.",
+    "kraj": "PL"
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Solutions Jan Kowalski",
+    "kraj": "PL"
+  },
+  "suma_netto": "250.00",
+  "suma_vat": "57.50",
+  "suma_brutto": "307.50",
+  "pozycje": [
+    {
+      "opis": "EFECTA 95 CN27101245",
+      "wartosc_netto": "250.00",
+      "stawka_vat": "23",
+      "kwota_vat": "57.50",
+      "wartosc_brutto": "307.50"
+    }
+  ]
+}

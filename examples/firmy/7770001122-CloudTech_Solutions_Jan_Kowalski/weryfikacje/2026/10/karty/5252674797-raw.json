@@ -1,0 +1,39 @@
+{
+  "nip": "5252674797",
+  "nazwa": "ALLEGRO SP. Z O.O.",
+  "adres": "ul. Wierzbięcice 1B, 61-569 Poznań",
+  "regon": "365331993",
+  "krs": "0000635012",
+  "forma_prawna": "SPÓŁKA HANDLOWA",
+  "data_weryfikacji": "2026-11-20T18:27:10.300054+00:00",
+  "data_weryfikacji_tekst": "20.11.2026, 19:27",
+  "osoba_weryfikujaca": "TaxPilot AI – Verification & Compliance Agent",
+  "status_rejestru": "AKTYWNY",
+  "zrodlo_rejestru": "Krajowy Rejestr Sądowy (KRS) / MF",
+  "reprezentacja": [
+    "Zarząd zgodnie z odpisem KRS"
+  ],
+  "crbr_status": "ZGODNY",
+  "beneficjenci_rzeczywisci": [
+    "Beneficjenci rzeczywiści zgłoszeni w CRBR"
+  ],
+  "sankcje_mswia": false,
+  "sankcje_ue": false,
+  "sankcje_szczegoly": [],
+  "status_vat": "Czynny",
+  "platnik_vat_czynny": true,
+  "zweryfikowany_rachunek": "92109013620000000130009988",
+  "status_rachunku": "ZGODNY_BIALA_LISTA",
+  "rachunki_zgloszone_mf": [
+    "92109013620000000130009988",
+    "89109013620000000133481231"
+  ],
+  "status_pep": false,
+  "poziom_ryzyka": "NISKIE",
+  "decyzja": "AKCEPTACJA",
+  "uzasadnienie_decyzji": "Kontrahent zweryfikowany pozytywnie: aktywny w rejestrach KRS, czynny podatnik VAT, rachunek na Białej Liście MF, brak sankcji.",
+  "uwagi_dodatkowe": null,
+  "blad_polaczenia": false,
+  "komunikat_bledu": null,
+  "sha256_hash": "2b254ab4a0d944a852216b1d0cb5b57f7ee3d341dd224c571412c4446bb9b846"
+}

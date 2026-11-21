@@ -1,0 +1,49 @@
+{
+  "numer": "test_unprocessed_upload",
+  "ksef_numer_referencyjny": null,
+  "zrodlo": "NON_KSEF",
+  "plik_zrodlowy": "test_unprocessed_upload.jpg",
+  "data_wystawienia": "2026-09-01",
+  "data_sprzedazy": "2026-09-01",
+  "typ": "koszty",
+  "waluta": "PLN",
+  "rodzaj_faktury": "VAT",
+  "przyczyna_korekty": null,
+  "nr_faktury_korygowanej": null,
+  "data_faktury_korygowanej": null,
+  "rachunek_bankowy": null,
+  "relokacja": null,
+  "sprzedawca": {
+    "nip": "0000000000",
+    "nazwa": "Sprzedawca (test_unprocessed_upload.jpg)",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "nabywca": {
+    "nip": "7770001122",
+    "nazwa": "CloudTech Test Jan Kowalski",
+    "kraj": "PL",
+    "adres": null,
+    "regon": null
+  },
+  "suma_netto": "0.00",
+  "suma_vat": "0.00",
+  "suma_brutto": "0.00",
+  "stawki_netto": {},
+  "stawki_vat": {},
+  "pozycje": [
+    {
+      "opis": "Dokument z pliku test_unprocessed_upload.jpg (do weryfikacji kwot)",
+      "ilosc": "1",
+      "jednostka": "szt",
+      "cena_jednostkowa_netto": "0.00",
+      "wartosc_netto": "0.00",
+      "stawka_vat": "23",
+      "kwota_vat": "0.00",
+      "wartosc_brutto": "0.00",
+      "stawka_ryczaltu": null,
+      "pkwiu": null
+    }
+  ]
+}

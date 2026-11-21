@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-14T09:15:00Z</DataWytworzeniaFa>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>5252674797</NIP>
+      <Nazwa>ALLEGRO SP. Z O.O.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Wierzbięcice 1B</AdresL1>
+      <AdresL2>61-569 Poznań</AdresL2>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7770001122</NIP>
+      <Nazwa>CloudTech Test Jan Kowalski</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Roosevelta 22</AdresL1>
+      <AdresL2>60-829 Poznań</AdresL2>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-14</P_1>
+    <P_2>FV/ALG/2026/10/9128</P_2>
+    <P_6>2026-10-14</P_6>
+    <P_13_1>470.00</P_13_1>
+    <P_14_1>108.10</P_14_1>
+    <P_15>578.10</P_15>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Kable sieciowe patchcord RJ45 Cat 6a 10m - 5 szt.</P_7>
+      <P_8A>kpl</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>120.00</P_9A>
+      <P_11>120.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>2</NrWierszaFa>
+      <P_7>Zestaw klocków LEGO Star Wars dla dzieci (wydatek prywatny)</P_7>
+      <P_8A>szt</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>350.00</P_9A>
+      <P_11>350.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <RachunekBankowy>
+        <NrRB>92109013620000000130009988</NrRB>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+  <Stopka>
+    <Rejestry>
+      <REGON>365331993</REGON>
+    </Rejestry>
+  </Stopka>
+</Faktura>
