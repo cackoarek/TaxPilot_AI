@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+"""
+scripts/generate_portal_index.py
+Generuje stronę główną (landing portal) dla korzenia gałęzi gh-pages:
+https://cackoarek.github.io/TaxPilot_AI/
+Zawiera odnośniki do najnowszej wersji (latest/) oraz wszystkich wydań wersji.
+"""
+
+import argparse
+from pathlib import Path
+
+
+def generate_portal_html(pages_dir: Path, version_tag: str = "v0.1.0", repo: str = "cackoarek/TaxPilot_AI") -> str:
+    owner = repo.split("/")[0] if "/" in repo else "cackoarek"
+    repo_name = repo.split("/")[1] if "/" in repo else "TaxPilot_AI"
+    pages_base = f"https://{owner}.github.io/{repo_name}"
+
+    # Generowanie dynamicznych wierszy tabeli wersji
+    rows = []
+    rows.append(f"""<tr>
+      <td class="py-3 px-3">
+        <a href="latest/index.html" class="font-bold text-blue-400 hover:underline">latest ({version_tag})</a>
+      </td>
+      <td class="py-3 px-3"><a href="latest/index.html" class="text-slate-300 hover:text-white">📊 Pulpit</a></td>
+      <td class="py-3 px-3"><a href="latest/web_przeglad.html" class="text-slate-300 hover:text-white">📝 Przegląd</a></td>
+      <td class="py-3 px-3"><a href="latest/web_ksiegowanie.html" class="text-slate-300 hover:text-white">📑 Ewidencja</a></td>
+      <td class="py-3 px-3"><a href="latest/reports/raport-weryfikacji-2026-10.pdf" target="_blank" class="text-emerald-400 hover:underline">📄 Pobierz PDF</a></td>
+    </tr>""")
+
+    versions = []
+    if pages_dir.exists():
+        for d in pages_dir.iterdir():
+            if d.is_dir() and d.name.startswith("v") and (d / "index.html").exists():
+                versions.append(d.name)
+    versions.sort(reverse=True)
+
+    for v in versions:
+        pdf_link = "—"
+        if (pages_dir / v / "reports" / "raport-weryfikacji-2026-10.pdf").exists():
+            pdf_link = f'<a href="{v}/reports/raport-weryfikacji-2026-10.pdf" target="_blank" class="text-emerald-400 hover:underline">📄 Pobierz PDF</a>'
+        rows.append(f"""<tr>
+          <td class="py-3 px-3">
+            <a href="{v}/index.html" class="font-bold text-slate-300 hover:underline">{v}</a>
+          </td>
+          <td class="py-3 px-3"><a href="{v}/index.html" class="text-slate-400 hover:text-white">📊 Pulpit</a></td>
+          <td class="py-3 px-3"><a href="{v}/web_przeglad.html" class="text-slate-400 hover:text-white">📝 Przegląd</a></td>
+          <td class="py-3 px-3"><a href="{v}/web_ksiegowanie.html" class="text-slate-400 hover:text-white">📑 Ewidencja</a></td>
+          <td class="py-3 px-3">{pdf_link}</td>
+        </tr>""")
+
+    tbody_rows = "\\n".join(rows)
+
+    return f"""<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaxPilot AI – Interaktywne Demo WWW (GitHub Pages)</title>
+  <link rel="icon" type="image/svg+xml" href="latest/static/favicon.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {{
+      theme: {{
+        extend: {{
+          colors: {{
+            brand: {{
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }}
+          }}
+        }}
+      }}
+    }}
+  </script>
+  <style>
+    .gradient-border {{
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(147, 51, 234, 0.4));
+      padding: 1px;
+      border-radius: 1rem;
+    }}
+  </style>
+</head>
+<body class="min-h-full flex flex-col font-sans antialiased bg-slate-950 text-slate-200">
+
+  <!-- Top Hero Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <a href="latest/index.html" class="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors">
+          <span class="text-2xl font-black tracking-tight text-blue-500">TaxPilot</span>
+          <span class="text-xs uppercase px-2 py-0.5 font-extrabold rounded bg-blue-600 text-white shadow-sm">AI</span>
+        </a>
+        <span class="text-xs text-slate-500 font-mono hidden sm:inline">| Demo Showcase</span>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-950 text-blue-300 border border-blue-800">
+          Wersja demo: {version_tag}
+        </span>
+        <a href="https://github.com/{repo}" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition-colors flex items-center space-x-1.5 shadow-sm">
+          <span>⭐ GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl mx-auto px-4 py-10 space-y-10 w-full">
+
+    <!-- Hero Showcase Card -->
+    <div class="gradient-border shadow-2xl">
+      <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/80 p-8 rounded-[0.95rem] space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div class="space-y-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+              🚀 Interaktywny Panel Webowy na żywo
+            </span>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              TaxPilot AI – Przeglądaj Demo w Przeglądarce
+            </h1>
+            <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
+              Przetestuj autonomiczny system księgowo-podatkowy dla jednoosobowej działalności gospodarczej (JDG)
+              zintegrowany z KSeF 2.0. Wszystkie widoki wygenerowano w 100% deterministycznie na podstawie danych testowych firmy
+              <strong class="text-white">CloudTech Solutions Jan Kowalski</strong> (okres: 2026-10).
+            </p>
+          </div>
+          <div class="shrink-0 flex flex-col sm:flex-row md:flex-col gap-3">
+            <a href="latest/index.html" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl shadow-lg shadow-blue-600/30 text-center transition-all flex items-center justify-center space-x-2 text-sm">
+              <span>📊 Otwórz Główny Pulpit WWW &rarr;</span>
+            </a>
+            <a href="latest/web_przeglad.html" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 text-center transition-all text-xs">
+              📝 Kwalifikacja Kosztów i Reguły
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Moduły Aplikacji (Grid 10 kart) -->
+    <div class="space-y-4">
+      <h2 class="text-base font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+        <span>🏛️ Moduły i Widoki Panelu Webowego (Wersja: latest)</span>
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <!-- 1. Pulpit & Przelewy -->
+        <a href="latest/index.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">📊</span>
+            <span class="text-[10px] font-bold text-blue-400 bg-blue-950/60 border border-blue-800 px-2 py-0.5 rounded">Główny</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">Pulpit & Paczka Przelewów</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            KPI miesiąca, podatki do zapłaty (ZUS, PIT-28, VAT-7), mikrorachunek US, NRS oraz standardowe kody QR przelewów bankowych.
+          </p>
+        </a>
+
+        <!-- 2. Przegląd i Kwalifikacja -->
+        <a href="latest/web_przeglad.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">📝</span>
+            <span class="text-[10px] font-bold text-purple-400 bg-purple-950/60 border border-purple-800 px-2 py-0.5 rounded">Pre-settlement</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">Przegląd i Kwalifikacja Kosztów</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            3 tabele weryfikacyjne, podział pozycji 100% / 50% / 0% (np. Play TV vs telco, paliwo Orlen, Lego), uczenie i zapisywanie trwałych reguł.
+          </p>
+        </a>
+
+        <!-- 3. Księgowanie i Ewidencje -->
+        <a href="latest/web_ksiegowanie.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">📑</span>
+            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">Księgowość</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">Ewidencja Przychodów & VAT</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Deterministyczne księgowanie: Ewidencja Przychodów, Rejestr Zakupów i Sprzedaży VAT, deklaracja VAT-7 oraz zestawienie roczne YTD.
+          </p>
+        </a>
+
+        <!-- 4. Faktury & KSeF 2.0 -->
+        <a href="latest/web_faktury.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">📁</span>
+            <span class="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-800 px-2 py-0.5 rounded">Repozytorium</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">Przeglądarka Faktur (KSeF + Non-KSeF)</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Filtrowanie faktur, podgląd pozycji, numery referencyjne KSeF, ekstrakcja dokumentów spoza KSeF (AWS, Google, FastNet, paragony).
+          </p>
+        </a>
+
+        <!-- 5. Compliance AML & Biała Lista -->
+        <a href="latest/web_aml.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">🛡️</span>
+            <span class="text-[10px] font-bold text-teal-400 bg-teal-950/60 border border-teal-800 px-2 py-0.5 rounded">Compliance</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-teal-400 transition-colors">Compliance AML & Biała Lista VAT</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Procedura należytej staranności, weryfikacja statusu VAT, sankcje MSWiA/UE, rachunki bankowe oraz archiwum dowodowe na 5 lat.
+          </p>
+        </a>
+
+        <!-- 6. Doradca Podatkowy -->
+        <a href="latest/web_doradca.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">💡</span>
+            <span class="text-[10px] font-bold text-rose-400 bg-rose-950/60 border border-rose-800 px-2 py-0.5 rounded">Optymalizacja</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-rose-400 transition-colors">Doradca Podatkowy & Symulator Form</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Kalkulator porównawczy form opodatkowania (Ryczałt vs Liniowy 19% vs Skala) oraz audyt brakujących powtarzalnych faktur kosztowych.
+          </p>
+        </a>
+
+        <!-- 7. Ustawienia Firmy -->
+        <a href="latest/web_ustawienia.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">⚙️</span>
+            <span class="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Konfiguracja</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-slate-300 transition-colors">Ustawienia Firmy & KSeF 2.0</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Profil podatnika, token i środowisko KSeF, konfiguracja składek ZUS, zarządzanie wyuczonymi regułami kosztowymi i stawek ryczałtu.
+          </p>
+        </a>
+
+        <!-- 8. Kreator Nowej Firmy -->
+        <a href="latest/web_setup.html" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">➕</span>
+            <span class="text-[10px] font-bold text-blue-400 bg-blue-950/60 border border-blue-800 px-2 py-0.5 rounded">Onboarding</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">Kreator Dodawania Firmy (Setup)</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Wieloetapowy kreator wdrażania nowego podmiotu z automatycznym pobieraniem danych z rejestrów państwowych (Biała Lista MF).
+          </p>
+        </a>
+
+        <!-- 9. Oficjalne Raporty PDF i MD -->
+        <a href="latest/reports/raport-weryfikacji-2026-10.pdf" target="_blank" class="group block p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">📑</span>
+            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">Dokumenty</span>
+          </div>
+          <h3 class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">Oficjalny Raport Compliance (PDF A4)</h3>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Pobierz wygenerowany certyfikowany raport procedury należytej staranności w formacie PDF (A4 pejzaż) z sumami SHA-256.
+          </p>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Tabela wersji -->
+    <div class="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">
+          🏷️ Dostępne Wydania (Wersje)
+        </h3>
+        <span class="text-xs text-slate-500 font-mono">Repozytorium: {repo}</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
+              <th class="py-2.5 px-3">Wersja</th>
+              <th class="py-2.5 px-3">Pulpit Główny</th>
+              <th class="py-2.5 px-3">Kwalifikacja</th>
+              <th class="py-2.5 px-3">Ewidencje & VAT</th>
+              <th class="py-2.5 px-3">Raport Compliance (PDF)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60">
+            {tbody_rows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <span>TaxPilot AI – Autonomiczny Asystent Księgowo-Podatkowy JDG</span>
+      <div class="space-x-4">
+        <a href="latest/index.html" class="hover:text-slate-300">Pulpit Demo</a>
+        <a href="https://github.com/{repo}" class="hover:text-slate-300">GitHub</a>
+        <a href="https://github.com/{repo}/blob/main/LICENSE" class="hover:text-slate-300">Licencja MIT</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
+"""
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generuje landing portal index.html dla korzenia gh-pages.")
+    parser.add_argument("--output", "-o", default="pages/index.html", help="Ścieżka do pliku wyjściowego")
+    parser.add_argument("--version", "-v", default="v0.1.0", help="Tag wersji (np. v0.1.0)")
+    parser.add_argument("--repo", "-r", default="cackoarek/TaxPilot_AI", help="Nazwa repozytorium (owner/repo)")
+    args = parser.parse_args()
+
+    out_path = Path(args.output).resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    html = generate_portal_html(pages_dir=out_path.parent, version_tag=args.version, repo=args.repo)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"✅ Wygenerowano landing portal: {out_path} ({len(html)} bajtów)")
+
+
+if __name__ == "__main__":
+    main()

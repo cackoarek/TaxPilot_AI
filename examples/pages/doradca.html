@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="pl" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doradca Podatkowy & Symulacja Form – TaxPilot AI</title>
+    <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                900: '#1e3a8a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/custom.css?v=20261114_1">
+
+    <!-- HTMX 2.x -->
+    <script src="static/js/htmx.min.js"></script>
+
+    <!-- Alpine.js 3.x (with x-cloak style) -->
+    <style>[x-cloak] { display: none !important; }</style>
+    <script defer src="static/js/alpine.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased" x-data="{ copilotOpen: false, copilotMaximized: false, historyOpen: false, editingTitle: false }">
+
+<!-- TaxPilot AI Demo Banner -->
+<div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white text-xs py-2 px-4 shadow-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-white/20 text-white uppercase tracking-wider">Demo Showcase</span>
+      <span class="font-medium text-slate-100 hidden sm:inline">
+        Statyczna wersja demonstracyjna dla GitHub Pages. Dane testowe: <strong class="text-white">CloudTech Solutions Jan Kowalski</strong> (okres: 2026-10).
+      </span>
+    </div>
+    <div class="flex items-center space-x-3 shrink-0">
+      <span class="text-xs text-indigo-200 hidden md:inline">100% Deterministyczna Księgowość & KSeF 2.0</span>
+      <a href="https://github.com/cackoarek/TaxPilot_AI" target="_blank" class="px-2.5 py-1 bg-white text-slate-900 hover:bg-slate-100 rounded-md font-bold text-[11px] transition-colors flex items-center space-x-1 shadow-xs">
+        <span>⭐ GitHub</span>
+      </a>
+    </div>
+  </div>
+</div>
+<!-- End TaxPilot AI Demo Banner -->
+
+
+    <!-- Header & Navigation -->
+    <!-- Top Header & Navigation Bar -->
+<header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo & Tenant Selector -->
+      <div class="flex items-center space-x-4">
+        <a href="index.html" class="flex items-center space-x-2 text-white hover:text-blue-400 transition-colors">
+          <span class="text-2xl font-black tracking-tight text-blue-500">TaxPilot</span>
+          <span class="text-xs uppercase px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white">AI</span>
+        </a>
+
+        <!-- Tenant Switcher Dropdown -->
+        <form action="#" onsubmit="return false;" method="POST" class="inline-flex items-center">
+          <input type="hidden" name="redirect_url" value="/doradca">
+          <div class="relative inline-block text-left">
+            <select name="nip" onchange="if(this.value==='__NEW__'){ window.location.href='firmy_nowa.html'; } else { this.form.submit(); }" 
+                    style="color-scheme: dark;"
+                    class="dark-select bg-slate-800 text-slate-100 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+              <optgroup label="Zarejestrowane firmy" class="bg-slate-900 text-slate-400 font-semibold">
+                
+                  <option value="5322030067" class="bg-slate-800 text-slate-100 py-1" >
+                    🏢 Smart IT Solutions Arkadiusz Cacko (NIP: 5322030067)
+                  </option>
+                
+                  <option value="7770001122" class="bg-slate-800 text-slate-100 py-1" selected>
+                    🏢 CloudTech Solutions Jan Kowalski (NIP: 7770001122)
+                  </option>
+                
+                  <option value="7770001122" class="bg-slate-800 text-slate-100 py-1" selected>
+                    🏢 CloudTech Test Jan Kowalski (NIP: 7770001122)
+                  </option>
+                
+              </optgroup>
+              <optgroup label="Zarządzanie firmami" class="bg-slate-900 text-slate-400 font-semibold">
+                <option value="__NEW__" class="bg-blue-950 text-blue-300 font-bold py-1.5">
+                  ➕ Dodaj nową firmę do księgowania...
+                </option>
+              </optgroup>
+            </select>
+          </div>
+          <a href="firmy_nowa.html" 
+             title="Dodaj nową firmę do księgowania" 
+             class="ml-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 p-1.5 rounded-lg transition-colors inline-flex items-center text-xs font-bold" 
+             aria-label="Dodaj nową firmę">
+            ➕
+          </a>
+        </form>
+      </div>
+
+      <!-- Period Switcher & LLM Status & Copilot Toggle -->
+      <div class="flex items-center space-x-4">
+        
+        <!-- Period Switcher (Rok / Miesiąc) -->
+        <form action="#" onsubmit="return false;" method="POST" class="flex items-center space-x-1.5 bg-slate-800/90 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 shadow-inner">
+          <input type="hidden" name="redirect_url" value="/doradca">
+          <span class="text-blue-400 text-xs select-none">📅</span>
+          <select name="rok" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            <option value="2027" class="bg-slate-800 text-slate-100 font-semibold py-1" >2027</option>
+            <option value="2026" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>2026</option>
+            <option value="2025" class="bg-slate-800 text-slate-100 font-semibold py-1" >2025</option>
+            <option value="2024" class="bg-slate-800 text-slate-100 font-semibold py-1" >2024</option>
+          </select>
+          <span class="text-slate-500 text-xs font-bold select-none">/</span>
+          <select name="miesiac" onchange="this.form.submit()" 
+                  style="color-scheme: dark;"
+                  class="dark-select bg-slate-800 text-slate-100 text-xs font-bold rounded px-1.5 py-0.5 border border-slate-700/60 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+            
+            
+              <option value="01" class="bg-slate-800 text-slate-100 font-semibold py-1" >01 - Styczeń</option>
+            
+              <option value="02" class="bg-slate-800 text-slate-100 font-semibold py-1" >02 - Luty</option>
+            
+              <option value="03" class="bg-slate-800 text-slate-100 font-semibold py-1" >03 - Marzec</option>
+            
+              <option value="04" class="bg-slate-800 text-slate-100 font-semibold py-1" >04 - Kwiecień</option>
+            
+              <option value="05" class="bg-slate-800 text-slate-100 font-semibold py-1" >05 - Maj</option>
+            
+              <option value="06" class="bg-slate-800 text-slate-100 font-semibold py-1" >06 - Czerwiec</option>
+            
+              <option value="07" class="bg-slate-800 text-slate-100 font-semibold py-1" >07 - Lipiec</option>
+            
+              <option value="08" class="bg-slate-800 text-slate-100 font-semibold py-1" >08 - Sierpień</option>
+            
+              <option value="09" class="bg-slate-800 text-slate-100 font-semibold py-1" >09 - Wrzesień</option>
+            
+              <option value="10" class="bg-slate-800 text-slate-100 font-semibold py-1" selected>10 - Październik</option>
+            
+              <option value="11" class="bg-slate-800 text-slate-100 font-semibold py-1" >11 - Listopad</option>
+            
+              <option value="12" class="bg-slate-800 text-slate-100 font-semibold py-1" >12 - Grudzień</option>
+            
+          </select>
+        </form>
+
+        <!-- Dynamiczny Badge LLM -->
+        <div>
+          
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800">
+              <span class="w-2 h-2 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+              Antigravity CLI (gemini-3.8-flash)
+            </span>
+          
+        </div>
+
+        <!-- Copilot Drawer Button -->
+        <button @click="copilotOpen = !copilotOpen" 
+                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <span>💬 Asystent AI</span>
+          <span class="ml-1.5 text-indigo-200 text-xs">Ctrl+K</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Główny Pasek Zakładek (Sub-Nav) -->
+  <div class="bg-slate-800/90 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-6 text-sm font-medium overflow-x-auto">
+        <a href="index.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📊 Pulpit & Przelewy
+        </a>
+        <a href="faktury.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📁 Faktury & KSeF 2.0
+        </a>
+        <a href="przeglad.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📝 Przegląd i Kwalifikacja
+        </a>
+        <a href="aml.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          🛡️ Compliance AML & VAT
+        </a>
+        <a href="ksiegowanie.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          📑 Księgowanie
+        </a>
+        <a href="doradca.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-blue-500 text-blue-400 font-semibold transition-colors">
+          💡 Doradca Podatkowy
+        </a>
+        <a href="ustawienia.html" class="py-3 px-1 border-b-2 whitespace-nowrap border-transparent text-slate-300 hover:text-white hover:border-slate-500 transition-colors">
+          ⚙️ Ustawienia Firmy
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+<div class="space-y-8">
+
+  <!-- Baner Pomocy i Przewodnik po module -->
+  <div x-data="{ guideOpen: false }" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-white shadow-sm transition-all duration-200">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">💡</span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Przewodnik: Doradca Podatkowy & Symulacja Form Opodatkowania</h2>
+          <p class="text-xs text-slate-400">Deterministyczne porównanie opłacalności Ryczałtu, Podatku Liniowego 19% i Skali Podatkowej 12%/32% oraz audyt kosztów.</p>
+        </div>
+      </div>
+      <button @click="guideOpen = !guideOpen" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+        <span x-text="guideOpen ? 'Zwiń pomoc ▲' : 'Rozwiń pomoc ▼'"></span>
+      </button>
+    </div>
+    <div x-show="guideOpen" x-cloak style="display: none;" x-transition class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+      <div class="space-y-1">
+        <span class="font-bold text-blue-300 uppercase text-[10px] tracking-wider block">🎯 W czym pomaga:</span>
+        <p>Pomaga podjąć optymalną decyzję podatkową na kolejny rok podatkowy (termin zmiany formy opodatkowania w CEIDG do 20. lutego). Symuluje dochód na rękę po podatkach i składkach ZUS dla różnych poziomów przychodów i kosztów.</p>
+      </div>
+      <div class="space-y-1">
+        <span class="font-bold text-amber-300 uppercase text-[10px] tracking-wider block">💡 Kluczowe wskazówki:</span>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-300">
+          <li><strong>Dane roczne:</strong> Wartości początkowe suwaków wyliczane są z rzeczywistych danych firmy za cały rok podatkowy.</li>
+          <li><strong>Ekstrapolacja:</strong> Przycisk prognozy uzupełnia brakujące miesiące do pełnych 12 na podstawie dotychczasowej średniej.</li>
+          <li><strong>Styczeń / Nowy rok:</strong> Przy braku danych w styczniu system automatycznie podstawia dane referencyjne za poprzedni rok.</li>
+          <li><strong>Audyt kosztów:</strong> Wykrywa brakujące faktury abonamentowe (leasing, telefon, hosting) przed zamknięciem roku.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nagłówek Doradcy -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-bold rounded">SYMULATOR & AUDYT</span>
+        <h1 class="text-xl font-bold text-slate-900">
+          Doradca Podatkowy & Porównanie Form Opodatkowania
+        </h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">
+        Firma: <strong class="text-slate-800">CloudTech Solutions Jan Kowalski</strong> • Obecna forma: <strong class="text-blue-700">RYCZALT</strong>
+      </p>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <a href="index.html" class="px-3.5 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors">
+        &larr; Wróć do Pulpitu
+      </a>
+    </div>
+  </div>
+
+  <!-- Formularz Parametrów Symulacji (Suwaki i Pola Numeryczne) -->
+  <div x-data="{
+         przychodVal: 247969,
+         kosztVal: 19356,
+         stawkaVal: '0.12'
+       }"
+       class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+    
+    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>⚙️ Parametry Symulacji Rocznej</span>
+        </h2>
+        <p class="text-xs text-slate-500">Przesuwaj suwaki, aby natychmiast zobaczyć, przy jakich kosztach opłaca się przejść na podatek liniowy lub ryczałt.</p>
+      </div>
+      <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">
+        Kalkulacja Deterministyczna Python
+      </span>
+    </div>
+
+    <!-- Pasek Informacyjny o Danych Rocznych i Przycisk Ekstrapolacji -->
+    <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+      <div class="space-y-0.5">
+        
+          <div class="flex items-center space-x-1.5 font-bold text-slate-800">
+            <span>📊</span>
+            <span>Rzeczywiste dane firmy za rok 2026 (6 m-cy z danymi):</span>
+          </div>
+          <p class="text-slate-600 text-[11px]">
+            Suma YTD: <strong>247969.00 zł</strong> przychodu netto oraz <strong>19356.07 zł</strong> kosztów netto.
+          </p>
+        
+      </div>
+
+      <div class="flex items-center space-x-2 shrink-0">
+        
+          <button type="button"
+                  @click="przychodVal = 495938; kosztVal = 38712; $nextTick(() => { document.querySelector('#advisor-sim-form').dispatchEvent(new Event('input', { bubbles: true })); })"
+                  class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer">
+            <span>🔮 Zasymuluj pełny rok (uzupełnij do 12 m-cy: 495938 zł)</span>
+          </button>
+          <button type="button"
+                  @click="przychodVal = 247969; kosztVal = 19356; $nextTick(() => { document.querySelector('#advisor-sim-form').dispatchEvent(new Event('input', { bubbles: true })); })"
+                  class="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+            <span>📊 Przywróć YTD</span>
+          </button>
+        
+      </div>
+    </div>
+
+    <!-- Formularz HTMX z opóźnieniem delay:200ms -->
+    <form id="advisor-sim-form"
+          hx-post="/api/advisor/simulate"
+          hx-target="#simulation-result"
+          hx-swap="outerHTML"
+          hx-trigger="input delay:200ms, change"
+          class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+      
+      <!-- Suwak 1: Roczne Przychody Netto -->
+      <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between">
+          <label class="font-bold text-slate-700">Roczne Przychody Netto:</label>
+          <span class="font-mono font-bold text-slate-900 text-sm" x-text="przychodVal.toLocaleString() + ' zł'"></span>
+        </div>
+        <input type="range" name="przychod" min="20000" max="2000000" step="5000" 
+               x-model="przychodVal"
+               class="w-full accent-blue-600 cursor-pointer">
+        <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+          <span>20k zł</span>
+          <span>1 mln zł</span>
+          <span>2 mln zł</span>
+        </div>
+      </div>
+
+      <!-- Suwak 2: Roczne Koszty Netto -->
+      <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between">
+          <label class="font-bold text-slate-700">Roczne Koszty Netto:</label>
+          <span class="font-mono font-bold text-slate-900 text-sm" x-text="kosztVal.toLocaleString() + ' zł'"></span>
+        </div>
+        <input type="range" name="koszt" min="0" max="1000000" step="2000" 
+               x-model="kosztVal"
+               class="w-full accent-blue-600 cursor-pointer">
+        <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+          <span>0 zł</span>
+          <span>500k zł</span>
+          <span>1 mln zł</span>
+        </div>
+      </div>
+
+      <!-- Wybór Stawki Ryczałtu -->
+      <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Stawka Ryczałtu (Twoja branża):</label>
+          <select name="stawka_ryczaltu" x-model="stawkaVal" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            <option value="0.085">8.5% – Usługi powszechne / Gastronomia</option>
+            <option value="0.12">12.0% – Branża IT / Programiści (Default)</option>
+            <option value="0.14">14.0% – Inżynierowie / Architekci</option>
+            <option value="0.15">15.0% – Usługi doradcze / Marketing</option>
+            <option value="0.17">17.0% – Pośrednictwo handlowe</option>
+          </select>
+        </div>
+        <p class="text-[10px] text-slate-400">
+          Zgodnie z art. 12 ustawy o zryczałtowanym podatku dochodowym.
+        </p>
+      </div>
+
+    </form>
+  </div>
+        <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+          <span>0 zł</span>
+          <span>250k zł</span>
+          <span>500k zł</span>
+        </div>
+      </div>
+
+      <!-- Wybór Stawki Ryczałtu -->
+      <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Stawka Ryczałtu (Twoja branża):</label>
+          <select name="stawka_ryczaltu" x-model="stawkaVal" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            <option value="0.085">8.5% – Usługi powszechne / Gastronomia</option>
+            <option value="0.12">12.0% – Branża IT / Programiści (Default)</option>
+            <option value="0.14">14.0% – Inżynierowie / Architekci</option>
+            <option value="0.15">15.0% – Usługi doradcze / Marketing</option>
+            <option value="0.17">17.0% – Pośrednictwo handlowe</option>
+          </select>
+        </div>
+        <p class="text-[10px] text-slate-400">
+          Zgodnie z art. 12 ustawy o zryczałtowanym podatku dochodowym.
+        </p>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Kontener z wynikami symulacji (Aktualizowany w locie przez HTMX) -->
+  <!-- Wynik symulacji doradcy: partials/advisor_simulation_result.html -->
+<div id="simulation-result" class="space-y-6 fade-in">
+  
+  <!-- Baner Rekomendacji i Zwycięzcy -->
+  <div class="bg-gradient-to-r from-emerald-900 to-teal-900 rounded-2xl p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="space-y-1">
+      <div class="flex items-center space-x-2">
+        <span class="px-2.5 py-0.5 bg-emerald-500 text-white text-xs font-black rounded-full uppercase tracking-wider">
+          🏆 Najkorzystniejsza Forma
+        </span>
+        <h3 class="text-lg font-black tracking-tight">
+          Ryczałt ewidencjonowany
+        </h3>
+      </div>
+      <p class="text-xs text-emerald-200 max-w-xl leading-relaxed">
+        Forma <strong>Ryczałt ewidencjonowany</strong> zapewnia najwyższy dochód netto na rękę po uwzględnieniu składek społecznych, zdrowotnych oraz podatku dochodowego.
+      </p>
+    </div>
+
+    <div class="text-right sm:border-l sm:border-emerald-800/80 sm:pl-6">
+      <span class="text-[11px] text-emerald-300 block uppercase font-medium">Szacowana roczna oszczędność:</span>
+      <span class="text-2xl font-black text-white font-mono">
+        +10848.74 zł
+      </span>
+      <span class="block text-[10px] text-emerald-300/80">względem kolejnej alternatywnej formy</span>
+    </div>
+  </div>
+
+  <!-- 3 Karty Porównawcze Form Opodatkowania -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    
+    <!-- 1. Ryczałt Ewidencjonowany -->
+    
+    <div class="bg-white rounded-2xl p-5 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 flex flex-col justify-between relative overflow-hidden">
+      
+        <span class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+          Optimum
+        </span>
+      
+      
+      <div class="space-y-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">Ryczałt ewidencjonowany</h4>
+          <span class="text-[11px] text-slate-500">Stawka przychodowa: 12%</span>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-[10px] text-slate-400 uppercase font-bold block">Dochód na rękę rocznie:</span>
+          <span class="text-2xl font-black text-slate-900 font-mono">
+            169141.08 zł
+          </span>
+          <span class="block text-xs font-semibold text-emerald-700 mt-0.5">
+            Miesięcznie: ~14095.09 zł
+          </span>
+        </div>
+
+        <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600 font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Podatek rocznie:</span>
+            <span>26383.72 zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składki ZUS społeczne:</span>
+            <span>23121.20 zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składka zdrowotna:</span>
+            <span>9966.93 zł</span>
+          </div>
+          <div class="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+            <span class="font-sans">Łączne obciążenia:</span>
+            <span>59471.85 zł</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Efektywne obciążenie:</span>
+        <span class="font-bold text-slate-800 font-mono">24.0%</span>
+      </div>
+    </div>
+
+    <!-- 2. Podatek Liniowy 19% -->
+    
+    <div class="bg-white rounded-2xl p-5 border-2 border-slate-200 shadow-xs flex flex-col justify-between relative overflow-hidden">
+      
+
+      <div class="space-y-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">Podatek Liniowy 19%</h4>
+          <span class="text-[11px] text-slate-500">Stała stawka dochodowa: 19%</span>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-[10px] text-slate-400 uppercase font-bold block">Dochód na rękę rocznie:</span>
+          <span class="text-2xl font-black text-slate-900 font-mono">
+            158292.34 zł
+          </span>
+          <span class="block text-xs font-semibold text-emerald-700 mt-0.5">
+            Miesięcznie: ~13191.03 zł
+          </span>
+        </div>
+
+        <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600 font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Podatek dochodowy:</span>
+            <span>37130.30 zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składki ZUS społeczne:</span>
+            <span>23121.20 zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składka zdrowotna (4.9%):</span>
+            <span>10069.09 zł</span>
+          </div>
+          <div class="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+            <span class="font-sans">Łączne obciążenia:</span>
+            <span>70320.59 zł</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Efektywne obciążenie:</span>
+        <span class="font-bold text-slate-800 font-mono">28.4%</span>
+      </div>
+    </div>
+
+    <!-- 3. Skala Podatkowa (12% / 32%) -->
+    
+    <div class="bg-white rounded-2xl p-5 border-2 border-slate-200 shadow-xs flex flex-col justify-between relative overflow-hidden">
+      
+
+      <div class="space-y-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">Skala Podatkowa (12%/32%)</h4>
+          <span class="text-[11px] text-slate-500">Progi: 12% do 120 tys., 32% pow.</span>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-[10px] text-slate-400 uppercase font-bold block">Dochód na rękę rocznie:</span>
+          <span class="text-2xl font-black text-slate-900 font-mono">
+            148840.12 zł
+          </span>
+          <span class="block text-xs font-semibold text-emerald-700 mt-0.5">
+            Miesięcznie: ~12403.34 zł
+          </span>
+        </div>
+
+        <div class="space-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-600 font-mono">
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Podatek dochodowy:</span>
+            <span>38157.35 zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składki ZUS społeczne:</span>
+            <span>23121.20 zł</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400 font-sans">Składka zdrowotna (9%):</span>
+            <span>18494.26 zł</span>
+          </div>
+          <div class="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+            <span class="font-sans">Łączne obciążenia:</span>
+            <span>79772.81 zł</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Efektywne obciążenie:</span>
+        <span class="font-bold text-slate-800 font-mono">32.2%</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Wizualny Wykres Słupkowy (Natywny Responsive CSS Grid) -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+        <span>📊 Porównanie Łącznych Obciążeń (Podatki + ZUS)</span>
+      </h4>
+      <span class="text-[11px] text-slate-400">Im mniej, tym więcej zostaje w kieszeni</span>
+    </div>
+
+    <div class="space-y-4 pt-2">
+      <!-- Ryczałt -->
+      <div>
+        <div class="flex justify-between text-xs font-bold mb-1">
+          <span class="text-slate-700">Ryczałt (12%)</span>
+          <span class="font-mono text-slate-900">59471.85 zł</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div class="bg-emerald-500 h-3.5 rounded-full transition-all duration-500" 
+               style="width: 47.96716525049502%;"></div>
+        </div>
+      </div>
+
+      <!-- Podatek Liniowy -->
+      <div>
+        <div class="flex justify-between text-xs font-bold mb-1">
+          <span class="text-slate-700">Podatek Liniowy 19%</span>
+          <span class="font-mono text-slate-900">70320.59 zł</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div class="bg-blue-500 h-3.5 rounded-full transition-all duration-500" 
+               style="width: 56.7172428811666%;"></div>
+        </div>
+      </div>
+
+      <!-- Skala Podatkowa -->
+      <div>
+        <div class="flex justify-between text-xs font-bold mb-1">
+          <span class="text-slate-700">Skala Podatkowa (12%/32%)</span>
+          <span class="font-mono text-slate-900">79772.81 zł</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div class="bg-indigo-500 h-3.5 rounded-full transition-all duration-500" 
+               style="width: 64.34095390956128%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+  <!-- Sekcja: Audyt Powtarzalnych Kosztów (Expense Leak Audit) -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+          <span>🔍 Audyt Brakujących Kosztów (Wykrywanie Utraconych Oszczędności)</span>
+        </h3>
+        <p class="text-xs text-slate-500">
+          System weryfikuje powtarzalne faktury (telefon, leasing, internet, hosting), aby upewnić się, że nie pominąłeś kosztów w danym miesiącu.
+        </p>
+      </div>
+      <span class="text-xs font-semibold text-slate-500">Okres: 2026-10</span>
+    </div>
+
+    
+      <div class="p-5 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-200 text-xs flex items-center space-x-3">
+        <span class="text-xl">✅</span>
+        <div>
+          <span class="font-bold block">Kompletność kosztów wzorowa</span>
+          <span class="text-emerald-800 text-[11px]">Wszystkie zidentyfikowane stałe faktury abonamentowe i leasingowe zostały zaksięgowane w bieżącym okresie.</span>
+        </div>
+      </div>
+    
+  </div>
+
+</div>
+
+    </main>
+
+    <!-- Global Modal Podglądu Faktur (KSeF / Non-KSeF) -->
+    <div id="invoice-modal-wrapper"
+         class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm"
+         style="display: none;"
+         onclick="if (event.target === this) closeInvoiceModal()"
+         role="dialog"
+         aria-modal="true">
+
+        <div id="invoice-modal-container"
+             class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[85vh] min-h-[520px] max-h-[90vh] my-auto"
+             onclick="event.stopPropagation()">
+            <!-- Treść podglądu ładowana dynamicznie przez HTMX z /api/invoices/preview -->
+            <div class="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 space-y-3">
+              <span class="animate-spin inline-block text-4xl">⏳</span>
+              <p class="text-sm font-bold text-slate-800">Ładowanie podglądu faktury...</p>
+              <p class="text-xs text-slate-400">Pobieranie danych źródłowych i parsowanie formatów JSON/XML</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Copilot Drawer -->
+    <!-- AI Copilot Drawer (Boczny panel wysuwany Alpine.js) -->
+<div x-cloak x-show="copilotOpen" class="relative z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div x-show="copilotOpen" 
+       x-transition:enter="ease-in-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="ease-in-out duration-300"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="copilotOpen = false"
+       class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full transition-all duration-300"
+           :class="copilotMaximized ? 'w-full pl-0' : 'pl-10'">
+        
+        <!-- Panel content -->
+        <div x-show="copilotOpen" 
+             x-transition:enter="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-300 sm:duration-500"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="pointer-events-auto bg-white shadow-2xl flex flex-col transition-all duration-300 ease-in-out"
+             :class="copilotMaximized ? 'w-screen max-w-full' : 'w-screen max-w-md sm:max-w-lg'">
+          
+          <!-- Drawer Header -->
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <h2 class="text-sm font-bold tracking-tight">TaxPilot AI Assistant</h2>
+                <p class="text-xs text-slate-400">
+                  
+                    Model: <span class="text-emerald-400 font-semibold">Antigravity CLI (gemini-3.8-flash)</span>
+                  
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button hx-post="/api/copilot/reset" 
+                      hx-target="#copilot-chat-container" 
+                      hx-swap="innerHTML"
+                      title="Zrestartuj sesję AI dla bieżącej firmy (przerywa proces w tle i czyści kontekst)"
+                      class="px-2 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-1 cursor-pointer">
+                <span>🔄 Nowa sesja</span>
+              </button>
+
+              <!-- Przycisk maksymalizacji / przywrócenia normalnego rozmiaru -->
+              <button @click="copilotMaximized = !copilotMaximized" 
+                      :title="copilotMaximized ? 'Zmniejsz panel (przywróć standardową szerokość)' : 'Maksymalizuj na cały ekran (pełny widok tabel i wykresów)'"
+                      class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 hover:border-slate-600 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Maksymalizuj / Zmniejsz okno">
+                <!-- Ikona Pełnego ekranu -->
+                <svg x-show="!copilotMaximized" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <!-- Ikona Zmniejszenia -->
+                <svg x-show="copilotMaximized" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v5H4m0 0l5-5M15 4v5h5m0 0l-5-5M9 20v-5H4m0 0l5 5m6 0l5-5m-5 5v-5h5" />
+                </svg>
+              </button>
+
+              <button @click="copilotOpen = false" 
+                      title="Zamknij panel asystenta"
+                      class="text-slate-400 hover:text-white p-1 rounded-lg focus:outline-none text-lg">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-header: Aktywny wątek, edycja nazwy & Przycisk Historii -->
+          <div class="px-4 py-2 bg-slate-800 text-slate-200 border-b border-slate-700 flex items-center justify-between text-xs">
+            <!-- Dynamiczny tytuł aktywnej rozmowy i formularz szybkiej edycji -->
+            <div id="copilot-active-session-title-container"
+                 hx-get="/api/copilot/active-title"
+                 hx-trigger="load, copilot-refresh-title from:body"
+                 class="flex items-center space-x-2 flex-1 min-w-0 mr-2">
+              <span class="text-blue-400 flex-shrink-0">💬</span>
+              <span class="font-medium text-slate-300 truncate">Wczytywanie rozmowy...</span>
+            </div>
+
+            <!-- Przyciski: Historia rozmów oraz Nowy wątek -->
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              <button type="button"
+                      @click="historyOpen = !historyOpen" 
+                      :class="historyOpen ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600'"
+                      class="px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Przeglądaj historię rozmów firmy">
+                <span>📜 Historia</span>
+              </button>
+              <button type="button"
+                      hx-post="/api/copilot/sessions/new"
+                      hx-target="#copilot-chat-container"
+                      hx-swap="innerHTML"
+                      @click="historyOpen = false"
+                      class="px-2.5 py-1 text-[11px] font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors flex items-center space-x-1 cursor-pointer"
+                      title="Rozpocznij nowy, czysty wątek rozmowy">
+                <span>➕ Nowa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel Historii Rozmów (wysuwana lista archiwalnych sesji) -->
+          <div x-cloak x-show="historyOpen" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="bg-slate-900 border-b border-slate-700 p-3 max-h-72 overflow-y-auto shadow-inner text-xs space-y-2 z-10">
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                🗂️ Zapisane rozmowy firmy (kliknij, aby wczytać lub kontynuować)
+              </span>
+              <button type="button" @click="historyOpen = false" class="text-slate-400 hover:text-white text-xs cursor-pointer">
+                ✕ Zamknij
+              </button>
+            </div>
+            <div id="copilot-sessions-list"
+                 hx-get="/api/copilot/sessions"
+                 hx-trigger="load, copilot-refresh-sessions from:body"
+                 class="space-y-1.5">
+              <div class="text-center py-4 text-slate-500 text-xs">Ładowanie historii rozmów...</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages Area -->
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50" id="copilot-messages">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full space-y-4' : 'space-y-4'">
+              <!-- Powitanie -->
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-xs">
+                  TP
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm text-xs text-slate-700 space-y-1.5 max-w-[85%]">
+                  <p class="font-semibold text-slate-900">Cześć!</p>
+                  <p>Jestem asystentem TaxPilot AI dla firmy <strong class="text-blue-700">CloudTech Solutions Jan Kowalski</strong>.</p>
+                  <p>Mogę pomóc w rozliczeniu za okres <strong class="text-slate-900">2026-10</strong>, sprawdzić status weryfikacji AML lub wyjaśnić wątpliwości podatkowe.</p>
+                </div>
+              </div>
+
+              <!-- Kontener dynamicznych wiadomości z trwałą sesją -->
+              <div id="copilot-chat-container" 
+                   hx-get="/api/copilot/history" 
+                   hx-trigger="load, copilot-refresh from:body"
+                   class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Drawer Footer / Input -->
+          <div class="p-3 bg-white border-t border-slate-200">
+            <div :class="copilotMaximized ? 'max-w-6xl mx-auto w-full' : ''">
+              <form id="copilot-form"
+                    hx-post="/api/copilot/chat" 
+                    hx-target="#copilot-chat-container" 
+                    hx-swap="beforeend"
+                    onsubmit="return onCopilotSubmit(this);"
+                    class="flex items-center space-x-2"
+                    autocomplete="off">
+                <input type="text" 
+                       id="copilot-input"
+                       name="message" 
+                       required 
+                       placeholder="Zadaj pytanie asystentowi..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       class="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1 cursor-pointer">
+                  <span>Wyślij</span>
+                </button>
+              </form>
+              <div class="mt-1.5 text-center text-[10px] text-slate-400">
+                
+                  Silnik: <strong class="text-slate-600">Antigravity CLI (gemini-3.8-flash)</strong> • Zero-Hallucination Policy
+                
+              </div>
+            </div>
+          </div>
+
+          <script>
+            function onCopilotSubmit(form) {
+              const input = form.querySelector('input[name="message"]');
+              const msg = input.value.trim();
+              if (!msg) return false;
+
+              const messagesBox = document.getElementById('copilot-messages');
+              setTimeout(() => { input.value = ''; }, 10);
+              setTimeout(() => { if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight; }, 60);
+              return true;
+            }
+
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+              const messagesBox = document.getElementById('copilot-messages');
+              if (messagesBox && (evt.detail.target.id === 'copilot-chat-container' || evt.detail.target.closest('#copilot-messages'))) {
+                setTimeout(() => { messagesBox.scrollTop = messagesBox.scrollHeight; }, 30);
+              }
+            });
+          </script>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Toast Notifications -->
+    <!-- Toast Notifications Container -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none">
+  <!-- Dynamiczne toasty wstrzykiwane przez zdarzenia HTMX -->
+</div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+            <div class="flex items-center space-x-2">
+                <strong>TaxPilot AI</strong>
+                
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs" title="Wersja aplikacji (git tag)">
+                        v0.1.0
+                    </span>
+                
+                <span class="text-slate-400">•</span>
+                <span>Deterministyczna Księgowość i Podatki JDG &copy; 2026.</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Stos: FastAPI + HTMX + TailwindCSS</span>
+                <span>•</span>
+                <span>Zasada: Zero-Hallucination (`Decimal`)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Globalne skróty klawiszowe (Ctrl+K dla Asystenta) i integracja HTMX + Alpine -->
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const body = document.querySelector('body');
+                if (window.Alpine) {
+                    const data = Alpine.$data(body);
+                    if (data) {
+                        data.copilotOpen = !data.copilotOpen;
+                    }
+                }
+            }
+        });
+
+        // Globalne funkcje sterujące modalem podglądu faktury
+        function openInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'flex', 'important');
+            wrapper.classList.remove('hidden');
+            wrapper.classList.add('flex');
+        }
+
+        function closeInvoiceModal() {
+            const wrapper = document.getElementById('invoice-modal-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', 'none', 'important');
+            wrapper.classList.add('hidden');
+            wrapper.classList.remove('flex');
+        }
+
+        function switchInvoiceTab(tab) {
+            ['summary', 'json', 'xml'].forEach(t => {
+                const el = document.getElementById('invoice-tab-' + t);
+                const btn = document.getElementById('invoice-tab-btn-' + t);
+                if (el) {
+                    el.style.display = (t === tab) ? 'block' : 'none';
+                }
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = 'border-b-2 border-blue-600 text-blue-600 pb-2.5 cursor-pointer font-bold';
+                    } else {
+                        btn.className = 'text-slate-500 hover:text-slate-800 pb-2.5 cursor-pointer font-bold';
+                    }
+                }
+            });
+        }
+
+        window.openInvoiceModal = openInvoiceModal;
+        window.closeInvoiceModal = closeInvoiceModal;
+        window.switchInvoiceTab = switchInvoiceTab;
+
+        window.addEventListener('open-invoice-modal', openInvoiceModal);
+        document.addEventListener('open-invoice-modal', openInvoiceModal);
+        window.addEventListener('close-invoice-modal', closeInvoiceModal);
+        document.addEventListener('close-invoice-modal', closeInvoiceModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeInvoiceModal();
+        });
+
+        // Inicjalizacja komponentów Alpine.js i otwarcie modalu po wstrzyknięciu treści przez HTMX
+        document.addEventListener('htmx:afterSwap', (evt) => {
+            if (evt.detail && evt.detail.target && evt.detail.target.id === 'invoice-modal-container') {
+                openInvoiceModal();
+                if (window.Alpine) {
+                    try {
+                        window.Alpine.initTree(evt.detail.target);
+                    } catch (err) {
+                        console.warn('Alpine.initTree warning:', err);
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- TaxPilot AI Demo Offline Scripts -->
+    <script src="static/js/demo-data.js"></script>
+    <script src="static/js/demo.js"></script>
+    
+</body>
+</html>

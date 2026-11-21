@@ -13,6 +13,7 @@
 [![LLM-Agnostic](https://img.shields.io/badge/LLM-Agnostic%20(Claude%20%7C%20GPT%20%7C%20Gemini%20%7C%20AGY)-blueviolet.svg?style=flat-square)](#-elastyczność-llm-oraz-tryb-zero-llm)
 [![Local-First](https://img.shields.io/badge/privacy-Local--First-2e7d32.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
+[![GitHub Pages](https://img.shields.io/badge/demo-GitHub%20Pages-0969da.svg?style=flat-square&logo=github&logoColor=white)](https://cackoarek.github.io/TaxPilot_AI/)
 
 <p align="center">
   Automatyczne pobieranie i ekstrakcja faktur (KSeF 2.0 + Non-KSeF PDF/JPG),<br>
@@ -21,9 +22,29 @@
   oraz gotowa Paczka Przelewów z kodami QR dla polskich aplikacji bankowych.
 </p>
 
-[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura 4 Poziomów](#-architektura-i-4-poziomy-systemu) • [🤖 Praca z Agentem AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [💻 Interfejs CLI](#-interfejs-cli-wiersz-poleceń)
+[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Przeglądaj Demo Online](https://cackoarek.github.io/TaxPilot_AI/) • [💻 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura](#-architektura-i-4-poziomy-systemu) • [🤖 Scenariusze AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [⌨️ CLI](#-interfejs-cli-wiersz-poleceń)
 
 </div>
+
+---
+
+## 📄 Przykładowe widoki WWW i raporty na żywo (GitHub Pages)
+
+Możesz przetestować wygenerowane raporty i widoki aplikacji bezpośrednio w przeglądarce pod adresem **[https://cackoarek.github.io/TaxPilot_AI/](https://cackoarek.github.io/TaxPilot_AI/)** bez konieczności instalacji i logowania:
+
+| Kategoria | Widok / Raport | Opis funkcjonalności | Link demo |
+|:---|:---|:---|:---|
+| 📊 **Pulpit WWW** | **Pulpit & Paczka Przelewów** | Główne KPI, podatki do zapłaty (ZUS, PIT, VAT), kody QR i mikrorachunki | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_dashboard.html) |
+| 📝 **Pulpit WWW** | **Wstępny Przegląd (Krok 2)** | 3 tabele weryfikacyjne, inline-editing kwalifikacji (100%/50%/0%), reguły | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_przeglad.html) |
+| 📑 **Pulpit WWW** | **Księgowanie & Ewidencje** | Ewidencja Przychodów, Rejestr VAT, podsumowanie roczne YTD i audyt | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_ksiegowanie.html) |
+| 📁 **Pulpit WWW** | **Archiwum Faktur (KSeF)** | Przeglądarka faktur z podglądem pozycji i numerów KSeF 2.0 | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_faktury.html) |
+| 🛡️ **Pulpit WWW** | **Compliance AML & Biała Lista** | Weryfikacja MF, sankcje MSWiA/UE, rachunki bankowe i dowody na 5 lat | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_aml.html) |
+| 💡 **Pulpit WWW** | **Doradca Podatkowy** | Symulator form (Ryczałt vs Liniowy vs Skala) i audyt brakujących kosztów | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_doradca.html) |
+| ⚙️ **Pulpit WWW** | **Centrum Ustawień** | Konfiguracja firmy, tokenu KSeF 2.0 (TEST/PROD), ZUS i wyuczonych reguł | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_ustawienia.html) |
+| 🏢 **Pulpit WWW** | **Kreator Onboardingu** | Wieloetapowy kreator wdrażania firmy z pobieraniem danych z rejestrów MF | [→ Zobacz](https://cackoarek.github.io/TaxPilot_AI/latest/web_setup.html) |
+| 📑 **Raport PDF** | **Zbiorczy Raport Compliance** | Oficjalny certyfikowany raport w formacie PDF (A4 pejzaż) z SHA-256 | [→ Pobierz PDF](https://cackoarek.github.io/TaxPilot_AI/latest/reports/raport-weryfikacji-2026-10.pdf) |
+| 📄 **Raport PDF** | **Karta Kontrahenta (AML)** | Przykładowa Karta Weryfikacji Kontrahenta w formacie PDF (A4 pion) | [→ Pobierz PDF](https://cackoarek.github.io/TaxPilot_AI/latest/reports/5252674797-karta.pdf) |
+| 🌐 **Portal** | **Strona Główna Wydań Demo** | Zbiorczy portal wszystkich wydań i wersji demonstracyjnych | [→ Przejdź do portalu](https://cackoarek.github.io/TaxPilot_AI/) |
 
 ---
 
@@ -44,20 +65,20 @@ Tradycyjne programy księgowe bywają skomplikowane i wymagają żmudnego ręczn
 
 ## 🌐 Nowoczesna Nakładka WWW (Interfejs Użytkownika)
 
-Aplikacja posiada kompletny, estetyczny interfejs graficzny uruchamiany w przeglądarce pod adresem `http://localhost:8000`:
+Aplikacja posiada kompletny, estetyczny interfejs graficzny uruchamiany lokalnie pod adresem `http://localhost:8000` lub dostępny w wersji pokazowej na żywo na **[GitHub Pages](https://cackoarek.github.io/TaxPilot_AI/)**:
 
-| Widok / Moduł WWW | Ścieżka | Opis funkcjonalności |
-|:---|:---|:---|
-| 📊 **Pulpit Główny** | `/` | Podsumowanie stanu miesiąca, wskaźniki przychodów i kosztów, alerty brakujących faktur, status połączenia AI (Antigravity/Gemini/Claude) oraz szybkie akcje. |
-| 🔍 **Wstępny Przegląd (Krok 2)** | `/przeglad` | Weryfikacja dokumentów przed rozliczeniem: 3 tabele (przychody, koszty do akceptacji, pozycje niejednoznaczne), inline-editing HTMX (100% firmowy, 50% samochód art. 86a, 0% wydatek prywatny), zbiorcza kwalifikacja faktur >5 pozycji oraz natychmiastowe utrwalanie reguł firmy. |
-| 📚 **Księgowanie & Ewidencje** | `/ksiegowanie` | Ewidencja Przychodów (Ryczałt 12%, 8.5%), Rejestry VAT (sprzedaż i zakupy), Zestawienie Roczne i Sumy (YTD), Sprawozdanie & Audyt (generowane tabele HTML) oraz uruchamianie deterministycznego rozliczenia z obsługą nadwyżki VAT z poprzedniego miesiąca. |
-| 💳 **Paczka Przelewów & Kody QR** | `/ksiegowanie?tab=przelewy` | Gotowe dane 3 przelewów podatnika (ZUS NRS, US PIT-28, US VAT-7) wraz z generatorami kodów QR do zeskanowania aplikacją bankową na telefonie. |
-| 📁 **Archiwum Faktur** | `/faktury` | Przeglądarka faktur sprzedaży i kosztów podzielona na KSeF oraz Non-KSeF z podglądem szczegółów, pozycji, stawek VAT i dokumentów źródłowych. |
-| 🛡️ **Compliance AML & Biała Lista** | `/aml` | Narzędzie weryfikacji należytej staranności: weryfikacja statusu VAT i rachunku bankowego na Białej Liście MF, listy sankcyjne MSWiA i UE, pobieranie Kart Kontrahenta (PDF A4) oraz miesięcznych raportów (PDF A4 pejzaż). |
-| 💡 **Doradca Podatkowy** | `/doradca` | Interaktywny symulator opłacalności form opodatkowania (Ryczałt vs Liniowy vs Skala) z uwzględnieniem progów składki zdrowotnej oraz audyt powtarzalnych kosztów (hosting, leasing, telefony). |
-| 🤖 **Copilot AI** | Pływający widget | Asystent AI dostępny w rogu każdego ekranu ze streamingiem odpowiedzi na żywo, historią sesji per firma i miesiąc, zintegrowany z silnikiem Antigravity / Gemini / Claude. |
-| ⚙️ **Centrum Ustawień** | `/ustawienia` | Konfiguracja parametrów firmy (stawki ryczałtu, ZUS, zasada memoriałowa/kasowa), tokenu i środowiska KSeF 2.0 (TEST/PROD) oraz dostawców AI (Antigravity CLI, Google Gemini, Anthropic Claude). |
-| 🏢 **Zarządzanie Firmami** | `/firmy/nowa` | Kreator onboardingu nowej firmy z automatycznym pobraniem danych z rejestrów publicznych MF/CEIDG oraz przełącznik aktywnego podmiotu i okresu. |
+| Widok / Moduł WWW | Ścieżka | Opis funkcjonalności | Demo na żywo |
+|:---|:---|:---|:---|
+| 📊 **Pulpit Główny** | `/` | Podsumowanie stanu miesiąca, wskaźniki przychodów i kosztów, alerty brakujących faktur, status połączenia AI (Antigravity/Gemini/Claude) oraz szybkie akcje. | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_dashboard.html) |
+| 🔍 **Wstępny Przegląd (Krok 2)** | `/przeglad` | Weryfikacja dokumentów przed rozliczeniem: 3 tabele (przychody, koszty do akceptacji, pozycje niejednoznaczne), inline-editing HTMX (100% firmowy, 50% samochód art. 86a, 0% wydatek prywatny), zbiorcza kwalifikacja faktur >5 pozycji oraz natychmiastowe utrwalanie reguł firmy. | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_przeglad.html) |
+| 📚 **Księgowanie & Ewidencje** | `/ksiegowanie` | Ewidencja Przychodów (Ryczałt 12%, 8.5%), Rejestry VAT (sprzedaż i zakupy), Zestawienie Roczne i Sumy (YTD), Sprawozdanie & Audyt (generowane tabele HTML) oraz uruchamianie deterministycznego rozliczenia z obsługą nadwyżki VAT z poprzedniego miesiąca. | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_ksiegowanie.html) |
+| 💳 **Paczka Przelewów & Kody QR** | `/ksiegowanie?tab=przelewy` | Gotowe dane 3 przelewów podatnika (ZUS NRS, US PIT-28, US VAT-7) wraz z generatorami kodów QR do zeskanowania aplikacją bankową na telefonie. | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/ksiegowanie_przelewy.html) |
+| 📁 **Archiwum Faktur** | `/faktury` | Przeglądarka faktur sprzedaży i kosztów podzielona na KSeF oraz Non-KSeF z podglądem szczegółów, pozycji, stawek VAT i dokumentów źródłowych. | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_faktury.html) |
+| 🛡️ **Compliance AML & Biała Lista** | `/aml` | Narzędzie weryfikacji należytej staranności: weryfikacja statusu VAT i rachunku bankowego na Białej Liście MF, listy sankcyjne MSWiA i UE, pobieranie Kart Kontrahenta (PDF A4) oraz miesięcznych raportów (PDF A4 pejzaż). | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_aml.html) |
+| 💡 **Doradca Podatkowy** | `/doradca` | Interaktywny symulator opłacalności form opodatkowania (Ryczałt vs Liniowy vs Skala) z uwzględnieniem progów składki zdrowotnej oraz audyt powtarzalnych kosztów (hosting, leasing, telefony). | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_doradca.html) |
+| 🤖 **Copilot AI** | Pływający widget | Asystent AI dostępny w rogu każdego ekranu ze streamingiem odpowiedzi na żywo, historią sesji per firma i miesiąc, zintegrowany z silnikiem Antigravity / Gemini / Claude. | [→ Zobacz na pulpicie](https://cackoarek.github.io/TaxPilot_AI/latest/index.html) |
+| ⚙️ **Centrum Ustawień** | `/ustawienia` | Konfiguracja parametrów firmy (stawki ryczałtu, ZUS, zasada memoriałowa/kasowa), tokenu i środowiska KSeF 2.0 (TEST/PROD) oraz dostawców AI (Antigravity CLI, Google Gemini, Anthropic Claude). | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_ustawienia.html) |
+| 🏢 **Zarządzanie Firmami** | `/firmy/nowa` | Kreator onboardingu nowej firmy z automatycznym pobraniem danych z rejestrów publicznych MF/CEIDG oraz przełącznik aktywnego podmiotu i okresu. | [→ Otwórz](https://cackoarek.github.io/TaxPilot_AI/latest/web_setup.html) |
 
 ---
 
