@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "taxpilot-ai"
-version = "0.1.0"
+version = "0.2.0"
 description = "TaxPilot AI - Autonomiczny System Podatkowo-Księgowy dla JDG (KSeF 2.0, Ryczałt, ZUS, VAT, Compliance)"
 readme = "README.md"
 requires-python = ">=3.10"

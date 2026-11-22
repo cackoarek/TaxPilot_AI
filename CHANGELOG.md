@@ -9,6 +9,10 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] – 2026-11-22
+
 ### Bezpieczeństwo
 - **SEC-1**: Eliminacja podatności XSS (CWE-79) w module Markdown Copilota i raportach za pomocą deterministycznego escapowania HTML (`html.escape` + `MarkupSafe`) z walidacją dozwolonych protokołów URI (`tests/test_xss_prevention.py`).
 - **SEC-2**: Utwardzenie uploadu dokumentów (`invoices.py`): wprowadzenie limitów rozmiaru (15 MB na plik, 50 MB na paczkę), weryfikacji nagłówków binarnych (*magic bytes* dla PDF, PNG, JPEG, JSON) oraz sanityzacji nazw plików.
@@ -65,7 +69,6 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 - **QA-9**: Dodanie dedykowanych pakietów testowych `tests/test_validators.py` oraz `tests/test_audit03_hardening.py` weryfikujących algorytmy sum kontrolnych NIP/REGON/NRB, Open Redirect, atomowy zapis binarny, sanityzację `.env` i odporność podatkową (wzrost zestawu do 232 testów, 100% passed, 72% coverage).
 
 ---
-
 ## [0.1.0] – 2026-11-20
 
 ### Dodane
@@ -93,5 +96,6 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
   - Asystent Copilot AI (szuflada boczna) z izolacją kontekstu firmowego i historią konwersacji.
   - Wersjonowanie aplikacji z dynamiczną detekcją tagu git i prezentacją wersji w stopce interfejsu.
 
-[Unreleased]: https://github.com/cackoarek/TaxPilot_AI/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cackoarek/TaxPilot_AI/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cackoarek/TaxPilot_AI/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cackoarek/TaxPilot_AI/releases/tag/v0.1.0
