@@ -81,18 +81,29 @@ class AIDocumentExtractor:
         # 2. PDF
         if suffix in cls.PDF_EXTENSIONS:
             text_content = ""
-            # Próba wyciągnięcia tekstu z pdftotext
+            # 1. Próba wyciągnięcia tekstu czystym Pythonem (pypdf) bez zależności od systemu
             try:
-                proc = subprocess.run(
-                    ["pdftotext", "-layout", str(file_path), "-"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=10,
-                )
-                if proc.returncode == 0:
-                    text_content = proc.stdout.decode("utf-8", errors="ignore").strip()
+                from pypdf import PdfReader
+
+                reader = PdfReader(str(file_path))
+                pages_text = [p.extract_text() or "" for p in reader.pages]
+                text_content = "\n".join(pages_text).strip()
             except Exception as e:
-                logger.debug("Błąd pdftotext dla %s: %s", file_path.name, e)
+                logger.debug("Błąd pypdf dla %s: %s", file_path.name, e)
+
+            # 2. Fallback do systemowego pdftotext (jeśli pypdf nie zwrócił tekstu i narzędzie istnieje)
+            if len(text_content) <= 30 and shutil.which("pdftotext"):
+                try:
+                    proc = subprocess.run(
+                        ["pdftotext", "-layout", str(file_path), "-"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        timeout=10,
+                    )
+                    if proc.returncode == 0:
+                        text_content = proc.stdout.decode("utf-8", errors="ignore").strip()
+                except Exception as e:
+                    logger.debug("Błąd pdftotext dla %s: %s", file_path.name, e)
 
             # Jeśli PDF ma tekst, zwróć go
             if len(text_content) > 30:

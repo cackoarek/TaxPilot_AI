@@ -3,6 +3,7 @@ requests>=2.28.0
 cryptography>=3.4.8
 python-dotenv>=1.0.0
 reportlab>=3.6.0
+pypdf>=4.0.0
 
 # Warstwa Webowa (FastAPI + Jinja2 + HTMX)
 fastapi>=0.110.0

@@ -32,6 +32,7 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 - **SEC-19**: Pełne i deterministyczne kodowanie encji HTML w dymkach czatu Copilota i tytułach sesji (`copilot.py`) za pomocą `html.escape(..., quote=True)` (eliminacja niepełnego escapowania CWE-116).
 
 ### Zmienione
+- **INGEST-1**: Wdrożenie natywnej, bezprocesowej ekstrakcji tekstu z dokumentów PDF opartej o czysto pythonową bibliotekę `pypdf` w `non_ksef_extractor.py` oraz `ai_document_extractor.py` z opcjonalnym fallbackiem do systemowego `pdftotext`. Aplikacja nie wymaga instalacji żadnych zewnętrznych binariów (np. Poppler) i działa w pełni samowystarczalnie zarówno na Linuxie, jak i na Windowsie (`tests/test_pdf_extraction_pypdf.py`).
 - **VAL-1**: Wdrożenie dedykowanego modułu walidatorów fiskalnych `src/core/validators.py` z formalnymi algorytmami sum kontrolnych:
   - NIP: algorytm wagowy `[6, 5, 7, 2, 3, 4, 5, 6, 7]` i reszta modulo 11,
   - REGON: REGON-9 z wagami `[8, 9, 2, 3, 4, 5, 6, 7]` oraz REGON-14 z kontrolą modulo 11,

@@ -707,35 +707,56 @@ class NonKSeFExtractor:
         miesiac: str,
         invoice_type: InvoiceType = InvoiceType.KOSZT,
     ) -> Invoice:
-        """Konwertuje PDF na tekst za pomocą pdftotext i dokonuje ekstrakcji."""
+        """Konwertuje PDF na tekst za pomocą wbudowanej biblioteki pypdf (lub pdftotext jako fallback) i dokonuje ekstrakcji."""
         if pdf_path.name in KNOWN_RECEIPTS_MAP:
             return cls._create_fallback_invoice(pdf_path, profile, rok, miesiac, invoice_type=invoice_type)
-        pdftotext_bin = shutil.which("pdftotext") or "/usr/bin/pdftotext"
+
         text = ""
+
+        # 1. Próba odczytu czystym Pythonem (pypdf - natywnie na Linux i Windows bez aplikacji zewnętrznych)
         try:
-            res = subprocess.run(
-                [pdftotext_bin, "-layout", str(pdf_path), "-"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-                timeout=15.0,
-            )
-            if res.returncode == 0:
-                text = res.stdout
-            else:
-                logger.warning(
-                    "Błąd konwersji pdftotext dla %s (kod: %d): %s",
-                    pdf_path.name,
-                    res.returncode,
-                    res.stderr[:200] if res.stderr else "",
-                )
-        except subprocess.TimeoutExpired:
-            logger.warning("Przekroczono limit czasu (15s) podczas odczytu PDF: %s", pdf_path.name)
-            text = ""
+            from pypdf import PdfReader
+
+            reader = PdfReader(str(pdf_path))
+            pages_text = []
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    pages_text.append(page_text)
+            if pages_text:
+                text = "\n".join(pages_text)
         except Exception as exc:
-            logger.warning("Błąd uruchomienia pdftotext dla %s: %s", pdf_path.name, exc)
+            logger.debug("pypdf nie zdołał odczytać tekstu z %s: %s", pdf_path.name, exc)
             text = ""
+
+        # 2. Opcjonalny fallback do systemowego pdftotext (jeśli pypdf nie zwrócił tekstu i narzędzie istnieje w OS)
+        if not text.strip():
+            pdftotext_bin = shutil.which("pdftotext")
+            if pdftotext_bin:
+                try:
+                    res = subprocess.run(
+                        [pdftotext_bin, "-layout", str(pdf_path), "-"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=False,
+                        timeout=15.0,
+                    )
+                    if res.returncode == 0:
+                        text = res.stdout
+                    else:
+                        logger.warning(
+                            "Błąd konwersji pdftotext dla %s (kod: %d): %s",
+                            pdf_path.name,
+                            res.returncode,
+                            res.stderr[:200] if res.stderr else "",
+                        )
+                except subprocess.TimeoutExpired:
+                    logger.warning("Przekroczono limit czasu (15s) podczas odczytu PDF: %s", pdf_path.name)
+                    text = ""
+                except Exception as exc:
+                    logger.warning("Błąd uruchomienia pdftotext dla %s: %s", pdf_path.name, exc)
+                    text = ""
 
         if text.strip():
             return cls._extract_from_text(text, profile, pdf_path.name, rok, miesiac, invoice_type=invoice_type)
