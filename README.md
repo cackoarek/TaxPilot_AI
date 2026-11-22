@@ -1,32 +1,55 @@
 <div align="center">
 
-# 🚀 TaxPilot AI
+# 🤖 TaxPilot AI
 
-**Nowoczesny, autonomiczny system podatkowo-księgowy dla jednoosobowej działalności gospodarczej (JDG) w Polsce, oparty na deterministycznym silniku numerycznym Pythona, integracji z Krajowym Systemem e-Faktur (KSeF 2.0) oraz interaktywnej nakładce WWW.**
+### Autonomiczny Asystent Księgowy napędzany Sztuczną Inteligencją dla JDG w Polsce
+**Zamiast ręcznego wklepywania faktur i żmudnego śledzenia przepisów — Sztuczna Inteligencja, która czyta i rozumie dokumenty, automatycznie kwalifikuje wydatki i prowadzi z Tobą dialog, wsparta w 100% bezbłędnym silnikiem matematycznym Pythona (`Decimal`), bezpośrednią integracją z KSeF 2.0 i nowoczesną nakładką WWW.**
 
 [![CI Status](https://img.shields.io/github/actions/workflow/status/cackoarek/TaxPilot_AI/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/cackoarek/TaxPilot_AI/actions/workflows/ci.yml)
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![AI-Powered](https://img.shields.io/badge/AI-Agentic%20Bookkeeper-blueviolet.svg?style=flat-square&logo=openai&logoColor=white)](#-co-wyróżnia-taxpilot-ai-ai-jako-twój-inteligentny-księgowy)
 [![Zero-Hallucination](https://img.shields.io/badge/Policy-Zero--Hallucination%20(Decimal)-orange.svg?style=flat-square)](#-1-naczelna-zasada-zero-hallucination-policy)
 [![KSeF 2.0 Ready](https://img.shields.io/badge/KSeF-2.0%20(FA%202%20%2F%20FA%203)-red.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![Web UI: FastAPI + HTMX](https://img.shields.io/badge/web%20ui-FastAPI%20%2B%20HTMX%20%2B%20Tailwind-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](#-nowoczesna-nakładka-www-interfejs-użytkownika)
 [![Tests: unittest](https://img.shields.io/badge/tests-unittest%20(232%20passed)-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Types: Mypy](https://img.shields.io/badge/types-mypy%20(strict)-blue.svg?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
-[![Coverage](https://img.shields.io/badge/coverage-71%25-brightgreen.svg?style=flat-square)](#)
-[![LLM-Agnostic](https://img.shields.io/badge/LLM-Agnostic%20(Claude%20%7C%20GPT%20%7C%20Gemini%20%7C%20AGY)-blueviolet.svg?style=flat-square)](#-elastyczność-llm-oraz-tryb-zero-llm)
+[![Coverage](https://img.shields.io/badge/coverage-72%25-brightgreen.svg?style=flat-square)](#)
+[![LLM-Agnostic](https://img.shields.io/badge/LLM-Agnostic%20(Claude%20%7C%20GPT%20%7C%20Gemini%20%7C%20AGY)-indigo.svg?style=flat-square)](#-elastyczność-llm-oraz-tryb-zero-llm)
 [![Local-First](https://img.shields.io/badge/privacy-Local--First-2e7d32.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![GitHub Pages](https://img.shields.io/badge/demo-GitHub%20Pages-0969da.svg?style=flat-square&logo=github&logoColor=white)](https://cackoarek.github.io/TaxPilot_AI/)
 
 <p align="center">
-  Automatyczne pobieranie i ekstrakcja faktur (KSeF 2.0 + Non-KSeF PDF/JPG),<br>
-  deterministyczne wyliczanie składek ZUS (progi GUS), podatku PIT-28 oraz bilansu VAT-7,<br>
-  weryfikacja kontrahentów pod kątem AML, sankcji i Białej Listy MF z dowodami w PDF,<br>
-  oraz gotowa Paczka Przelewów z kodami QR dla polskich aplikacji bankowych.
+  🤖 <b>Autonomiczna analiza faktur przez AI</b> (z KSeF 2.0 oraz skanów PDF i JPG),<br>
+  🧮 <b>Deterministyczne obliczenia podatkowe</b> (Zero halucynacji: ZUS, PIT-28 i VAT-7 co do grosza),<br>
+  💬 <b>3-minutowy dialog weryfikacyjny z przedsiębiorcą</b> przed zamknięciem miesiąca,<br>
+  🛡️ <b>Automatyczna procedura AML, sankcji i Białej Listy MF</b> z Kartami Kontrahenta w PDF,<br>
+  📱 <b>Gotowa Paczka Przelewów z kodami QR</b> dla aplikacji mObywatel i bankowości mobilnej.
 </p>
 
-[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Przeglądaj Demo Online](https://cackoarek.github.io/TaxPilot_AI/) • [💻 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura](#-architektura-i-4-poziomy-systemu) • [🤖 Scenariusze AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [⌨️ CLI](#-interfejs-cli-wiersz-poleceń)
+[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Przeglądaj Demo Online](https://cackoarek.github.io/TaxPilot_AI/) • [🎯 Dlaczego AI?](#-co-wyróżnia-taxpilot-ai-ai-jako-twój-inteligentny-księgowy) • [💻 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura](#-architektura-i-4-poziomy-systemu) • [🤖 Scenariusze AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [⌨️ CLI](#-interfejs-cli-wiersz-poleceń)
 
 </div>
+
+---
+
+## 🎯 Co wyróżnia TaxPilot AI? (AI jako Twój Inteligentny Księgowy)
+
+Większość programów księgowych na rynku to w istocie tylko cyfrowe bazy danych z formularzami – wymagają od przedsiębiorcy ręcznego wpisywania każdej pozycji, samodzielnego wybierania stawek podatkowych i pilnowania terminów. Z kolei próby powierzenia rozliczeń bezpośrednio modelom językowym (jak ChatGPT czy Claude w oknie czatu) kończą się **halucynacjami matematycznymi, gubieniem groszy i błędami w deklaracjach skarbowych**.
+
+**TaxPilot AI łączy to, co najlepsze ze Sztucznej Inteligencji, z bezwzględną precyzją deterministycznego kodu:**
+
+| Kategoria | Klasyczny program księgowy (np. wFirma, ifirma) | Sam Czat AI (ChatGPT / Claude) | 🚀 **TaxPilot AI (Agent AI + Deterministyczny Python)** |
+|:---|:---|:---|:---|
+| 📥 **Wprowadzanie faktur** | Ręczne klepanie lub płatny, zawodny OCR | Ręczne kopiowanie tekstu lub wklejanie PDF | 🤖 **Pełna autonomia:** Pobiera z KSeF 2.0 + natywna ekstrakcja PDF/JPG w Pythonie |
+| 🧠 **Rozumienie pozycji faktur** | Brak – człowiek musi sam zakwalifikować każdą pozycję | Rozumie język, ale nie ma dostępu do ewidencji | 💡 **AI czyta treść faktur:** automatycznie rozpoznaje wydatki (100% firma, 50% auto art. 86a, 0% prywatny) |
+| 🧮 **Arytmetyka i podatki** | Poprawne (sztywny kod) | ❌ **Ryzyko halucynacji matematycznych** | 🎯 **Zero-Hallucination Policy:** Obliczenia ZUS, PIT-28 i VAT-7 liczy kod Pythona na typie `Decimal` |
+| 💬 **Obsługa wyjątków i pytań** | Użytkownik musi sam przeklikać się przez dziesiątki okien | Prowadzi luźną rozmowę bez powiązania z plikami | 👥 **Human-in-the-Loop:** Przedsiębiorca w 3 minuty odpowiada na pytania AI w widoku wstępnego przeglądu |
+| 🎓 **Pamięć i nauka preferencji** | Sztywne reguły lub brak | Zapomina wszystko po zamknięciu okna rozmowy | 📚 **Persistent Memory:** Raz wyjaśniony wydatek AI trwale zapamiętuje dla kolejnych miesięcy |
+| 💳 **Płatności podatkowe** | Ręczne przepisywanie numerów rachunków | Brak | 📱 **Gotowa Paczka Przelewów z kodami QR** (ZUS NRS, mikrorachunek US, VAT-7) |
+| 🔒 **Prywatność i poufność** | Dane na obcych serwerach w chmurze | Zapytania trafiają do korporacji AI | 🛡️ **100% Local-First:** Baza danych, faktury i tokeny KSeF przechowywane wyłącznie lokalnie |
+
+---
 
 ---
 
@@ -291,7 +314,7 @@ W repozytorium znajduje się również śledzony katalog [examples/](examples/) 
 
 ## 🧪 Testy Jednostkowe i Jakość Kodu
 
-Repozytorium posiada bogaty zestaw ponad 197 deterministycznych testów jednostkowych i integracyjnych pokrywających wszystkie moduły aplikacji:
+Repozytorium posiada bogaty zestaw ponad 232 deterministycznych testów jednostkowych i integracyjnych pokrywających wszystkie moduły aplikacji (100% hermetycznych, izolowanych w folderach tymczasowych):
 
 ```bash
 # Uruchomienie pełnego zestawu testów
