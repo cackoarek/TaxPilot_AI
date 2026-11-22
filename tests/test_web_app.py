@@ -25,6 +25,9 @@ class TestWebApp(unittest.TestCase):
         cleanup_test_company(cls.profile)
 
     def setUp(self):
+        from src.web.app import reset_login_rate_limits
+
+        reset_login_rate_limits()
         self.client = TestClient(app)
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
 
@@ -124,8 +127,11 @@ class TestWebApp(unittest.TestCase):
             self.assertIn(COOKIE_AUTH_TOKEN, login_resp.cookies)
 
             # Błędny token w POST /login -> 401
-            bad_login = login_client.post("/login", data={"token": "zly-token"})
-            self.assertEqual(bad_login.status_code, 401)
+            from unittest.mock import patch
+
+            with patch("src.web.app.time.sleep"):
+                bad_login = login_client.post("/login", data={"token": "zly-token"})
+                self.assertEqual(bad_login.status_code, 401)
 
             # 4c. Wylogowanie przez GET /logout
             logout_resp = login_client.get("/logout", follow_redirects=False)

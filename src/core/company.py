@@ -204,6 +204,10 @@ class CompanyProfile:
     def save(self) -> Path:
         target_dir = self.katalog_firmy
         target_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            target_dir.chmod(0o700)
+        except OSError:
+            pass
         profil_path = target_dir / "profil.json"
         # Profil zawiera wrażliwe tokeny KSeF i klucze API - wymuszenie uprawnień 0600 (SEC-4)
         return atomic_write_json(profil_path, self.to_dict(), indent=2, ensure_ascii=False, mode=0o600)
@@ -386,4 +390,49 @@ def initialize_company(
     (profile.katalog_firmy / "rozliczenia").mkdir(parents=True, exist_ok=True)
     (profile.katalog_firmy / "weryfikacje").mkdir(parents=True, exist_ok=True)
 
+    migrate_data_permissions(profile.katalog_firmy)
+
     return profile
+
+
+def migrate_data_permissions(base_dir: Optional[Union[Path, str]] = None) -> int:
+    """
+    Migruje uprawnienia systemu plików (SEC-4, SEC-10):
+    - Nadaje chmod 700 (rwx------) wszystkim katalogom firm
+    - Nadaje chmod 600 (rw-------) plikom profil.json oraz reguly_*.json
+    Zwraca liczbę zaktualizowanych zasobów.
+    """
+    target_base = Path(base_dir) if base_dir else FIRMY_DIR
+    if not target_base.exists() or not target_base.is_dir():
+        return 0
+
+    count = 0
+    try:
+        # Jeśli target_base to pojedynczy katalog firmy
+        if (target_base / "profil.json").exists():
+            dirs_to_check = [target_base]
+        else:
+            dirs_to_check = [d for d in target_base.iterdir() if d.is_dir()]
+
+        for d in dirs_to_check:
+            try:
+                d.chmod(0o700)
+                count += 1
+            except OSError:
+                pass
+
+            for item in d.rglob("*"):
+                if item.is_dir():
+                    try:
+                        item.chmod(0o700)
+                    except OSError:
+                        pass
+                elif item.is_file() and (item.name == "profil.json" or item.name.startswith("reguly_")):
+                    try:
+                        item.chmod(0o600)
+                        count += 1
+                    except OSError:
+                        pass
+    except Exception:
+        pass
+    return count

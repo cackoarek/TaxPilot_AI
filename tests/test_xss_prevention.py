@@ -118,6 +118,46 @@ class TestXSSPrevention(unittest.TestCase):
         self.assertNotIn("<a ", html)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
 
+    def test_render_markdown_contract_strict_html_neutralization(self):
+        """Formalny kontrakt bezpieczeństwa render_markdown (SEC-12 / CWE-79)."""
+        malicious_samples = [
+            '<iframe src="https://evil.com"></iframe>',
+            '<object data="exploit.swf"></object>',
+            '<embed src="exploit.pdf">',
+            '<div onmouseover="alert(1)">Treść</div>',
+            "<style>body { display: none; }</style>",
+            '<base href="https://evil.com">',
+            '<form action="https://evil.com"><input type="submit"></form>',
+        ]
+        for payload in malicious_samples:
+            rendered = str(render_markdown(payload))
+            # Żaden z tych surowych tagów nie może pojawić się w wynikowym kodzie HTML jako element DOM
+            self.assertNotIn("<iframe", rendered)
+            self.assertNotIn("<object", rendered)
+            self.assertNotIn("<embed", rendered)
+            self.assertNotIn("<div", rendered)
+            self.assertNotIn("<style", rendered)
+            self.assertNotIn("<base", rendered)
+            self.assertNotIn("<form", rendered)
+            # Tagi muszą być bezpiecznie zneutralizowane do encji &lt; i &gt;
+            self.assertIn("&lt;", rendered)
+
+    def test_render_markdown_contract_tables_and_formatting(self):
+        """Weryfikuje poprawne formatowanie tabeli z neutralizacją wstrzyknięć w komórkach."""
+        md_table = (
+            "| Kontrahent | NIP | Kwota | Zdarzenie |\n"
+            "|:---|:---:|---:|:---|\n"
+            "| Google Cloud <script>steal()</script> | 1234567890 | 100.00 zł | `<img src=x onerror=alert(1)>` |\n"
+            "| **SUMA** | - | **100.00 zł** | [Panel](https://safe.local) |\n"
+        )
+        rendered = str(render_markdown(md_table))
+        self.assertIn("<table", rendered)
+        self.assertNotIn("<script>", rendered)
+        self.assertNotIn("<img", rendered)
+        self.assertIn("&lt;script&gt;steal()&lt;/script&gt;", rendered)
+        self.assertIn("&lt;img src=x onerror=alert(1)&gt;", rendered)
+        self.assertIn('<a href="https://safe.local"', rendered)
+
     def test_is_safe_url_helper(self):
         """Sprawdza reguły walidacji URL pod kątem bezpieczeństwa."""
         self.assertTrue(is_safe_url("https://gov.pl"))

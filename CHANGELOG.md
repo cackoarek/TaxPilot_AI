@@ -10,12 +10,19 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 ## [Unreleased]
 
 ### Bezpieczeństwo
-- **SEC-1**: Eliminacja podatności XSS (CWE-79) w module Markdown Copilota za pomocą bezpiecznej sanitizacji HTML (`bleach`) z białą listą dozwolonych tagów i ucieczką atrybutów (`tests/test_xss_prevention.py`).
+- **SEC-1**: Eliminacja podatności XSS (CWE-79) w module Markdown Copilota i raportach za pomocą deterministycznego escapowania HTML (`html.escape` + `MarkupSafe`) z walidacją dozwolonych protokołów URI (`tests/test_xss_prevention.py`).
 - **SEC-2**: Utwardzenie uploadu dokumentów (`invoices.py`): wprowadzenie limitów rozmiaru (15 MB na plik, 50 MB na paczkę), weryfikacji nagłówków binarnych (*magic bytes* dla PDF, PNG, JPEG, JSON) oraz sanityzacji nazw plików.
 - **NET-1**: Zabezpieczenie sieciowe wdrożenia – bindowanie kontenera Docker wyłącznie do pętli zwrotnej `127.0.0.1:8000`, opcjonalna autoryzacja tokenem (`TAXPILOT_ACCESS_TOKEN`) lub Basic Auth oraz doprecyzowanie architektury aplikacji jako Local-First Personal AI Assistant w `README.md`.
 - **SEC-3**: Stałoczasowa weryfikacja tokena (`secrets.compare_digest`) chroniąca przed timing attacks, automatyczne stripowanie tokena z adresu URL za pomocą przekierowania 303 (ochrona historii przeglądarki i logów proxy) oraz formularz logowania `POST /login` i wylogowania `GET /logout`.
 - **SEC-4**: Wymuszenie restrykcyjnych uprawnień systemu plików `chmod 600` dla plików `profil.json` przy atomowym zapisie oraz utworzenie oficjalnego dokumentu `SECURITY.md`.
 - **SEC-5**: Głęboka walidacja plików uploadowanych – inspekcja strumieniowa PDF pod kątem osadzonego kodu wykonywalnego (`/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFiles`) oraz blokada złośliwych znaczników kodu w plikach tekstowych.
+- **SEC-6**: Dynamiczna flaga `Secure=True` dla ciasteczek sesyjnych w środowiskach HTTPS (`request.url.scheme == "https"`, nagłówek `X-Forwarded-Proto: https` lub env `TAXPILOT_COOKIE_SECURE=1`).
+- **SEC-7**: Ochrona przed atakami brute-force na endpointzie `/login` – in-memory rate limiter per IP (maks. 5 prób/min), stałoczasowe opóźnienie ochronne (1.0 s) przy błędnym tokenie, nagłówki `Cache-Control: no-store, no-cache, must-revalidate` oraz jednolity komunikat błędu.
+- **SEC-8**: Walidacja wejściowa długości tokena (max 256 znaków) oraz logowanie ostrzeżenia przy starcie serwera, jeśli skonfigurowany token ma mniej niż 32 znaki.
+- **SEC-9**: Ochrona przed podatnością Open Redirect w formularzu logowania (CWE-601) poprzez restrykcyjną walidację ścieżki docelowej (`is_safe_redirect_url`), blokując zewnętrzny host, protocol-relative URL (`//evil.com`) i znaki kontrolne.
+- **SEC-10**: Automatyczna migracja uprawnień dyskowych (`migrate_data_permissions`) przy starcie aplikacji FastAPI – wymuszenie `chmod 700` dla folderów firmowych oraz `chmod 600` dla plików `profil.json` i reguł.
+- **SEC-11**: Ochrona przed atakami CSRF w architekturze Local-First poprzez weryfikację nagłówków `Origin` i `Referer` dla metod mutujących stan (`POST`, `PUT`, `DELETE`, `PATCH`), odrzucając żądania pochodzące z obcych domen (`403 Forbidden`).
+- **SEC-12**: Sformalizowanie kontraktu bezpieczeństwa renderera Markdown (`src/web/utils/markdown.py`) z testami odpornościowymi na wstrzyknięcia DOM i tabel.
 
 ### Zmienione
 - **TAX-1**: Wdrożenie zasady ostrożności podatkowej w `settlement_service.py` – pozycje faktur bez audytu otrzymują status `⚠️ DO_WYJASNIENIA` i 0.00 zł VAT do odliczenia (zamiast domyślnego 100% firmowego). Usunięcie kategorycznych obietnic ("100% bezpieczny") i dodanie standardowej klauzuli informacyjnej do raportów.
@@ -25,8 +32,9 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 ### Jakość Kodu i Testy (QA)
 - **QA-1**: Wdrożenie lintera i formatera `ruff` w konfiguracji projektu `pyproject.toml` oraz w potoku CI `.github/workflows/ci.yml`.
 - **QA-1**: Pełna hermetyzacja i izolacja testów jednostkowych – testowe profile firm tworzone w izolowanych katalogach tymczasowych (`tempfile.mkdtemp`), eliminując współdzielony stan i kolizje danych testowych.
-- **QA-2**: Rozszerzenie triggerów potoku CI `.github/workflows/ci.yml` o gałąź `fixes` i `feature/**`, dodanie pełnego raportowania wyników testów do GitHub Step Summary oraz aktualizacja badge'a w `README.md` (197 testów).
+- **QA-2**: Rozszerzenie triggerów potoku CI `.github/workflows/ci.yml` o budowanie wszystkich gałęzi (`branches: ['**']`), dodanie concurrency `cancel-in-progress` oraz pełnego raportowania wyników testów do GitHub Step Summary.
 - **QA-3**: 100% hermetyzacji testów integracyjnych i webowych dzięki dynamicznemu proxy `TAXPILOT_DATA_DIR` w `src/config.py` – żaden test nie modyfikuje ani nie wymaga obecności danych w produkcyjnym folderze `firmy/`.
+- **QA-4**: Dodanie dedykowanego pakietu testów `tests/test_web_security_hardening.py` weryfikującego zabezpieczenia przed atakami Open Redirect, brute-force, CSRF oraz uprawnienia systemu plików (wzrost zestawu do 205 testów).
 
 ---
 
