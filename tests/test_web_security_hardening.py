@@ -254,6 +254,7 @@ class TestWebSecurityHardening(unittest.TestCase):
         self.assertEqual(resp.headers.get("referrer-policy"), "strict-origin-when-cross-origin")
         self.assertIn("geolocation=()", resp.headers.get("permissions-policy", ""))
         self.assertIn("default-src 'self'", resp.headers.get("content-security-policy", ""))
+        self.assertIn("'unsafe-eval'", resp.headers.get("content-security-policy", ""))
         self.assertIn("https://cdn.tailwindcss.com", resp.headers.get("content-security-policy", ""))
 
 
