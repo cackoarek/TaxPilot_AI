@@ -42,11 +42,13 @@ def is_safe_url(url: str) -> bool:
         return False
 
 
-def render_markdown(text: str) -> Markup:
+def render_markdown(text: str, header_shift: int = 0) -> Markup:
     """
     Konwertuje markdown na bezpieczny i estetyczny kod HTML.
     Zawiera pełną ochronę przed atakami XSS (CWE-79) poprzez ucieczkę tagów HTML,
     walidację protokołów URL oraz bezpieczne formatowanie tabel i bloków kodu.
+    Parametr header_shift (domyślnie 0) pozwala na przesunięcie poziomów nagłówków
+    (np. header_shift=1 dla dymków czatu: # -> h2, ## -> h3, ### -> h4).
     Obsługuje:
     - Nagłówki (#, ##, ###, ####) ze zróżnicowaną typografią
     - Tabele Markdown (| kol 1 | kol 2 |) z wyrównaniem komórek i wyróżnieniem wiersza sum
@@ -89,10 +91,10 @@ def render_markdown(text: str) -> Markup:
 
     # 4. Formatowanie inline
     # 4a. Pogrubienia **tekst**
-    text = re.sub(r"\*\*(.+?)\*\*", r'<strong class="font-bold text-slate-900">\1</strong>', text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
 
     # 4b. Kursywa *tekst* (pomijając gwiazdki list)
-    text = re.sub(r"(?<!^)(?<!\n)(?<!\*)\*([^*]+?)\*(?!\*)", r'<em class="italic text-slate-700">\1</em>', text)
+    text = re.sub(r"(?<!^)(?<!\n)(?<!\*)\*([^*]+?)\*(?!\*)", r"<em>\1</em>", text)
 
     # 4c. Bezpieczne linki [tekst](url)
     def replace_link(match):
@@ -140,31 +142,30 @@ def render_markdown(text: str) -> Markup:
             continue
 
         # Sprawdzenie tabeli Markdown (| col 1 | col 2 |)
-        if line_stripped.startswith("|") and line_stripped.endswith("|") and i + 1 < n and "|" in lines[i + 1]:
+        if "|" in line_stripped and i + 1 < n and "|" in lines[i + 1]:
             sep_candidate = lines[i + 1].strip()
-            if sep_candidate.startswith("|") and sep_candidate.endswith("|"):
-                sep_raw = [c.strip() for c in sep_candidate.strip("|").split("|")]
-                if sep_raw and all(re.match(r"^:?-+:?$", c) for c in sep_raw if c):
-                    # Rozpoznano nagłówek i separator
-                    alignments = []
-                    for c in sep_raw:
-                        if c.startswith(":") and c.endswith(":"):
-                            alignments.append("text-center")
-                        elif c.endswith(":"):
-                            alignments.append("text-right")
-                        else:
-                            alignments.append("text-left")
+            sep_raw = [c.strip() for c in sep_candidate.strip("|").split("|")]
+            if sep_raw and all(re.match(r"^:?-+:?$", c) for c in sep_raw if c):
+                # Rozpoznano nagłówek i separator
+                alignments = []
+                for c in sep_raw:
+                    if c.startswith(":") and c.endswith(":"):
+                        alignments.append("text-center")
+                    elif c.endswith(":"):
+                        alignments.append("text-right")
+                    else:
+                        alignments.append("text-left")
 
-                    header_cells = [c.strip() for c in line_stripped.strip("|").split("|")]
-                    table_rows = []
-                    i += 2
-                    while i < n:
-                        row_line = lines[i].strip()
-                        if not row_line or not (row_line.startswith("|") and row_line.endswith("|")):
-                            break
-                        cells = [c.strip() for c in row_line.strip("|").split("|")]
-                        table_rows.append(cells)
-                        i += 1
+                header_cells = [c.strip() for c in line_stripped.strip("|").split("|")]
+                table_rows = []
+                i += 2
+                while i < n:
+                    row_line = lines[i].strip()
+                    if not row_line or "|" not in row_line:
+                        break
+                    cells = [c.strip() for c in row_line.strip("|").split("|")]
+                    table_rows.append(cells)
+                    i += 1
 
                     tbl_html = [
                         '<div class="overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-2xs">',
@@ -203,26 +204,30 @@ def render_markdown(text: str) -> Markup:
 
         # Sprawdzenie nagłówków Markdown (####, ###, ##, #)
         if line_stripped.startswith("#### "):
+            h_tag = "h5" if header_shift > 0 else "h4"
             output_html.append(
-                f'<h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider mt-4 mb-2">{line_stripped[5:]}</h4>'
+                f'<{h_tag} class="font-bold text-slate-800 text-xs uppercase tracking-wider mt-4 mb-2">{line_stripped[5:]}</{h_tag}>'
             )
             i += 1
             continue
         elif line_stripped.startswith("### "):
+            h_tag = "h4" if header_shift > 0 else "h3"
             output_html.append(
-                f'<h3 class="font-bold text-slate-900 text-sm mt-5 mb-2 pb-1 border-b border-slate-100">{line_stripped[4:]}</h3>'
+                f'<{h_tag} class="font-bold text-slate-900 text-sm mt-5 mb-2 pb-1 border-b border-slate-100">{line_stripped[4:]}</{h_tag}>'
             )
             i += 1
             continue
         elif line_stripped.startswith("## "):
+            h_tag = "h3" if header_shift > 0 else "h2"
             output_html.append(
-                f'<h2 class="font-black text-slate-900 text-base mt-6 mb-3 flex items-center space-x-2">{line_stripped[3:]}</h2>'
+                f'<{h_tag} class="font-black text-slate-900 text-base mt-6 mb-3 flex items-center space-x-2">{line_stripped[3:]}</{h_tag}>'
             )
             i += 1
             continue
         elif line_stripped.startswith("# "):
+            h_tag = "h2" if header_shift > 0 else "h1"
             output_html.append(
-                f'<h1 class="font-black text-slate-900 text-lg mb-3 pb-2 border-b-2 border-slate-200">{line_stripped[2:]}</h1>'
+                f'<{h_tag} class="font-black text-slate-900 text-lg mb-3 pb-2 border-b-2 border-slate-200">{line_stripped[2:]}</{h_tag}>'
             )
             i += 1
             continue

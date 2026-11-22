@@ -16,7 +16,6 @@ import html
 import os
 import secrets
 import time
-import urllib.parse
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Dict, List
@@ -36,6 +35,11 @@ from src.web.config import (
     TAXPILOT_ACCESS_TOKEN,
 )
 from src.web.routers import advisor, aml, bookkeeping, companies, copilot, dashboard, invoices, settings, settlement
+from src.web.utils.security import (
+    is_safe_redirect_url,
+    is_secure_request,
+    is_trusted_origin,
+)
 
 # Inicjalizacja centralnego logowania (konsola + taxpilot.log)
 setup_logging()
@@ -60,74 +64,6 @@ def check_login_rate_limit(client_ip: str) -> bool:
     if len(attempts) >= _RATE_LIMIT_MAX_ATTEMPTS:
         return False
     attempts.append(now)
-    return True
-
-
-def is_secure_request(request: Request) -> bool:
-    """Sprawdza, czy żądanie jest szyfrowane (HTTPS), za reverse-proxy SSL lub wymuszone w env (SEC-6)."""
-    if os.getenv("TAXPILOT_COOKIE_SECURE", "").lower() in ("1", "true", "yes"):
-        return True
-    if request.url.scheme == "https":
-        return True
-    if request.headers.get("x-forwarded-proto", "").lower() == "https":
-        return True
-    return False
-
-
-def is_safe_redirect_url(url: str) -> bool:
-    """
-    Weryfikuje, czy URL jest bezpieczną ścieżką względną na tym samym hoście (CWE-601 / SEC-9).
-    Odrzuca:
-    - ścieżki zaczynające się od // (protocol-relative URLs) lub /\\
-    - ścieżki zawierające obcy schemat lub netloc (http:, https:, javascript:, data:)
-    - znaki kontrolne i ukośniki wsteczne (\\)
-    """
-    if not url:
-        return False
-    clean = url.strip()
-    if not clean.startswith("/") or clean.startswith("//") or clean.startswith("/\\"):
-        return False
-    if any(c in clean for c in ("\r", "\n", "\t", "\x00", "\\")):
-        return False
-    try:
-        parsed = urllib.parse.urlsplit(clean)
-        if parsed.scheme or parsed.netloc:
-            return False
-        return True
-    except Exception:
-        return False
-
-
-def is_trusted_origin(request: Request) -> bool:
-    """
-    Weryfikuje nagłówek Origin / Referer dla żądań mutujących stan (POST, PUT, DELETE, PATCH).
-    W architekturze Local-First blokuje ataki CSRF ze złośliwych stron otwartych w innych kartach (SEC-11).
-    """
-    origin = request.headers.get("origin")
-    referer = request.headers.get("referer")
-    host = request.headers.get("host")
-
-    # Dozwolone zaufane hosty lokalne
-    trusted_hosts = {"127.0.0.1", "localhost", "testserver"}
-    if host:
-        host_clean = host.split(":")[0].lower()
-        if host_clean:
-            trusted_hosts.add(host_clean)
-
-    for header_val in (origin, referer):
-        if not header_val:
-            continue
-        clean_val = header_val.strip().lower()
-        if clean_val == "null":
-            return False
-        try:
-            parsed = urllib.parse.urlsplit(header_val)
-            header_host = (parsed.hostname or "").lower()
-            if header_host and header_host not in trusted_hosts:
-                return False
-        except Exception:
-            return False
-
     return True
 
 
@@ -159,6 +95,29 @@ app = FastAPI(
     redoc_url="/api/redoc",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """
+    Dodaje uniwersalne nagłówki bezpieczeństwa HTTP do każdej odpowiedzi (SEC-15, UI-1).
+    Chroni przed atakami Clickjacking (X-Frame-Options), MIME-sniffing (X-Content-Type-Options)
+    oraz wyciekiem danych w nagłówkach Referer (Referrer-Policy).
+    """
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
+    return response
 
 
 @app.middleware("http")

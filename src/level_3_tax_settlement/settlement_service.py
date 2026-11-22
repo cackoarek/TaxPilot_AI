@@ -10,9 +10,10 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from src.core.company import CompanyProfile, FormaOpodatkowania
-from src.core.io import atomic_write_json, atomic_write_text
+from src.core.io import atomic_write_json, atomic_write_text, file_lock
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_2_bookkeeping.ledger import BookkeepingService, MonthlyLedger
+from src.logging_config import get_logger
 from src.skills.ryczalt_tools import PIT28CalculationResult, calculate_pit28_advance
 from src.skills.vat_tools import VATBalanceResult, calculate_vat_settlement
 from src.skills.zus_tools import ZUSCalculationResult, calculate_zus
@@ -23,6 +24,8 @@ from .reports import (
     SettlementMarkdownReporter,
     format_rate_pct,
 )
+
+logger = get_logger("taxpilot.settlement_service")
 
 _format_rate_pct = format_rate_pct
 
@@ -298,32 +301,38 @@ class SettlementService:
             target_dir = profile.katalog_firmy / "rozliczenia" / rok_str / miesiac_str
             target_dir.mkdir(parents=True, exist_ok=True)
 
-            # Raport maszynowy JSON
-            json_path = target_dir / "rozliczenie.json"
-            atomic_write_json(json_path, wynik.to_dict(), indent=2, ensure_ascii=False)
+            with file_lock(target_dir / ".settlement.lock", timeout=15.0):
+                # Raport maszynowy JSON
+                json_path = target_dir / "rozliczenie.json"
+                atomic_write_json(json_path, wynik.to_dict(), indent=2, ensure_ascii=False)
 
-            # Główny raport rozliczenia i paczka przelewów
-            md_path = target_dir / "rozliczenie.md"
-            atomic_write_text(md_path, wynik.generate_markdown_report())
+                # Główny raport rozliczenia i paczka przelewów
+                md_path = target_dir / "rozliczenie.md"
+                atomic_write_text(md_path, wynik.generate_markdown_report())
 
-            # 1. Ewidencja przychodów za dany miesiąc
-            ep_path = target_dir / "ewidencja-przychodow.md"
-            atomic_write_text(ep_path, wynik.generate_ewidencja_przychodow_report())
+                # 1. Ewidencja przychodów za dany miesiąc
+                ep_path = target_dir / "ewidencja-przychodow.md"
+                atomic_write_text(ep_path, wynik.generate_ewidencja_przychodow_report())
 
-            # 2. Ewidencja przychodów - sumy roczne (YTD)
-            eps_path = target_dir / "ewidencja-przychodow-sumy.md"
-            atomic_write_text(eps_path, wynik.generate_ewidencja_przychodow_sumy_report())
+                # 2. Ewidencja przychodów - sumy roczne (YTD)
+                eps_path = target_dir / "ewidencja-przychodow-sumy.md"
+                atomic_write_text(eps_path, wynik.generate_ewidencja_przychodow_sumy_report())
 
-            # 3. Sprawozdanie z audytu i czynności księgowych
-            spr_path = target_dir / "sprawozdanie.md"
-            atomic_write_text(spr_path, wynik.generate_sprawozdanie_report())
+                # 3. Sprawozdanie z audytu i czynności księgowych
+                spr_path = target_dir / "sprawozdanie.md"
+                atomic_write_text(spr_path, wynik.generate_sprawozdanie_report())
 
-            # 4. Automatyczna weryfikacja compliance kontrahentów (AML / Sankcje / Biała Lista)
-            try:
-                from src.skills.aml_tools import VerificationService
+                # 4. Automatyczna weryfikacja compliance kontrahentów (AML / Sankcje / Biała Lista)
+                try:
+                    from src.skills.aml_tools import VerificationService
 
-                VerificationService.verify_month(profile, rok_str, miesiac_str, zapisz_pliki=True)
-            except Exception:
-                pass
+                    VerificationService.verify_month(profile, rok_str, miesiac_str, zapisz_pliki=True)
+                except Exception as exc:
+                    logger.warning(
+                        "Błąd automatycznej weryfikacji compliance AML dla %s/%s: %s",
+                        rok_str,
+                        miesiac_str,
+                        exc,
+                    )
 
         return wynik

@@ -5,13 +5,11 @@ Kontroler asystenta AI Copilot (SSE Streaming & HTMX chat).
 
 import html
 import json
-import re
 import time
-import urllib.parse
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -28,18 +26,21 @@ from src.web.services.chat_session_service import (
 )
 from src.web.services.copilot_service import CopilotService
 from src.web.services.llm.base import ChatMessage
+from src.web.utils.markdown import is_safe_url, render_markdown
+
+__all__ = ["router", "is_safe_url", "markdown_to_html", "log_ai_interaction"]
 
 logger = get_logger("taxpilot.copilot")
 router = APIRouter(prefix="/api/copilot", tags=["AI Copilot"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-AI_ASSISTANT_LOG_FILE = Path(__file__).resolve().parent.parent.parent.parent / "ai_asistant.log"
+AI_ASSISTANT_LOG_FILE = Path(__file__).resolve().parent.parent.parent.parent / "ai_assistant.log"
 
 
 def log_ai_interaction(
     user_message: str, assistant_response: str, nip: Optional[str] = None, okres: Optional[str] = None
 ) -> None:
-    """Zapisuje każde zapytanie użytkownika i odpowiedź asystenta do pliku logów ai_asistant.log."""
+    """Zapisuje każde zapytanie użytkownika i odpowiedź asystenta do pliku logów ai_assistant.log."""
     try:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         entry = (
@@ -51,234 +52,12 @@ def log_ai_interaction(
         with open(AI_ASSISTANT_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(entry)
     except Exception as e:
-        logger.warning("Nie udało się zapisać do ai_asistant.log: %s", e)
-
-
-def is_safe_url(url: str) -> bool:
-    """
-    Sprawdza, czy URL jest bezpieczny (brak schematów javascript:, data:, vbscript: itp.).
-    Dozwala na protokoły http, https, mailto oraz bezpieczne ścieżki względne i kotwice.
-    """
-    if not url:
-        return False
-    url_clean = url.strip()
-    if any(c in url_clean for c in ("\r", "\n", "\t", "\x00")):
-        return False
-    url_no_space = re.sub(r"\s+", "", url_clean).lower()
-    if url_no_space.startswith(("javascript:", "data:", "vbscript:", "file:")):
-        return False
-    if url_clean.startswith("//"):
-        return False
-    if url_clean.startswith("/") or url_clean.startswith("#"):
-        return True
-    try:
-        parsed = urllib.parse.urlsplit(url_clean)
-        if parsed.scheme.lower() in ("http", "https", "mailto"):
-            return True
-        if not parsed.scheme and ":" not in url_clean and not url_clean.startswith("//"):
-            return True
-        return False
-    except Exception:
-        return False
+        logger.warning("Nie udało się zapisać do ai_assistant.log: %s", e)
 
 
 def markdown_to_html(text: str) -> str:
-    """
-    Konwertuje markdown na bezpieczny i estetyczny kod HTML dla dymków czatu na stronie WWW.
-    Zawiera pełną ochronę przed atakami XSS (CWE-79) poprzez ucieczkę tagów HTML,
-    walidację protokołów URL oraz bezpieczne formatowanie tabel i bloków kodu.
-    Obsługuje:
-    - Tabele Markdown (| Nagłówek 1 | Nagłówek 2 | ...) -> responsywne tabele HTML Tailwind
-    - Bloki kodu (``` ... ```) oraz inline code (`kod`)
-    - Pogrubienia (**tekst**), kursywy (*tekst*) i linki ([tekst](url))
-    - Nagłówki (#, ##, ###)
-    - Listy punktowane (- punkt, * punkt) oraz numerowane (1. punkt)
-    - Cytaty (> cytat)
-    """
-    if not text:
-        return ""
-
-    nonce = uuid.uuid4().hex[:8]
-    cb_token_prefix = f"__TP_CB_{nonce}_"
-    ic_token_prefix = f"__TP_IC_{nonce}_"
-
-    # 1. Zabezpieczenie bloków kodu ``` ... ```
-    code_blocks: List[str] = []
-
-    def save_code_block(match):
-        code_blocks.append(match.group(1))
-        return f"\n{cb_token_prefix}{len(code_blocks) - 1}__\n"
-
-    text = re.sub(r"```(?:\w+)?\n?(.*?)```", save_code_block, text, flags=re.DOTALL)
-
-    # 2. Zabezpieczenie inline code `...`
-    inline_codes: List[str] = []
-
-    def save_inline_code(match):
-        inline_codes.append(match.group(1))
-        return f"{ic_token_prefix}{len(inline_codes) - 1}__"
-
-    text = re.sub(r"`([^`]+)`", save_inline_code, text)
-
-    # 3. Pełna ucieczka znaków HTML z tekstu (ochrona przed XSS)
-    text = html.escape(text, quote=False)
-
-    # 4. Formatowanie inline (pogrubienie, kursywa, linki)
-    # 4a. Pogrubienia **tekst**
-    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-
-    # 4b. Kursywa *tekst* (z pominięciem list punktowanych na początku linii)
-    text = re.sub(r"(?<!^)(?<!\n)(?<!\*)\*([^*]+?)\*(?!\*)", r"<em>\1</em>", text)
-
-    # 4c. Bezpieczne linki [tekst](url)
-    def replace_link(match):
-        label = match.group(1)
-        raw_url = html.unescape(match.group(2).strip())
-        if not is_safe_url(raw_url):
-            return f"[{label}]({html.escape(raw_url, quote=True)})"
-        safe_url = html.escape(raw_url, quote=True)
-        return f'<a href="{safe_url}" class="text-blue-600 underline font-semibold hover:text-blue-800" target="_blank" rel="noopener noreferrer">{label}</a>'
-
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replace_link, text)
-
-    lines = text.split("\n")
-    output_html: List[str] = []
-    i = 0
-    n = len(lines)
-
-    while i < n:
-        line = lines[i].rstrip()
-        line_stripped = line.strip()
-
-        # Pusta linia
-        if not line_stripped:
-            i += 1
-            continue
-
-        # Sprawdzenie znacznika bloku kodu
-        if line_stripped.startswith(cb_token_prefix) and line_stripped.endswith("__"):
-            try:
-                idx = int(line_stripped[len(cb_token_prefix) : -2])
-                code_content = code_blocks[idx]
-                escaped_code = html.escape(code_content, quote=False)
-                output_html.append(
-                    f'<pre class="bg-slate-900 text-slate-100 p-2.5 rounded-lg text-[11px] overflow-x-auto font-mono my-2"><code>{escaped_code}</code></pre>'
-                )
-            except Exception:
-                pass
-            i += 1
-            continue
-
-        # Sprawdzenie tabeli Markdown (| col 1 | col 2 |)
-        if "|" in line_stripped and i + 1 < n and "|" in lines[i + 1]:
-            sep_candidate = lines[i + 1].strip()
-            sep_cells = [c.strip() for c in sep_candidate.strip("|").split("|")]
-            if sep_cells and all(re.match(r"^:?-+:?$", c) for c in sep_cells if c):
-                # Rozpoznano nagłówek i separator tabeli Markdown
-                header_cells = [c.strip() for c in line_stripped.strip("|").split("|")]
-                table_rows = []
-                i += 2  # Przeskakujemy nagłówek i separator
-                while i < n:
-                    row_line = lines[i].strip()
-                    if not row_line or "|" not in row_line:
-                        break
-                    cells = [c.strip() for c in row_line.strip("|").split("|")]
-                    table_rows.append(cells)
-                    i += 1
-
-                tbl_html = [
-                    '<div class="overflow-x-auto my-2.5 rounded-lg border border-slate-200 shadow-2xs">',
-                    '  <table class="min-w-full text-xs text-left divide-y divide-slate-200 bg-white">',
-                    '    <thead class="bg-slate-100 text-slate-700 font-semibold uppercase text-[10px] tracking-wider">',
-                    "      <tr>",
-                ]
-                for h in header_cells:
-                    tbl_html.append(f'        <th class="px-3 py-1.5">{h}</th>')
-                tbl_html.append("      </tr>")
-                tbl_html.append("    </thead>")
-                tbl_html.append('    <tbody class="divide-y divide-slate-100">')
-                for row in table_rows:
-                    tbl_html.append('      <tr class="hover:bg-slate-50/80 transition-colors">')
-                    for cell in row:
-                        tbl_html.append(f'        <td class="px-3 py-1.5 text-slate-800">{cell}</td>')
-                    tbl_html.append("      </tr>")
-                tbl_html.append("    </tbody>")
-                tbl_html.append("  </table>")
-                tbl_html.append("</div>")
-                output_html.append("\n".join(tbl_html))
-                continue
-
-        # Sprawdzenie nagłówków Markdown (###, ##, #)
-        if line_stripped.startswith("### "):
-            output_html.append(f'<h4 class="font-bold text-slate-900 text-xs mt-2.5 mb-1">{line_stripped[4:]}</h4>')
-            i += 1
-            continue
-        elif line_stripped.startswith("## "):
-            output_html.append(f'<h3 class="font-bold text-slate-900 text-sm mt-3 mb-1.5">{line_stripped[3:]}</h3>')
-            i += 1
-            continue
-        elif line_stripped.startswith("# "):
-            output_html.append(f'<h2 class="font-bold text-slate-900 text-base mt-3 mb-1.5">{line_stripped[2:]}</h2>')
-            i += 1
-            continue
-
-        # Sprawdzenie cytatów (> cytat lub &gt; cytat po escapowaniu)
-        if line_stripped.startswith("&gt; ") or line_stripped.startswith("> "):
-            quote_lines = []
-            while i < n:
-                curr = lines[i].strip()
-                if curr.startswith("&gt; "):
-                    quote_lines.append(curr[5:])
-                    i += 1
-                elif curr.startswith("> "):
-                    quote_lines.append(curr[2:])
-                    i += 1
-                else:
-                    break
-            output_html.append(
-                f'<blockquote class="border-l-2 border-blue-500 pl-2.5 py-1 my-1.5 text-slate-600 bg-blue-50/30 rounded-r text-[11px] italic">{"<br>".join(quote_lines)}</blockquote>'
-            )
-            continue
-
-        # Sprawdzenie listy punktowanej (- lub *)
-        if line_stripped.startswith("- ") or line_stripped.startswith("* "):
-            list_items = []
-            while i < n and (lines[i].strip().startswith("- ") or lines[i].strip().startswith("* ")):
-                list_items.append(f'<li class="pl-1">{lines[i].strip()[2:]}</li>')
-                i += 1
-            output_html.append(
-                f'<ul class="list-disc pl-4 space-y-1 my-1.5 text-xs text-slate-700">{"".join(list_items)}</ul>'
-            )
-            continue
-
-        # Sprawdzenie listy numerowanej (1. , 2. )
-        num_match = re.match(r"^\d+\.\s+(.*)$", line_stripped)
-        if num_match:
-            num_items = []
-            while i < n:
-                m = re.match(r"^\d+\.\s+(.*)$", lines[i].strip())
-                if not m:
-                    break
-                num_items.append(f'<li class="pl-1">{m.group(1)}</li>')
-                i += 1
-            output_html.append(
-                f'<ol class="list-decimal pl-4 space-y-1 my-1.5 text-xs text-slate-700">{"".join(num_items)}</ol>'
-            )
-            continue
-
-        # Zwykły akapit
-        output_html.append(f'<p class="mb-1.5">{line_stripped}</p>')
-        i += 1
-
-    res = "".join(output_html)
-
-    # 5. Przywrócenie inline code z bezpiecznym escapowaniem
-    for idx, code_content in enumerate(inline_codes):
-        escaped_inline = html.escape(code_content, quote=False)
-        formatted = f'<code class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[11px] font-mono">{escaped_inline}</code>'
-        res = res.replace(f"{ic_token_prefix}{idx}__", formatted)
-
-    return res
+    """Konwertuje markdown na bezpieczny i estetyczny kod HTML dla dymków czatu na stronie WWW."""
+    return str(render_markdown(text, header_shift=1))
 
 
 CopilotMessageRecord = ChatMessageRecord
@@ -344,7 +123,7 @@ class CopilotSessionHistory:
 
 
 def render_user_bubble(user_message: str) -> str:
-    escaped = user_message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    escaped = html.escape(user_message, quote=True)
     return f"""
     <div class="flex space-x-3 justify-end my-2">
       <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none shadow-sm text-xs max-w-[85%] break-words">
@@ -412,7 +191,7 @@ def render_session_title_bar(session: Optional[ChatSession], oob: bool = False) 
     else:
         title = session.title or "Nowa rozmowa"
         sess_id = session.id
-    escaped_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    escaped_title = html.escape(title, quote=True)
     return f"""
     <div class="flex items-center space-x-2 flex-1 min-w-0 mr-2" id="copilot-active-session-title-container" {oob_attr}>
       <span class="text-blue-400 flex-shrink-0">💬</span>
@@ -469,8 +248,8 @@ def render_sessions_list(profile: Optional[CompanyProfile], active_id: str) -> s
             if is_active
             else ""
         )
-        escaped_title = s["title"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        snippet = s.get("snippet", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        escaped_title = html.escape(s["title"], quote=True)
+        snippet = html.escape(s.get("snippet", ""), quote=True)
         snippet_html = f'<p class="text-[11px] text-slate-400 truncate mt-0.5">↳ {snippet}</p>' if snippet else ""
 
         items.append(f"""

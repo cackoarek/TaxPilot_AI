@@ -10,6 +10,7 @@ import json
 import os
 import time
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from src.config import DEFAULT_KSEF_ENV, KSEF_URLS
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice
+from src.core.io import atomic_write_json
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.ksef_parser import KSeFParser
 
@@ -113,9 +115,14 @@ class KSeFClient:
         history.insert(0, entry)
         history = history[:100]  # Ograniczenie do 100 ostatnich zdarzeń
         try:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(history, f, indent=2, ensure_ascii=False)
+            atomic_write_json(
+                file_path,
+                history,
+                indent=2,
+                ensure_ascii=False,
+                mode=0o600,
+                lock=True,
+            )
         except Exception:
             pass
         return entry
@@ -431,10 +438,10 @@ class KSeFClient:
             "nowe_kosztow": nowe_k,
             "liczba_sprzedazy": len(saved_sprzedaz),
             "liczba_kosztow": len(saved_koszty),
-            "suma_sprzedaz_netto": str(sum((i.suma_netto for i in saved_sprzedaz), 0)),
-            "suma_sprzedaz_vat": str(sum((i.suma_vat for i in saved_sprzedaz), 0)),
-            "suma_koszty_netto": str(sum((i.suma_netto for i in saved_koszty), 0)),
-            "suma_koszty_vat": str(sum((i.suma_vat for i in saved_koszty), 0)),
+            "suma_sprzedaz_netto": str(sum((i.suma_netto for i in saved_sprzedaz), Decimal("0.00"))),
+            "suma_sprzedaz_vat": str(sum((i.suma_vat for i in saved_sprzedaz), Decimal("0.00"))),
+            "suma_koszty_netto": str(sum((i.suma_netto for i in saved_koszty), Decimal("0.00"))),
+            "suma_koszty_vat": str(sum((i.suma_vat for i in saved_koszty), Decimal("0.00"))),
             "faktury_sprzedazy": [
                 {
                     "numer": i.numer,

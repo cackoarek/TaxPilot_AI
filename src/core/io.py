@@ -107,6 +107,54 @@ def atomic_write_text(
     return _atomic_write_text_impl(target, content, encoding, mode)
 
 
+def _atomic_write_bytes_impl(
+    target: Path,
+    content: bytes,
+    mode: Optional[int] = None,
+) -> Path:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = target.parent / f".{target.name}.tmp.{uuid.uuid4().hex}"
+    try:
+        with open(temp_path, "wb") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        if mode is not None:
+            try:
+                os.chmod(temp_path, mode)
+            except OSError:
+                pass
+        os.replace(temp_path, target)
+        return target
+    except Exception:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+        raise
+
+
+def atomic_write_bytes(
+    path: Union[Path, str],
+    content: bytes,
+    mode: Optional[int] = 0o600,
+    lock: bool = False,
+    lock_timeout: float = 10.0,
+) -> Path:
+    """
+    Atomically writes bytes content to a file using a temporary file
+    in the same directory, flushing, fsyncing, and os.replace (atomic rename).
+    Optionally sets file permissions (defaults to 0o600 for data protection).
+    Optionally acquires an advisory file lock during write.
+    """
+    target = Path(path)
+    if lock:
+        with file_lock(target, timeout=lock_timeout):
+            return _atomic_write_bytes_impl(target, content, mode)
+    return _atomic_write_bytes_impl(target, content, mode)
+
+
 def _atomic_write_json_impl(
     target: Path,
     data: Any,

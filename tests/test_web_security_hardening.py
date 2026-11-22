@@ -245,6 +245,17 @@ class TestWebSecurityHardening(unittest.TestCase):
             rules_mode = stat.S_IMODE(rules_file.stat().st_mode)
             self.assertEqual(rules_mode, 0o600)
 
+    def test_http_security_headers_present_on_responses(self):
+        """Weryfikuje obecność nagłówków bezpieczeństwa HTTP (SEC-15, UI-1)."""
+        resp = self.client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers.get("x-content-type-options"), "nosniff")
+        self.assertEqual(resp.headers.get("x-frame-options"), "DENY")
+        self.assertEqual(resp.headers.get("referrer-policy"), "strict-origin-when-cross-origin")
+        self.assertIn("geolocation=()", resp.headers.get("permissions-policy", ""))
+        self.assertIn("default-src 'self'", resp.headers.get("content-security-policy", ""))
+        self.assertIn("https://cdn.tailwindcss.com", resp.headers.get("content-security-policy", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

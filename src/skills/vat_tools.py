@@ -310,8 +310,9 @@ def calculate_vat_settlement(
     3. Jeśli bilans > 0: kwota podlega wpłacie do Urzędu Skarbowego (zaokrąglona do pełnych zł).
     4. Jeśli bilans < 0: kwota przenoszona jest na kolejny miesiąc (lub do zwrotu).
     """
+    bezpieczna_nadwyzka = max(Decimal("0.00"), nadwyzka_z_poprzedniego_miesiaca)
     vat_nalezy = rejestr.suma_sprzedaz_vat_nalezy
-    vat_naliczony = rejestr.suma_zakupy_vat_naliczony_odliczenie + nadwyzka_z_poprzedniego_miesiaca
+    vat_naliczony = rejestr.suma_zakupy_vat_naliczony_odliczenie + bezpieczna_nadwyzka
 
     roznica = vat_nalezy - vat_naliczony
 
@@ -343,5 +344,5 @@ def calculate_vat_settlement(
         vat_do_zaplaty_zaokraglony=do_zaplaty,
         vat_do_przeniesienia_na_kolejny_okres=do_przeniesienia,
         termin_platnosci=termin_platnosci,
-        nadwyzka_z_poprzedniego_miesiaca=nadwyzka_z_poprzedniego_miesiaca,
+        nadwyzka_z_poprzedniego_miesiaca=bezpieczna_nadwyzka,
     )

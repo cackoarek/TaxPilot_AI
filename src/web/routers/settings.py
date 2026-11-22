@@ -6,6 +6,7 @@ oraz wyboru silnika AI (Multi-Provider LLM: Gemini, OpenAI, Claude, Zero-LLM).
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from src.core.company import TypZUS
+from src.core.io import atomic_write_text
 from src.logging_config import get_logger
 from src.web.config import TEMPLATES_DIR, get_llm_status
 from src.web.dependencies import get_global_context
@@ -164,20 +166,39 @@ async def update_tax_settings(
 
 
 def save_key_to_env(key_name: str, key_val: str):
-    """Zapisuje lub aktualizuje klucz w lokalnym pliku .env (ignorowanym przez git)."""
+    """
+    Zapisuje lub aktualizuje klucz w lokalnym pliku .env (ignorowanym przez git).
+    Zabezpiecza przed CRLF injection (SEC-18) oraz zapisuje atomowo z uprawnieniami 0600 i blokadą.
+    """
+    # Pobierz wyłącznie pierwszą linię (ochrona przed wstrzyknięciem wieloliniowym / CRLF)
+    first_name_line = key_name.strip().splitlines()[0] if key_name.strip() else ""
+    first_val_line = key_val.strip().splitlines()[0] if key_val.strip() else ""
+
+    clean_name = re.sub(r"[^A-Za-z0-9_]", "", first_name_line)
+    clean_val = re.sub(r"[\r\n]", "", first_val_line)
+    if not clean_name:
+        return
+
     env_file = Path(".env")
     lines = []
     found = False
     if env_file.exists():
         lines = env_file.read_text(encoding="utf-8").splitlines()
         for i, line in enumerate(lines):
-            if line.strip().startswith(f"{key_name}="):
-                lines[i] = f"{key_name}={key_val}"
+            if line.strip().startswith(f"{clean_name}="):
+                lines[i] = f"{clean_name}={clean_val}"
                 found = True
                 break
     if not found:
-        lines.append(f"{key_name}={key_val}")
-    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        lines.append(f"{clean_name}={clean_val}")
+
+    atomic_write_text(
+        env_file,
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+        mode=0o600,
+        lock=True,
+    )
 
 
 @router.post("/llm", response_class=HTMLResponse)

@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.core.company import CompanyProfile
 from src.core.invoice import InvoiceType
+from src.core.io import atomic_write_bytes
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.ksef_client import KSeFClient
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
@@ -338,8 +339,7 @@ async def upload_invoice_file(
             continue
 
         dest_path = raw_dir / clean_filename
-        with open(dest_path, "wb") as out_f:
-            out_f.write(content_bytes)
+        atomic_write_bytes(dest_path, content_bytes, mode=0o600)
         saved_files.append(clean_filename)
 
     # Uruchomienie ekstrakcji dla zapisanych plików

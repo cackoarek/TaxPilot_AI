@@ -8,7 +8,6 @@ Pozwala na:
 """
 
 import argparse
-import re
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -365,10 +364,12 @@ def cmd_weryfikuj_miesiac(args):
 def cmd_init_company(args):
     """Inicjalizuje profil nowej firmy, tworzy katalogi oraz reguły podatkowe."""
     from src.core.company import initialize_company
+    from src.core.validators import clean_nip, validate_nip
 
-    nip_clean = re.sub(r"[^0-9]", "", args.nip)
-    if len(nip_clean) != 10:
-        print(f"Błąd: Nieprawidłowy NIP ({args.nip}). Polski NIP musi składać się z 10 cyfr.")
+    nip_clean = clean_nip(args.nip)
+    is_valid, err_msg = validate_nip(nip_clean)
+    if not is_valid:
+        print(f"Błąd: Nieprawidłowy NIP ({args.nip}): {err_msg}")
         sys.exit(1)
 
     existing = CompanyProfile.load_by_nip(nip_clean)

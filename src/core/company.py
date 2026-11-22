@@ -283,9 +283,13 @@ def initialize_company(
     """
     from datetime import datetime
 
-    clean_nip = re.sub(r"[^0-9]", "", nip or "")
-    if len(clean_nip) != 10:
-        raise ValueError(f"Nieprawidłowy NIP ({nip}). Polski NIP musi składać się dokładnie z 10 cyfr.")
+    from src.core.validators import clean_nip as normalize_nip
+    from src.core.validators import validate_nip
+
+    clean_nip = normalize_nip(nip or "")
+    is_valid, nip_err = validate_nip(clean_nip)
+    if not is_valid:
+        raise ValueError(f"Nieprawidłowy NIP ({nip}): {nip_err}")
 
     existing = CompanyProfile.load_by_nip(clean_nip)
     if existing and not force:
@@ -410,9 +414,9 @@ def initialize_company(
 
 def migrate_data_permissions(base_dir: Optional[Union[Path, str]] = None) -> int:
     """
-    Migruje uprawnienia systemu plików (SEC-4, SEC-10):
-    - Nadaje chmod 700 (rwx------) wszystkim katalogom firm
-    - Nadaje chmod 600 (rw-------) plikom profil.json oraz reguly_*.json
+    Migruje uprawnienia systemu plików (SEC-4, SEC-10, PERM-1):
+    - Nadaje chmod 700 (rwx------) wszystkim katalogom i podkatalogom firm
+    - Nadaje chmod 600 (rw-------) wszystkim plikom firmy (profil.json, reguly_*.json, faktury, rozliczenia)
     Zwraca liczbę zaktualizowanych zasobów.
     """
     target_base = Path(base_dir) if base_dir else FIRMY_DIR
@@ -440,7 +444,7 @@ def migrate_data_permissions(base_dir: Optional[Union[Path, str]] = None) -> int
                         item.chmod(0o700)
                     except OSError:
                         pass
-                elif item.is_file() and (item.name == "profil.json" or item.name.startswith("reguly_")):
+                elif item.is_file():
                     try:
                         item.chmod(0o600)
                         count += 1

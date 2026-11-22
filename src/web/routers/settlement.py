@@ -1131,6 +1131,8 @@ async def close_month_settlement(
 
     try:
         nadwyzka_dec = Decimal(nadwyzka_vat.replace(" ", "").replace(",", "."))
+        if nadwyzka_dec < Decimal("0.00"):
+            nadwyzka_dec = Decimal("0.00")
     except Exception:
         nadwyzka_dec = Decimal("0.00")
 

@@ -11,9 +11,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from src.core.company import initialize_company
+from src.core.validators import validate_nip
 from src.level_1_ingestion.company_fetcher import CompanyFetcher
 from src.web.config import COOKIE_ACTIVE_MONTH, COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, TEMPLATES_DIR
 from src.web.dependencies import get_global_context
+from src.web.utils.security import is_safe_redirect_url, is_secure_request
 
 router = APIRouter(prefix="/firmy", tags=["Firmy"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -28,12 +30,21 @@ async def switch_company(
 ):
     """
     Zmienia aktywną firmę zapisując ciasteczko sesyjne i przekierowuje na wybraną stronę.
+    Chroni przed atakami Open Redirect (SEC-16) oraz zabezpiecza ciasteczka (SameSite=Lax, Secure).
     """
     if nip == "__NEW__":
         return RedirectResponse(url="/firmy/nowa", status_code=303)
 
-    resp = RedirectResponse(url=redirect_url, status_code=303)
-    resp.set_cookie(key=COOKIE_ACTIVE_NIP, value=nip, max_age=30 * 86400, httponly=True)
+    target_url = redirect_url if is_safe_redirect_url(redirect_url) else "/"
+    resp = RedirectResponse(url=target_url, status_code=303)
+    resp.set_cookie(
+        key=COOKIE_ACTIVE_NIP,
+        value=nip,
+        max_age=30 * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure_request(request),
+    )
     return resp
 
 
@@ -47,12 +58,29 @@ async def switch_period(
 ):
     """
     Zmienia aktywny okres rozliczeniowy (rok i miesiąc) w ciasteczkach.
+    Chroni przed atakami Open Redirect (SEC-16) oraz zabezpiecza ciasteczka (SameSite=Lax, Secure).
     """
     if len(miesiac) == 1:
         miesiac = f"0{miesiac}"
-    resp = RedirectResponse(url=redirect_url, status_code=303)
-    resp.set_cookie(key=COOKIE_ACTIVE_YEAR, value=rok, max_age=30 * 86400, httponly=True)
-    resp.set_cookie(key=COOKIE_ACTIVE_MONTH, value=miesiac, max_age=30 * 86400, httponly=True)
+    target_url = redirect_url if is_safe_redirect_url(redirect_url) else "/"
+    resp = RedirectResponse(url=target_url, status_code=303)
+    is_secure = is_secure_request(request)
+    resp.set_cookie(
+        key=COOKIE_ACTIVE_YEAR,
+        value=rok,
+        max_age=30 * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure,
+    )
+    resp.set_cookie(
+        key=COOKIE_ACTIVE_MONTH,
+        value=miesiac,
+        max_age=30 * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure,
+    )
     return resp
 
 
@@ -128,11 +156,12 @@ async def create_new_company_handler(
         "auto_fetch": should_auto_fetch,
     }
 
-    if len(clean_nip) != 10:
+    is_nip_valid, nip_err = validate_nip(clean_nip)
+    if not is_nip_valid:
         ctx = get_global_context(request)
         ctx.update(
             {
-                "error_message": f"Nieprawidłowy NIP ({nip}). Numer NIP musi składać się dokładnie z 10 cyfr.",
+                "error_message": f"Nieprawidłowy NIP ({nip}): {nip_err}",
                 "form_data": form_dict,
             }
         )

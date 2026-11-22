@@ -18,6 +18,9 @@ from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceItem, InvoiceParty, InvoiceType
 from src.core.io import atomic_write_json
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.logging_config import get_logger
+
+logger = get_logger("taxpilot.non_ksef_extractor")
 
 NUM = r"(\d{1,3}(?:[ \t]\d{3})*(?:[,\.]\d{2})|\d+(?:[,\.]\d{2})?)"
 
@@ -707,18 +710,31 @@ class NonKSeFExtractor:
         """Konwertuje PDF na tekst za pomocą pdftotext i dokonuje ekstrakcji."""
         if pdf_path.name in KNOWN_RECEIPTS_MAP:
             return cls._create_fallback_invoice(pdf_path, profile, rok, miesiac, invoice_type=invoice_type)
+        pdftotext_bin = shutil.which("pdftotext") or "/usr/bin/pdftotext"
         text = ""
         try:
             res = subprocess.run(
-                ["/usr/bin/pdftotext", "-layout", str(pdf_path), "-"],
+                [pdftotext_bin, "-layout", str(pdf_path), "-"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 check=False,
+                timeout=15.0,
             )
             if res.returncode == 0:
                 text = res.stdout
-        except Exception:
+            else:
+                logger.warning(
+                    "Błąd konwersji pdftotext dla %s (kod: %d): %s",
+                    pdf_path.name,
+                    res.returncode,
+                    res.stderr[:200] if res.stderr else "",
+                )
+        except subprocess.TimeoutExpired:
+            logger.warning("Przekroczono limit czasu (15s) podczas odczytu PDF: %s", pdf_path.name)
+            text = ""
+        except Exception as exc:
+            logger.warning("Błąd uruchomienia pdftotext dla %s: %s", pdf_path.name, exc)
             text = ""
 
         if text.strip():
