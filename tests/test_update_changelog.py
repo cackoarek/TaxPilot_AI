@@ -2,17 +2,16 @@
 tests/test_update_changelog.py
 Testy automatycznej aktualizacji pliku CHANGELOG.md (skrypt .github/scripts/update_changelog.py).
 """
-import unittest
-from datetime import datetime
 
 import sys
+import unittest
 from pathlib import Path
 
 # Dodanie katalogu ze skryptem do sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".github" / "scripts"))
 from update_changelog import (
-    update_changelog_content,
     categorize_commits,
+    update_changelog_content,
 )
 
 

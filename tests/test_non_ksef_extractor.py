@@ -4,6 +4,7 @@ Testy jednostkowe modułu ekstrakcji i obsługi faktur kosztowych Non-KSeF (NonK
 
 import json
 import shutil
+import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
@@ -12,43 +13,46 @@ from src.core.company import CompanyProfile, KSeFConfig
 from src.core.invoice import InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
-from src.level_2_bookkeeping.ledger import BookkeepingService
 from src.skills.pre_settlement_review import PreSettlementReview
 
 
 class TestNonKSeFExtractor(unittest.TestCase):
-
     def setUp(self):
+        self.tmp_dir = Path(tempfile.mkdtemp(prefix="taxpilot_nonksef_test_"))
         self.profile = CompanyProfile(
             nip="7770001122",
             nazwa="CloudTech Solutions Jan Kowalski",
             katalog_nazwa="7770001122-CloudTech_Solutions_Jan_Kowalski",
             ksef=KSeFConfig(srodowisko="TEST"),
+            _custom_path=self.tmp_dir / "7770001122-CloudTech_Solutions_Jan_Kowalski",
         )
         self.test_rok = "2026"
         self.test_miesiac = "11"
 
-        self.raw_dir = InvoiceStorage.get_non_ksef_raw_dir(self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.KOSZT)
-        self.extracted_dir = InvoiceStorage.get_non_ksef_extracted_dir(self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.KOSZT)
+        self.raw_dir = InvoiceStorage.get_non_ksef_raw_dir(
+            self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.KOSZT
+        )
+        self.extracted_dir = InvoiceStorage.get_non_ksef_extracted_dir(
+            self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.KOSZT
+        )
 
-        self.sales_raw_dir = InvoiceStorage.get_non_ksef_raw_dir(self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.SPRZEDAZ)
-        self.sales_extracted_dir = InvoiceStorage.get_non_ksef_extracted_dir(self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.SPRZEDAZ)
+        self.sales_raw_dir = InvoiceStorage.get_non_ksef_raw_dir(
+            self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.SPRZEDAZ
+        )
+        self.sales_extracted_dir = InvoiceStorage.get_non_ksef_extracted_dir(
+            self.profile, self.test_rok, self.test_miesiac, typ=InvoiceType.SPRZEDAZ
+        )
 
     def tearDown(self):
-        test_dir = self.profile.katalog_firmy
-        if test_dir.exists():
-            shutil.rmtree(test_dir, ignore_errors=True)
+        if hasattr(self, "tmp_dir") and self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
     def test_extract_from_json(self):
         # 1. Tworzymy surowy plik w non-ksef-raw
         raw_json_data = {
             "invoice_number": "INV-GCLOUD-2026-11",
             "issue_date": "2026-11-03",
-            "seller": {
-                "name": "Google Cloud Poland Sp. z o.o.",
-                "nip": "5252834567",
-                "country": "PL"
-            },
+            "seller": {"name": "Google Cloud Poland Sp. z o.o.", "nip": "5252834567", "country": "PL"},
             "net_amount": "500.00",
             "vat_amount": "115.00",
             "gross_amount": "615.00",
@@ -58,9 +62,9 @@ class TestNonKSeFExtractor(unittest.TestCase):
                     "net": "500.00",
                     "vat": "115.00",
                     "gross": "615.00",
-                    "vat_rate": "23"
+                    "vat_rate": "23",
                 }
-            ]
+            ],
         }
         raw_path = self.raw_dir / "test_google_cloud.json"
         with open(raw_path, "w", encoding="utf-8") as f:
@@ -136,16 +140,8 @@ class TestNonKSeFExtractor(unittest.TestCase):
             "suma_netto": "100.00",
             "suma_vat": "23.00",
             "suma_brutto": "123.00",
-            "sprzedawca": {
-                "nip": "1234567890",
-                "nazwa": "Hosting Provider Sp. z o.o.",
-                "kraj": "PL"
-            },
-            "nabywca": {
-                "nip": self.profile.nip,
-                "nazwa": self.profile.nazwa,
-                "kraj": "PL"
-            },
+            "sprzedawca": {"nip": "1234567890", "nazwa": "Hosting Provider Sp. z o.o.", "kraj": "PL"},
+            "nabywca": {"nip": self.profile.nip, "nazwa": self.profile.nazwa, "kraj": "PL"},
             "pozycje": [
                 {
                     "opis": "Usługi hostingowe i domena",
@@ -154,9 +150,9 @@ class TestNonKSeFExtractor(unittest.TestCase):
                     "wartosc_netto": "100.00",
                     "stawka_vat": "23",
                     "kwota_vat": "23.00",
-                    "wartosc_brutto": "123.00"
+                    "wartosc_brutto": "123.00",
                 }
-            ]
+            ],
         }
         raw_path = self.raw_dir / "test_google_cloud.json"
         with open(raw_path, "w", encoding="utf-8") as f:
@@ -164,7 +160,7 @@ class TestNonKSeFExtractor(unittest.TestCase):
 
         # PreSettlementReview powinien automatycznie uruchomić NonKSeFExtractor
         review = PreSettlementReview.build(self.profile, self.test_rok, self.test_miesiac)
-        
+
         # Sprawdź czy faktura non-ksef znalazła się na liście kosztów
         found = [k for k in review.koszty if k.numer == "TEST-NONKSEF-01"]
         self.assertEqual(len(found), 1)
@@ -181,11 +177,7 @@ class TestNonKSeFExtractor(unittest.TestCase):
         raw_sales_data = {
             "invoice_number": "FV-INT-2026/11/01",
             "issue_date": "2026-11-06",
-            "customer": {
-                "name": "Global Tech Corp Inc.",
-                "nip": "9999999999",
-                "country": "US"
-            },
+            "customer": {"name": "Global Tech Corp Inc.", "nip": "9999999999", "country": "US"},
             "net_amount": "15000.00",
             "vat_amount": "0.00",
             "gross_amount": "15000.00",
@@ -195,9 +187,9 @@ class TestNonKSeFExtractor(unittest.TestCase):
                     "net": "15000.00",
                     "vat": "0.00",
                     "gross": "15000.00",
-                    "vat_rate": "np"
+                    "vat_rate": "np",
                 }
-            ]
+            ],
         }
         raw_path = self.sales_raw_dir / "test_sales_client.json"
         with open(raw_path, "w", encoding="utf-8") as f:
@@ -242,16 +234,8 @@ class TestNonKSeFExtractor(unittest.TestCase):
         misplaced_sales = {
             "invoice_number": "FV-SALES-MISPLACED-01",
             "issue_date": "2026-11-10",
-            "seller": {
-                "name": self.profile.nazwa,
-                "nip": self.profile.nip,
-                "country": "PL"
-            },
-            "buyer": {
-                "name": "Klient Testowy Sp. z o.o.",
-                "nip": "1234567890",
-                "country": "PL"
-            },
+            "seller": {"name": self.profile.nazwa, "nip": self.profile.nip, "country": "PL"},
+            "buyer": {"name": "Klient Testowy Sp. z o.o.", "nip": "1234567890", "country": "PL"},
             "net_amount": "8000.00",
             "vat_amount": "1840.00",
             "gross_amount": "9840.00",
@@ -261,9 +245,9 @@ class TestNonKSeFExtractor(unittest.TestCase):
                     "net": "8000.00",
                     "vat": "1840.00",
                     "gross": "9840.00",
-                    "vat_rate": "23"
+                    "vat_rate": "23",
                 }
-            ]
+            ],
         }
         orig_raw_path = self.raw_dir / "misplaced_sales.json"
         with open(orig_raw_path, "w", encoding="utf-8") as f:
@@ -272,7 +256,7 @@ class TestNonKSeFExtractor(unittest.TestCase):
         self.assertTrue(orig_raw_path.exists())
 
         # 2. Wywołujemy ekstrakcję
-        extracted_files = NonKSeFExtractor.extract_all(self.profile, self.test_rok, self.test_miesiac, force=True)
+        NonKSeFExtractor.extract_all(self.profile, self.test_rok, self.test_miesiac, force=True)
 
         # 3. Weryfikacja fizycznej relokacji
         # Plik w koszty/non-ksef-raw/ NIE powinien istnieć (został przeniesiony)
@@ -324,16 +308,8 @@ class TestNonKSeFExtractor(unittest.TestCase):
         misplaced_expense = {
             "invoice_number": "FV-EXPENSE-MISPLACED-02",
             "issue_date": "2026-11-12",
-            "seller": {
-                "name": "Sklep Elektroniczny Komputery SA",
-                "nip": "9998887766",
-                "country": "PL"
-            },
-            "buyer": {
-                "name": self.profile.nazwa,
-                "nip": self.profile.nip,
-                "country": "PL"
-            },
+            "seller": {"name": "Sklep Elektroniczny Komputery SA", "nip": "9998887766", "country": "PL"},
+            "buyer": {"name": self.profile.nazwa, "nip": self.profile.nip, "country": "PL"},
             "net_amount": "3000.00",
             "vat_amount": "690.00",
             "gross_amount": "3690.00",
@@ -343,9 +319,9 @@ class TestNonKSeFExtractor(unittest.TestCase):
                     "net": "3000.00",
                     "vat": "690.00",
                     "gross": "3690.00",
-                    "vat_rate": "23"
+                    "vat_rate": "23",
                 }
-            ]
+            ],
         }
         orig_sales_raw_path = self.sales_raw_dir / "misplaced_expense.json"
         with open(orig_sales_raw_path, "w", encoding="utf-8") as f:

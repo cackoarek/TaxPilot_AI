@@ -2,26 +2,29 @@
 tests/test_web_invoices.py
 Testy integracyjne Magazynu Faktur, Uploadu Drag&Drop, Ekstrakcji i KSeF (Kamień Milowy M5).
 """
+
 import io
 import json
 import unittest
-from pathlib import Path
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.core.company import CompanyProfile
-from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.extraction_service import ExtractionService
+from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.web.app import app
 
 
 class TestWebInvoices(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
+
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
         self.profile = CompanyProfile.load_by_nip("7770001122")
         if not self.profile:
             from tests.fixtures import setup_test_company
+
             self.profile = setup_test_company()
         self.created_test_files = []
         if self.profile:
@@ -79,13 +82,9 @@ class TestWebInvoices(unittest.TestCase):
             "sprzedawca": {
                 "nazwa": "Hosting Provider Sp. z o.o.",
                 "nip": "1234567890",
-                "adres": "ul. Chmielna 1, Warszawa"
+                "adres": "ul. Chmielna 1, Warszawa",
             },
-            "nabywca": {
-                "nazwa": self.profile.nazwa,
-                "nip": self.profile.nip,
-                "adres": "ul. Testowa 2, Warszawa"
-            },
+            "nabywca": {"nazwa": self.profile.nazwa, "nip": self.profile.nip, "adres": "ul. Testowa 2, Warszawa"},
             "pozycje": [
                 {
                     "opis": "Serwer Dedykowany Cloud",
@@ -94,14 +93,14 @@ class TestWebInvoices(unittest.TestCase):
                     "wartosc_netto": 200.0,
                     "stawka_vat": "23",
                     "kwota_vat": 46.0,
-                    "wartosc_brutto": 246.0
+                    "wartosc_brutto": 246.0,
                 }
             ],
             "suma_netto": 200.0,
             "suma_vat": 46.0,
             "suma_brutto": 246.0,
             "waluta": "PLN",
-            "typ": "koszt"
+            "typ": "koszt",
         }
 
         json_bytes = json.dumps(test_invoice_data, indent=2).encode("utf-8")
@@ -133,8 +132,22 @@ class TestWebInvoices(unittest.TestCase):
             "data_sprzedazy": "2026-01-10",
             "sprzedawca": {"nazwa": "Dostawca A", "nip": "1112223344"},
             "nabywca": {"nazwa": self.profile.nazwa, "nip": self.profile.nip},
-            "pozycje": [{"opis": "Usługa A", "ilosc": 1, "cena_jednostkowa_netto": 100.0, "wartosc_netto": 100.0, "stawka_vat": "23", "kwota_vat": 23.0, "wartosc_brutto": 123.0}],
-            "suma_netto": 100.0, "suma_vat": 23.0, "suma_brutto": 123.0, "waluta": "PLN", "typ": "koszt"
+            "pozycje": [
+                {
+                    "opis": "Usługa A",
+                    "ilosc": 1,
+                    "cena_jednostkowa_netto": 100.0,
+                    "wartosc_netto": 100.0,
+                    "stawka_vat": "23",
+                    "kwota_vat": 23.0,
+                    "wartosc_brutto": 123.0,
+                }
+            ],
+            "suma_netto": 100.0,
+            "suma_vat": 23.0,
+            "suma_brutto": 123.0,
+            "waluta": "PLN",
+            "typ": "koszt",
         }
         f2_data = {
             "numer": "FV-MULTI-002",
@@ -142,8 +155,22 @@ class TestWebInvoices(unittest.TestCase):
             "data_sprzedazy": "2026-01-11",
             "sprzedawca": {"nazwa": "Dostawca B", "nip": "9998887766"},
             "nabywca": {"nazwa": self.profile.nazwa, "nip": self.profile.nip},
-            "pozycje": [{"opis": "Usługa B", "ilosc": 1, "cena_jednostkowa_netto": 200.0, "wartosc_netto": 200.0, "stawka_vat": "23", "kwota_vat": 46.0, "wartosc_brutto": 246.0}],
-            "suma_netto": 200.0, "suma_vat": 46.0, "suma_brutto": 246.0, "waluta": "PLN", "typ": "koszt"
+            "pozycje": [
+                {
+                    "opis": "Usługa B",
+                    "ilosc": 1,
+                    "cena_jednostkowa_netto": 200.0,
+                    "wartosc_netto": 200.0,
+                    "stawka_vat": "23",
+                    "kwota_vat": 46.0,
+                    "wartosc_brutto": 246.0,
+                }
+            ],
+            "suma_netto": 200.0,
+            "suma_vat": 46.0,
+            "suma_brutto": 246.0,
+            "waluta": "PLN",
+            "typ": "koszt",
         }
 
         files_payload = [
@@ -161,10 +188,9 @@ class TestWebInvoices(unittest.TestCase):
 
         raw_dir = InvoiceStorage.get_non_ksef_raw_dir(self.profile, "2026", "01", typ=None)
         extracted_dir = InvoiceStorage.get_non_ksef_extracted_dir(self.profile, "2026", "01", typ=None)
-        self.created_test_files.extend([
-            raw_dir / "f1.json", extracted_dir / "f1.json",
-            raw_dir / "f2.json", extracted_dir / "f2.json"
-        ])
+        self.created_test_files.extend(
+            [raw_dir / "f1.json", extracted_dir / "f1.json", raw_dir / "f2.json", extracted_dir / "f2.json"]
+        )
 
     def test_safe_download_invoice_file(self):
         """Test bezpiecznego pobierania pliku dokumentu faktury."""
@@ -191,7 +217,11 @@ class TestWebInvoices(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.text
         # Sprawdzenie czy wygenerowano odpowiedź (sukces lub bezpiecznie przechwycony błąd KSeF)
-        self.assertTrue("Synchronizacja KSeF" in html or "Krajowym Systemem e-Faktur" in html or "Brak skonfigurowanego tokenu" in html)
+        self.assertTrue(
+            "Synchronizacja KSeF" in html
+            or "Krajowym Systemem e-Faktur" in html
+            or "Brak skonfigurowanego tokenu" in html
+        )
 
     def test_unprocessed_invoices_banner_and_ai_extraction_flow(self):
         """Test wykrywania nieodczytanych faktur, wyświetlania ostrzeżenia i wywołania AI ekstrakcji."""
@@ -220,7 +250,7 @@ class TestWebInvoices(unittest.TestCase):
         ExtractionService.clear_task_status(self.profile, "2026", "09")
 
         # Wgranie nieodczytywanego obrazu
-        test_jpg_content = b"\xFF\xD8\xFF\xE0\x00\x10JFIF"
+        test_jpg_content = b"\xff\xd8\xff\xe0\x00\x10JFIF"
         files = [("files", ("test_unprocessed_upload.jpg", io.BytesIO(test_jpg_content), "image/jpeg"))]
         data = {"kategoria": "koszt"}
 
@@ -318,6 +348,74 @@ class TestWebInvoices(unittest.TestCase):
         # 3. Sprawdzenie paska postępu (width: 40%)
         self.assertIn("width: 40%", html)
         self.assertIn("40%", html)
+
+    def test_upload_file_exceeds_15mb_returns_413(self):
+        """Weryfikuje odrzucenie pliku przekraczającego limit 15 MB ze statusem 413 (SEC-2)."""
+        # Utwórz strumień o rozmiarze 16 MB (16 * 1024 * 1024 bajtów)
+        large_size = 16 * 1024 * 1024
+        large_stream = io.BytesIO(b"%PDF-" + b"0" * (large_size - 5))
+
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("duzy_dokument.pdf", large_stream, "application/pdf")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("Przekroczono dopuszczalny limit rozmiaru", response.text)
+        self.assertIn("15 MB", response.text)
+
+    def test_upload_fake_pdf_fails_magic_bytes(self):
+        """Weryfikuje odrzucenie pliku .exe przemianowanego na .pdf (brak sygnatury %PDF-) ze statusem 400 (SEC-2)."""
+        fake_pdf_content = b"MZ\x90\x00\x03\x00\x00\x00This is a Windows executable!"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("faktura_falszywa.pdf", fake_pdf_content, "application/pdf")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Brak poprawnej sygnatury PDF", response.text)
+
+    def test_upload_fake_image_fails_magic_bytes(self):
+        """Weryfikuje odrzucenie pliku tekstowego przemianowanego na .png ze statusem 400 (SEC-2)."""
+        fake_png_content = b"To nie jest plik graficzny PNG!"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("falszywy_skan.png", fake_png_content, "image/png")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Brak poprawnej sygnatury obrazu PNG", response.text)
+
+    def test_sanitize_filename_utility(self):
+        """Weryfikuje działanie sanityzacji nazw plików (usunięcie path traversal i znaków specjalnych)."""
+        from src.web.routers.invoices import sanitize_filename
+
+        self.assertEqual(sanitize_filename("../../etc/passwd.pdf"), "passwd.pdf")
+        self.assertEqual(sanitize_filename("Faktura VAT 12-2026.pdf"), "Faktura_VAT_12-2026.pdf")
+        self.assertEqual(sanitize_filename("skan@#$!*()___.png"), "skan.png")
+        self.assertEqual(sanitize_filename("..///..///test.json"), "test.json")
+
+    def test_upload_pdf_with_malicious_javascript_blocked(self):
+        """Weryfikuje odrzucenie pliku PDF zawierającego osadzony JavaScript (/JavaScript) ze statusem 400 (SEC-5)."""
+        pdf_with_js = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R /OpenAction << /S /JavaScript /JS (app.alert('PWNED');) >> >>\nendobj"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("zlosliwy.pdf", pdf_with_js, "application/pdf")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("wykryto niebezpieczną zawartość aktywną", response.text)
+
+    def test_upload_text_with_malicious_script_tag_blocked(self):
+        """Weryfikuje odrzucenie pliku .txt ze złośliwym znacznikiem <script> ze statusem 400 (SEC-5)."""
+        malicious_txt = b"To jest faktura <script>alert('xss')</script>"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("faktura_xss.txt", malicious_txt, "text/plain")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("wykryto niedozwolone znaczniki kodu wykonywalnego HTML/JS", response.text)
 
 
 if __name__ == "__main__":

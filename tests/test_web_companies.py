@@ -7,25 +7,33 @@ Testy jednostkowe i integracyjne dla routera firm (/firmy):
 - Endpoint autopobierania danych z rejestrów (/firmy/lookup-nip)
 - Tworzenie nowej firmy, autoselekcja w ciasteczku i przekierowanie na pulpit
 """
+
 import shutil
 import unittest
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.config import FIRMY_DIR
 from src.core.company import CompanyProfile
+from src.web.app import app
 from src.web.config import COOKIE_ACTIVE_NIP
 
 
 class TestWebCompanies(unittest.TestCase):
     def setUp(self):
+        from tests.fixtures import setup_isolated_test_company
+
+        self.profile = setup_isolated_test_company()
         self.client = TestClient(app)
         self.test_nip = "1234567890"
         self._cleanup_test_company()
 
     def tearDown(self):
         self._cleanup_test_company()
+        from tests.fixtures import cleanup_test_company
+
+        cleanup_test_company(self.profile)
 
     def _cleanup_test_company(self):
         if FIRMY_DIR.exists():
@@ -161,10 +169,8 @@ class TestWebCompanies(unittest.TestCase):
         self.assertTrue((created_profile.katalog_firmy / "faktury" / "2026" / "01" / "sprzedaz" / "ksef").exists())
 
         # 4. Sprawdzenie czy wejście na pulpit renderuje nowo dodaną firmę i komunikat sukcesu
-        resp_dashboard = self.client.get(
-            "/?nowa_firma=1",
-            cookies={COOKIE_ACTIVE_NIP: self.test_nip},
-        )
+        self.client.cookies[COOKIE_ACTIVE_NIP] = self.test_nip
+        resp_dashboard = self.client.get("/?nowa_firma=1")
         self.assertEqual(resp_dashboard.status_code, 200)
         self.assertIn("Nowoczesne IT Jan Testowy", resp_dashboard.text)
         self.assertIn("Nowa firma została pomyślnie dodana i aktywowana", resp_dashboard.text)

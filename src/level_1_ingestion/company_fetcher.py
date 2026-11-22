@@ -5,11 +5,12 @@ Pozwala na automatyczne pobieranie danych firmy (nazwa, adres, REGON, status VAT
 2. Hurtownia Danych CEIDG (dane.biznes.gov.pl) - oficjalne API CEIDG z kodami PKD.
 """
 
-from typing import Dict, Any, Optional, List
-import re
 import os
-import requests
+import re
 from datetime import datetime
+from typing import Any, Dict, Optional
+
+import requests
 
 
 class CompanyFetcher:
@@ -32,7 +33,7 @@ class CompanyFetcher:
         """
         Weryfikuje powiązanie pary NIP + numer rachunku w dedykowanym endpoincie API MF:
         GET /api/check/nip/{nip}/bank-account/{bankAccount}?date={date}
-        
+
         Kluczowe dla rachunków wirtualnych (subkont masowych płatności, np. Play, Orange, PGE),
         które NIE są publikowane w wykazie ogólnym /api/search/nip, lecz są potwierdzane
         przez algorytmy bankowe zintegrowane z API MF.
@@ -65,7 +66,9 @@ class CompanyFetcher:
             return {"assigned": False, "blad_polaczenia": True}
 
     @classmethod
-    def fetch_from_mf_biala_lista(cls, nip: str, date_str: Optional[str] = None, timeout: int = 5) -> Optional[Dict[str, Any]]:
+    def fetch_from_mf_biala_lista(
+        cls, nip: str, date_str: Optional[str] = None, timeout: int = 5
+    ) -> Optional[Dict[str, Any]]:
         """
         Odpytuje Białą Listę Podatników VAT (Ministerstwo Finansów).
         Nie wymaga rejestracji ani klucza API.
@@ -91,7 +94,7 @@ class CompanyFetcher:
                         "status_vat": "Niezarejestrowany (brak w wykazie MF)",
                         "platnik_vat": False,
                         "blad_polaczenia": False,
-                        "zrodlo": "MF_BIALA_LISTA"
+                        "zrodlo": "MF_BIALA_LISTA",
                     }
                 # Błędy serwera lub limitu zapytań (np. 429, 500, 503)
                 return {
@@ -100,7 +103,7 @@ class CompanyFetcher:
                     "platnik_vat": False,
                     "blad_polaczenia": True,
                     "komunikat_bledu": f"Odpowiedź serwera MF HTTP {resp.status_code}",
-                    "zrodlo": "MF_BIALA_LISTA_ERROR"
+                    "zrodlo": "MF_BIALA_LISTA_ERROR",
                 }
 
             data = resp.json()
@@ -111,12 +114,12 @@ class CompanyFetcher:
                     "status_vat": "Niezarejestrowany (brak w wykazie MF)",
                     "platnik_vat": False,
                     "blad_polaczenia": False,
-                    "zrodlo": "MF_BIALA_LISTA"
+                    "zrodlo": "MF_BIALA_LISTA",
                 }
 
             status_vat_raw = subject.get("statusVat") or ""
             status_vat = status_vat_raw.strip().lower()
-            platnik_vat = (status_vat == "czynny")
+            platnik_vat = status_vat == "czynny"
 
             adres = subject.get("workingAddress") or subject.get("residenceAddress") or ""
 
@@ -137,7 +140,7 @@ class CompanyFetcher:
                 "platnik_vat": platnik_vat,
                 "rachunki_bankowe": subject.get("accountNumbers") or [],
                 "zrodlo": "MF_BIALA_LISTA",
-                "blad_polaczenia": False
+                "blad_polaczenia": False,
             }
         except requests.RequestException as exc:
             # W środowisku offline lub przy braku sieci zwracamy jawny błąd połączenia
@@ -147,7 +150,7 @@ class CompanyFetcher:
                 "platnik_vat": False,
                 "blad_polaczenia": True,
                 "komunikat_bledu": f"Błąd połączenia z API MF: {exc.__class__.__name__}",
-                "zrodlo": "MF_BIALA_LISTA_ERROR"
+                "zrodlo": "MF_BIALA_LISTA_ERROR",
             }
         except Exception as exc:
             return {
@@ -156,7 +159,7 @@ class CompanyFetcher:
                 "platnik_vat": False,
                 "blad_polaczenia": True,
                 "komunikat_bledu": str(exc),
-                "zrodlo": "MF_BIALA_LISTA_ERROR"
+                "zrodlo": "MF_BIALA_LISTA_ERROR",
             }
 
     @classmethod
@@ -172,11 +175,7 @@ class CompanyFetcher:
             return None
 
         url = f"{cls.CEIDG_API_URL}?nip={clean_nip}"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
-            "User-Agent": "TaxPilot_AI/1.0"
-        }
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/json", "User-Agent": "TaxPilot_AI/1.0"}
 
         try:
             resp = requests.get(url, headers=headers, timeout=timeout)
@@ -200,7 +199,7 @@ class CompanyFetcher:
                 "kody_pkd": pkd_list,
                 "pkd_glowny": pkd_glowny,
                 "status": wpis.get("status", ""),
-                "zrodlo": "CEIDG"
+                "zrodlo": "CEIDG",
             }
         except Exception:
             return None
@@ -219,7 +218,7 @@ class CompanyFetcher:
             "regon": None,
             "platnik_vat": True,
             "kody_pkd": [],
-            "zrodlo": []
+            "zrodlo": [],
         }
 
         # 1. Próba pobrania z Białej Listy MF (bezpłatna, bez tokena)
@@ -246,4 +245,3 @@ class CompanyFetcher:
             res["zrodlo"].append("CEIDG")
 
         return res
-

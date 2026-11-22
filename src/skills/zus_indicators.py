@@ -6,12 +6,12 @@ Zapewnia trzystopniowy mechanizm:
 3. Bezpieczny fallback (szacunek prognozowany z ostrzeżeniem dla użytkownika).
 """
 
-from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, Any, Optional
-from pathlib import Path
 import json
 import logging
+from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,7 @@ def fetch_online_indicators(rok: str, timeout: float = 2.0) -> Optional[ZUSMacro
     """
     try:
         import urllib.request
+
         # Publiczne repozytorium wskaźników lub endpoint BDL GUS
         url = f"https://api.stat.gov.pl/indicators/zus/{rok}"
         req = urllib.request.Request(url, headers={"User-Agent": "TaxPilot-AI/1.0"})
@@ -147,7 +148,10 @@ def is_official(params: ZUSMacroParams) -> bool:
     wprowadzone / zweryfikowane przez użytkownika.
     Zwraca False, jeśli są to automatyczne szacunki algorytmiczne (PROGNOZA_SZACOWANA).
     """
-    if params.zrodlo in ("OFICJALNE_GUS", "ZWERYFIKOWANE", "WPROWADZONE_RECZNIE", "PROFIL_UZYTKOWNIKA") and not params.ostrzezenie:
+    if (
+        params.zrodlo in ("OFICJALNE_GUS", "ZWERYFIKOWANE", "WPROWADZONE_RECZNIE", "PROFIL_UZYTKOWNIKA")
+        and not params.ostrzezenie
+    ):
         return True
     return False
 
@@ -311,7 +315,9 @@ def get_zus_indicators(
                 rok=rok_str,
                 podstawa_pelny_zus=Decimal(str(custom_spol)) if custom_spol else base.podstawa_pelny_zus,
                 podstawa_preferencyjny_zus=base.podstawa_preferencyjny_zus,
-                przecietne_wynagrodzenie_zdrowotna=Decimal(str(custom_zdrow)) if custom_zdrow else base.przecietne_wynagrodzenie_zdrowotna,
+                przecietne_wynagrodzenie_zdrowotna=Decimal(str(custom_zdrow))
+                if custom_zdrow
+                else base.przecietne_wynagrodzenie_zdrowotna,
                 zrodlo="PROFIL_UZYTKOWNIKA",
                 ostrzezenie="Zastosowano ręczne nadpisanie wskaźników ZUS z profilu firmy.",
             )
@@ -339,14 +345,16 @@ def get_zus_indicators(
     # 6. Fallback: Estymacja na podstawie ostatniego znanego roku z alertem ostrzegawczym
     ostatni_znany = max(OFICJALNE_WSKAZNIKI.keys())
     wzorzec = OFICJALNE_WSKAZNIKI[ostatni_znany]
-    
+
     # Szacunkowy roczny wzrost płac ~6.5%
     lata_roznicy = int(rok_str) - int(ostatni_znany)
     mnoznik = (Decimal("1.065")) ** max(1, lata_roznicy)
-    
+
     szacunek_spol = (wzorzec.podstawa_pelny_zus * mnoznik).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
     szacunek_pref = (wzorzec.podstawa_preferencyjny_zus * mnoznik).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
-    szacunek_zdrow = (wzorzec.przecietne_wynagrodzenie_zdrowotna * mnoznik).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    szacunek_zdrow = (wzorzec.przecietne_wynagrodzenie_zdrowotna * mnoznik).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
 
     return ZUSMacroParams(
         rok=rok_str,
@@ -360,4 +368,3 @@ def get_zus_indicators(
             f"Brak oficjalnego komunikatu Prezesa GUS – kwota składki zdrowotnej może ulec drobnej korekcie po publikacji obwieszczenia."
         ),
     )
-

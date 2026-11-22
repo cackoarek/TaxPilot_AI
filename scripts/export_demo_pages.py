@@ -6,8 +6,8 @@ w folderze examples/pages na podstawie zanonimizowanych danych referencyjnych
 CloudTech Solutions Jan Kowalski (examples/firmy/7770001122-CloudTech_Solutions_Jan_Kowalski).
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Upewnienie się że główny katalog repozytorium znajduje się w sys.path
@@ -16,11 +16,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.web.export import (
-    export_demo_pages,
+    DEFAULT_DEMO_MONTH,
     DEFAULT_DEMO_NIP,
     DEFAULT_DEMO_YEAR,
-    DEFAULT_DEMO_MONTH,
     DEFAULT_OUTPUT_DIR,
+    export_demo_pages,
 )
 
 
@@ -70,6 +70,7 @@ def main():
     except Exception as exc:
         print(f"❌ Wystąpił błąd podczas generowania stron demo: {exc}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -4,12 +4,13 @@ Adapter dla lokalnego agenta AI uruchamianego za pomocą narzędzia Antigravity 
 Zapewnia interakcję z agentem w procesie Pythona w katalogu projektu,
 inicjuje sesję z wymogiem zapoznania się z plikiem AGENTS.md oraz utrzymuje ciągłość sesji.
 """
+
 import asyncio
 import os
 import shutil
 import time
 from pathlib import Path
-from typing import List, Optional, AsyncGenerator, Dict, Any
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from src.logging_config import get_logger
 from src.web.config import BASE_DIR, find_agy_binary
@@ -108,7 +109,9 @@ class AntigravitySession:
             if not self.session_id.startswith("extraction_"):
                 parts.append(f"[INSTRUKCJA STARTOWA SYSTEMU]\n{SYSTEM_AGENTS_INSTRUCTION}\n")
             else:
-                parts.append("[INSTRUKCJA EKSTRAKCJI DOKUMENTU]\nJesteś silnikiem ekstrakcji danych z faktur i paragonów TaxPilot AI. Odczytaj dane i zwróć WYŁĄCZNIE poprawny obiekt JSON zgodny ze strukturą, bez formatowania markdown i bez zbędnych komentarzy.\n")
+                parts.append(
+                    "[INSTRUKCJA EKSTRAKCJI DOKUMENTU]\nJesteś silnikiem ekstrakcji danych z faktur i paragonów TaxPilot AI. Odczytaj dane i zwróć WYŁĄCZNIE poprawny obiekt JSON zgodny ze strukturą, bez formatowania markdown i bez zbędnych komentarzy.\n"
+                )
 
             active_profile = profile or self.profile
             cur_rok = rok or (self.current_period.split("-")[0] if self.current_period else None)
@@ -116,8 +119,12 @@ class AntigravitySession:
 
             context_info = []
             if active_profile:
-                nazwa = getattr(active_profile, "nazwa", None) or (active_profile.get("nazwa") if isinstance(active_profile, dict) else "N/A")
-                nip = getattr(active_profile, "nip", None) or (active_profile.get("nip") if isinstance(active_profile, dict) else "N/A")
+                nazwa = getattr(active_profile, "nazwa", None) or (
+                    active_profile.get("nazwa") if isinstance(active_profile, dict) else "N/A"
+                )
+                nip = getattr(active_profile, "nip", None) or (
+                    active_profile.get("nip") if isinstance(active_profile, dict) else "N/A"
+                )
                 context_info.append(f"- Aktywna firma: {nazwa} (NIP: {nip})")
 
                 forma = getattr(active_profile, "forma_opodatkowania", None)
@@ -141,7 +148,9 @@ class AntigravitySession:
                     folder_name = f"{nip}-{clean_name}"
                 if folder_name:
                     context_info.append(f"- Ścieżka danych firmy: firmy/{folder_name}/")
-                    context_info.append(f"- ZASADA IZOLACJI: Analizujesz dane księgowe, faktury i rozliczenia WYŁĄCZNIE z katalogu firmy/{folder_name}/. Zabrania się analizowania danych innych firm.")
+                    context_info.append(
+                        f"- ZASADA IZOLACJI: Analizujesz dane księgowe, faktury i rozliczenia WYŁĄCZNIE z katalogu firmy/{folder_name}/. Zabrania się analizowania danych innych firm."
+                    )
             elif self.company_nip:
                 context_info.append(f"- Aktywna firma: {self.company_name or 'JDG'} (NIP: {self.company_nip})")
 
@@ -160,7 +169,9 @@ class AntigravitySession:
             # W kolejnych turach sprawdź czy okres nie uległ zmianie
             new_period = f"{rok}-{miesiac}" if (rok and miesiac) else None
             if new_period and self.current_period and new_period != self.current_period:
-                parts.append(f"[ZMIANA WYBRANEGO OKRESU ROZLICZENIOWEGO] Aktualnie wybrany okres został zmieniony na: {new_period}\n")
+                parts.append(
+                    f"[ZMIANA WYBRANEGO OKRESU ROZLICZENIOWEGO] Aktualnie wybrany okres został zmieniony na: {new_period}\n"
+                )
                 self.current_period = new_period
             elif system_prompt and self.turn_count == 0:
                 parts.append(f"[KONTEKST PODATNIKA]\n{system_prompt}\n")
@@ -177,6 +188,7 @@ class AntigravitySession:
 
 class AntigravitySessionManager:
     """Zarządca aktywnych sesji Antigravity w pamięci procesu (sesja per wybrana firma)."""
+
     _instances: Dict[str, AntigravitySession] = {}
 
     @classmethod
@@ -190,7 +202,9 @@ class AntigravitySessionManager:
     ) -> AntigravitySession:
         if session_id not in cls._instances:
             company_nip = getattr(profile, "nip", None) or (profile.get("nip") if isinstance(profile, dict) else None)
-            company_name = getattr(profile, "nazwa", None) or (profile.get("nazwa") if isinstance(profile, dict) else None)
+            company_name = getattr(profile, "nazwa", None) or (
+                profile.get("nazwa") if isinstance(profile, dict) else None
+            )
             cls._instances[session_id] = AntigravitySession(
                 session_id=session_id,
                 cwd=cwd,
@@ -200,7 +214,13 @@ class AntigravitySessionManager:
                 miesiac=miesiac,
                 profile=profile,
             )
-            logger.info("Zainicjowano nową sesję Antigravity dla firmy/sesji: %s (NIP: %s, okres: %s-%s)", session_id, company_nip, rok, miesiac)
+            logger.info(
+                "Zainicjowano nową sesję Antigravity dla firmy/sesji: %s (NIP: %s, okres: %s-%s)",
+                session_id,
+                company_nip,
+                rok,
+                miesiac,
+            )
         else:
             session = cls._instances[session_id]
             session.update_context(profile=profile, rok=rok, miesiac=miesiac)
@@ -325,8 +345,10 @@ class AntigravityProvider(BaseLLMProvider):
 
             cmd = [
                 self._binary_path,
-                "-p", prompt_payload,
-                "--output-format", "text",
+                "-p",
+                prompt_payload,
+                "--output-format",
+                "text",
                 "--dangerously-skip-permissions",
             ]
             if self._model and self._model not in ("antigravity-cli", "gemini-3.8-flash"):
@@ -340,9 +362,15 @@ class AntigravityProvider(BaseLLMProvider):
                     cmd.append("--continue")
 
             if session.session_id.startswith("extraction_"):
-                logger.info("Uruchamianie komendy agy w katalogu %s (turn=%d, timeout=75s)", self._cwd, session.turn_count)
+                logger.info(
+                    "Uruchamianie komendy agy w katalogu %s (turn=%d, timeout=75s)", self._cwd, session.turn_count
+                )
             else:
-                logger.info("Uruchamianie komendy agy w katalogu %s (turn=%d, bez limitu timeout dla czatu)", self._cwd, session.turn_count)
+                logger.info(
+                    "Uruchamianie komendy agy w katalogu %s (turn=%d, bez limitu timeout dla czatu)",
+                    self._cwd,
+                    session.turn_count,
+                )
             env = self._prepare_env()
 
             try:
@@ -370,7 +398,9 @@ class AntigravityProvider(BaseLLMProvider):
                 err_msg = [f"⚠️ **Błąd wykonania procesu agy:** {e}"]
                 if last_out:
                     err_msg.append(f"\n\n**Ostatnie wyjście modelu:**\n\n```\n{last_out}\n```")
-                err_msg.append("\n\n*Wskazówka:* Jeśli sesja uległa zawieszeniu, kliknij przycisk **🔄 Nowa sesja** w nagłówku czatu.")
+                err_msg.append(
+                    "\n\n*Wskazówka:* Jeśli sesja uległa zawieszeniu, kliknij przycisk **🔄 Nowa sesja** w nagłówku czatu."
+                )
                 return "".join(err_msg)
             finally:
                 session.current_process = None
@@ -385,10 +415,7 @@ class AntigravityProvider(BaseLLMProvider):
             if proc.returncode != 0:
                 logger.warning("Proces agy zakończony kodem %d: %s", proc.returncode, stderr_text)
                 if stdout_text:
-                    return (
-                        f"{stdout_text}\n\n"
-                        f"*(Uwaga: proces agy zakończył się kodem {proc.returncode})*"
-                    )
+                    return f"{stdout_text}\n\n*(Uwaga: proces agy zakończył się kodem {proc.returncode})*"
                 return (
                     f"⚠️ **Antigravity CLI zwrócił błąd (kod {proc.returncode}):**\n\n"
                     f"```\n{stderr_text[:500] if stderr_text else 'Brak szczegółów błędu'}\n```\n\n"
@@ -455,13 +482,16 @@ class AntigravityProvider(BaseLLMProvider):
                 else:
                     cmd.append("--continue")
 
-            logger.info("Uruchamianie streamingu agy w katalogu %s (turn=%d, bez limitu timeout)", self._cwd, session.turn_count)
+            logger.info(
+                "Uruchamianie streamingu agy w katalogu %s (turn=%d, bez limitu timeout)", self._cwd, session.turn_count
+            )
             env = self._prepare_env()
 
             accumulated = []
             try:
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
+                    stdin=asyncio.subprocess.DEVNULL,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=str(self._cwd),
@@ -470,20 +500,21 @@ class AntigravityProvider(BaseLLMProvider):
                 session.current_process = proc
 
                 # Czytanie wiersz po wierszu na żywo z procesu
-                while True:
-                    line = await proc.stdout.readline()
-                    if not line:
-                        break
-                    decoded_line = line.decode("utf-8", errors="replace")
-                    accumulated.append(decoded_line)
-                    session.last_output = "".join(accumulated)
-                    yield decoded_line
+                if proc.stdout:
+                    while True:
+                        line = await proc.stdout.readline()
+                        if not line:
+                            break
+                        decoded_line = line.decode("utf-8", errors="replace")
+                        accumulated.append(decoded_line)
+                        session.last_output = "".join(accumulated)
+                        yield decoded_line
 
                 await proc.wait()
                 session.turn_count += 1
                 session.last_used_at = time.time()
 
-                if proc.returncode != 0:
+                if proc.returncode != 0 and proc.stderr:
                     stderr_bytes = await proc.stderr.read()
                     stderr_text = stderr_bytes.decode("utf-8", errors="replace").strip()
                     logger.warning("Proces agy zakończony kodem %d: %s", proc.returncode, stderr_text)

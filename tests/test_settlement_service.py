@@ -5,15 +5,13 @@ Testy jednostkowe silnika rozliczeń podatkowych (SettlementService, Bookkeeping
 import unittest
 from decimal import Decimal
 
-from src.core.company import CompanyProfile
 from src.level_3_tax_settlement.settlement_service import SettlementService
-from tests.fixtures import setup_test_company, cleanup_test_company
+from tests.fixtures import cleanup_test_company, setup_isolated_test_company
 
 
 class TestSettlementService(unittest.TestCase):
-
     def setUp(self):
-        self.profile = setup_test_company()
+        self.profile = setup_isolated_test_company()
         self.assertIsNotNone(self.profile)
 
     def tearDown(self):
@@ -58,7 +56,7 @@ class TestSettlementService(unittest.TestCase):
 
     def test_reports_generation(self):
         # Rozliczenie kwietnia z zapisem raportów
-        result = SettlementService.settle_month(
+        SettlementService.settle_month(
             self.profile, "2026", "04", nadwyzka_vat_poprzedni=Decimal("217.10"), zapisz_raporty=True
         )
 
@@ -86,15 +84,31 @@ class TestSettlementService(unittest.TestCase):
         self.assertIn("Część I: Faktury Sprzedaży", spr_content)
         self.assertIn("Część II: Faktury Kosztowe", spr_content)
         self.assertIn("Część III: Podsumowanie Audytu", spr_content)
+        self.assertIn("Klauzula informacyjna:", spr_content)
+
+        rozl_content = (target_dir / "rozliczenie.md").read_text(encoding="utf-8")
+        self.assertNotIn("Podatnik jest w 100% bezpieczny", rozl_content)
+        self.assertIn("Klauzula informacyjna:", rozl_content)
+
+    def test_tax_precautionary_principle_unaudited_expenses(self):
+        """Weryfikuje zasadę ostrożności podatkowej (TAX-1): faktury bez audytu mają status DO_WYJASNIENIA i 0 zł VAT."""
+        result = SettlementService.settle_month(
+            self.profile, "2026", "04", nadwyzka_vat_poprzedni=Decimal("217.10"), zapisz_raporty=False
+        )
+        # Symulacja braku audytu dla dokumentów kosztowych
+        result.ledger.audyt_kosztow.clear()
+        sprawozdanie = result.generate_sprawozdanie_report()
+
+        self.assertNotIn("✅ 100% Firmowy", sprawozdanie)
+        self.assertIn("⚠️ Do wyjaśnienia", sprawozdanie)
+        self.assertIn("Brak audytu pozycji – wymaga decyzji podatnika przed odliczeniem", sprawozdanie)
+        self.assertIn("**0.00 zł**", sprawozdanie)
 
     def test_settle_october_2026_professional_accountant_mode(self):
         """Test rozliczenia 2026-10 w trybie księgowego profesjonalnego (zasada kasowa + wyłączenie FP)."""
-        import pathlib
-        p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
-        if not (p_path / "faktury" / "2026" / "10" / "sprzedaz").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "10" / "sprzedaz").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
-        real_profile = CompanyProfile.load_from_dir(p_path)
-        result = SettlementService.settle_month(real_profile, "2026", "10", zapisz_raporty=False)
+        result = SettlementService.settle_month(self.profile, "2026", "10", zapisz_raporty=False)
 
         self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 6276)
         self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 7327)
@@ -102,12 +116,9 @@ class TestSettlementService(unittest.TestCase):
 
     def test_settle_may_2026_retroactive_correction(self):
         """Test rozliczenia 2026-05: korekta wsteczna 1/KOR/06/2026 (-4000 zł) koryguje przychód maja dla PIT-28."""
-        import pathlib
-        p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
-        if not (p_path / "faktury" / "2026" / "05" / "sprzedaz").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "05" / "sprzedaz").exists():
             self.skipTest("Brak danych testowych za 2026-05 dla firmy testowej")
-        real_profile = CompanyProfile.load_from_dir(p_path)
-        result = SettlementService.settle_month(real_profile, "2026", "05", zapisz_raporty=False)
+        result = SettlementService.settle_month(self.profile, "2026", "05", zapisz_raporty=False)
 
         # Przychód z maja: 1499 + 42200 - 4000 = 39699 zł
         self.assertEqual(result.pit28.przychod_laczny, Decimal("39699.00"))

@@ -3,25 +3,27 @@ Testy jednostkowe modułu KSeF Parser oraz Invoice Storage.
 """
 
 import shutil
+import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
 
+from src.config import TESTS_DIR
 from src.core.company import CompanyProfile, KSeFConfig
 from src.core.invoice import InvoiceType
-from src.level_1_ingestion.ksef_parser import KSeFParser
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.config import TESTS_DIR, BASE_DIR
+from src.level_1_ingestion.ksef_parser import KSeFParser
 
 
 class TestKSeFParserAndStorage(unittest.TestCase):
-
     def setUp(self):
+        self.tmp_dir = Path(tempfile.mkdtemp(prefix="taxpilot_ksef_test_"))
         self.profile = CompanyProfile(
             nip="7770001122",
             nazwa="CloudTech Solutions Jan Kowalski",
             katalog_nazwa="7770001122-CloudTech_Solutions_Jan_Kowalski",
             ksef=KSeFConfig(srodowisko="TEST", token="0261108-EC-TEST-TOKEN|nip-7770001122|abcdef1234567890"),
+            _custom_path=self.tmp_dir / "7770001122-CloudTech_Solutions_Jan_Kowalski",
         )
 
         self.samples_dir = TESTS_DIR / "sample_ksef_invoices"
@@ -29,9 +31,8 @@ class TestKSeFParserAndStorage(unittest.TestCase):
         self.koszt_xml_path = self.samples_dir / "sample_koszt_fa2.xml"
 
     def tearDown(self):
-        test_dir = self.profile.katalog_firmy
-        if test_dir.exists():
-            shutil.rmtree(test_dir, ignore_errors=True)
+        if hasattr(self, "tmp_dir") and self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
     def test_parse_sprzedaz(self):
         with open(self.sprzedaz_xml_path, "r", encoding="utf-8") as f:
@@ -69,7 +70,7 @@ class TestKSeFParserAndStorage(unittest.TestCase):
         # Parsujemy i zapisujemy obie faktury do katalogu firmy
         with open(self.sprzedaz_xml_path, "r", encoding="utf-8") as f:
             inv_sprzedaz = KSeFParser.parse_xml(f.read(), target_company_nip=self.profile.nip)
-        
+
         with open(self.koszt_xml_path, "r", encoding="utf-8") as f:
             inv_koszt = KSeFParser.parse_xml(f.read(), target_company_nip=self.profile.nip)
 
@@ -87,6 +88,7 @@ class TestKSeFParserAndStorage(unittest.TestCase):
 
     def test_ksef_token_in_profile(self):
         from src.level_1_ingestion.ksef_client import KSeFClient
+
         client = KSeFClient(self.profile)
         self.assertTrue(client.is_token_configured())
         token = client.get_auth_token()

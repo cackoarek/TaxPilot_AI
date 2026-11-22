@@ -3,10 +3,10 @@ src/web/services/llm/gemini_provider.py
 Adapter dla modeli Google Gemini (np. gemini-1.5-flash, gemini-2.0-flash, gemini-1.5-pro).
 Działa w procesie Pythona (Zero-CLI) z wykorzystaniem asynchronicznego klienta HTTP httpx.
 """
-import os
+
 import json
-import logging
-from typing import List, Optional, AsyncGenerator
+import os
+from typing import AsyncGenerator, List, Optional
 
 import httpx
 
@@ -23,7 +23,7 @@ class GeminiProvider(BaseLLMProvider):
         self._api_key = api_key or os.getenv("GEMINI_API_KEY", "")
         clean_model = (model or "gemini-1.5-flash").strip()
         if clean_model.startswith("models/"):
-            clean_model = clean_model[len("models/"):]
+            clean_model = clean_model[len("models/") :]
         if clean_model in ("gemini-2.5-flash", "gemini-2.5"):
             clean_model = "gemini-1.5-flash"
         self._model = clean_model
@@ -44,21 +44,16 @@ class GeminiProvider(BaseLLMProvider):
         contents = []
         for msg in messages:
             role = "user" if msg.role == "user" else "model"
-            contents.append({
-                "role": role,
-                "parts": [{"text": msg.content}]
-            })
+            contents.append({"role": role, "parts": [{"text": msg.content}]})
 
         payload = {
             "contents": contents,
             "generationConfig": {
                 "temperature": temperature,
-            }
+            },
         }
         if system_prompt:
-            payload["systemInstruction"] = {
-                "parts": [{"text": system_prompt}]
-            }
+            payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
         return payload
 
     async def chat_async(
@@ -104,7 +99,7 @@ class GeminiProvider(BaseLLMProvider):
             async with client.stream("POST", url, json=payload) as response:
                 if response.status_code != 200:
                     err_body = await response.aread()
-                    err_text = err_body.decode('utf-8')
+                    err_text = err_body.decode("utf-8")
                     logger.error("Błąd strumienia Gemini API (kod %d): %s", response.status_code, err_text)
                     raise RuntimeError(f"Błąd strumienia Gemini ({response.status_code}): {err_text}")
 

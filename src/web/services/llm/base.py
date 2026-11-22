@@ -4,9 +4,10 @@ Wspólny, ujednolicony interfejs bazowy dla dostawców LLM (Multi-Provider Patte
 Wspiera Google Gemini, OpenAI (ChatGPT / Ollama) oraz Anthropic Claude,
 oraz deterministyczny NullProvider dla trybu Zero-LLM.
 """
+
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, AsyncGenerator
+from dataclasses import dataclass
+from typing import AsyncGenerator, List, Optional
 
 
 @dataclass
@@ -52,7 +53,7 @@ class BaseLLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: List[ChatMessage],
         system_prompt: Optional[str] = None,

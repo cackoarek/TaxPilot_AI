@@ -8,29 +8,24 @@ Weryfikuje ochronę przed:
 
 import unittest
 from decimal import Decimal
-from pathlib import Path
-import json
 
-from src.core.company import CompanyProfile
-from src.core.invoice import Invoice, InvoiceType, InvoiceParty, InvoiceItem
+from src.core.invoice import Invoice, InvoiceParty, InvoiceType
 from src.level_1_ingestion.invoice_deduplicator import (
-    InvoiceDeduplicator,
     DuplicateType,
-    DuplicateAnomaly,
-    normalize_invoice_number,
-    extract_core_number,
+    InvoiceDeduplicator,
     clean_nip,
+    extract_core_number,
+    normalize_invoice_number,
 )
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.skills.pre_settlement_review import PreSettlementReview
 from src.level_3_tax_settlement.settlement_service import SettlementService
-from tests.fixtures import setup_test_company, cleanup_test_company, TEST_NIP, TEST_NAME
+from src.skills.pre_settlement_review import PreSettlementReview
+from tests.fixtures import TEST_NAME, TEST_NIP, cleanup_test_company, setup_isolated_test_company
 
 
 class TestInvoiceDeduplicator(unittest.TestCase):
-
     def setUp(self):
-        self.profile = setup_test_company()
+        self.profile = setup_isolated_test_company()
         self.assertIsNotNone(self.profile)
 
     def tearDown(self):
@@ -145,9 +140,7 @@ class TestInvoiceDeduplicator(unittest.TestCase):
         )
 
         # 3. Przeprowadzamy deduplikację
-        clean_invs, anomalies = InvoiceDeduplicator.deduplicate_month(
-            self.profile, "2026", "04", typ=InvoiceType.KOSZT
-        )
+        clean_invs, anomalies = InvoiceDeduplicator.deduplicate_month(self.profile, "2026", "04", typ=InvoiceType.KOSZT)
 
         # Sprawdzenie: faktura F/2026/04/001 występuje tylko RAZ w clean_invs ze źródłem KSeF
         matching_clean = [i for i in clean_invs if i.numer == "F/2026/04/001"]
@@ -266,9 +259,7 @@ class TestInvoiceDeduplicator(unittest.TestCase):
             self.profile, inv2, typ=InvoiceType.KOSZT, raw_source_name="myszka_klawiatura_kopia.pdf"
         )
 
-        clean_invs, anomalies = InvoiceDeduplicator.deduplicate_month(
-            self.profile, "2026", "04", typ=InvoiceType.KOSZT
-        )
+        clean_invs, anomalies = InvoiceDeduplicator.deduplicate_month(self.profile, "2026", "04", typ=InvoiceType.KOSZT)
 
         matching_clean = [i for i in clean_invs if i.numer == "SK/888/2026"]
         self.assertEqual(len(matching_clean), 1)

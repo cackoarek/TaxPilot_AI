@@ -3,10 +3,10 @@ Parser faktur KSeF XML (zgodny ze schematami FA(2) oraz FA(1)).
 Deterministyczny, bezstratny, z przeliczaniem kwot za pomocą Decimal.
 """
 
-from decimal import Decimal, InvalidOperation
-import xml.etree.ElementTree as ET
-from typing import Optional, Dict, Tuple
 import re
+import xml.etree.ElementTree as ET
+from decimal import Decimal, InvalidOperation
+from typing import Dict, Optional
 
 from src.core.invoice import Invoice, InvoiceItem, InvoiceParty, InvoiceType
 
@@ -96,7 +96,9 @@ class KSeFParser:
         adres_l1 = cls._find_text(podmiot1_elem, "Adres/AdresL1")
         adres_l2 = cls._find_text(podmiot1_elem, "Adres/AdresL2")
         adres_sprzedawcy = f"{adres_l1}, {adres_l2}".strip(", ") if (adres_l1 or adres_l2) else None
-        sprzedawca = InvoiceParty(nip=nip_sprzedawcy, nazwa=nazwa_sprzedawcy, adres=adres_sprzedawcy, regon=regon_sprzedawcy)
+        sprzedawca = InvoiceParty(
+            nip=nip_sprzedawcy, nazwa=nazwa_sprzedawcy, adres=adres_sprzedawcy, regon=regon_sprzedawcy
+        )
 
         # 2. Nabywca (Podmiot2)
         nip_nabywcy = cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/NIP")
@@ -105,10 +107,7 @@ class KSeFParser:
             or cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/PelnaNazwa")
             or cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/NazwaPierwsza")
         )
-        regon_nabywcy = (
-            cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/REGON")
-            or None
-        )
+        regon_nabywcy = cls._find_text(podmiot2_elem, "DaneIdentyfikacyjne/REGON") or None
         nabywca = InvoiceParty(nip=nip_nabywcy, nazwa=nazwa_nabywcy, regon=regon_nabywcy)
 
         # 3. Nagłówek faktury (Fa)
@@ -192,7 +191,11 @@ class KSeFParser:
                 else:
                     kwota_vat_pos = Decimal("0.00")
                 wartosc_brutto_pos = wartosc_netto + kwota_vat_pos
-                cena_netto = cls._to_decimal(p_9a_text) if p_9a_text else (wartosc_netto / ilosc if ilosc > 0 else Decimal("0.00"))
+                cena_netto = (
+                    cls._to_decimal(p_9a_text)
+                    if p_9a_text
+                    else (wartosc_netto / ilosc if ilosc > 0 else Decimal("0.00"))
+                )
             elif p_11a_text:
                 # Faktura wystawiona w cenach brutto (art. 106e ust. 7 ustawy o VAT)
                 wartosc_brutto_pos = cls._to_decimal(p_11a_text)
@@ -222,30 +225,34 @@ class KSeFParser:
                 elif clean_pkwiu.startswith("62"):
                     stawka_ryczaltu = Decimal("0.12")
 
-            pozycje.append(InvoiceItem(
-                opis=nazwa_towaru,
-                ilosc=ilosc,
-                jednostka=jm,
-                cena_jednostkowa_netto=cena_netto,
-                wartosc_netto=wartosc_netto,
-                stawka_vat=stawka_v,
-                kwota_vat=kwota_vat_pos,
-                wartosc_brutto=wartosc_brutto_pos,
-                stawka_ryczaltu=stawka_ryczaltu,
-                pkwiu=pkwiu,
-            ))
+            pozycje.append(
+                InvoiceItem(
+                    opis=nazwa_towaru,
+                    ilosc=ilosc,
+                    jednostka=jm,
+                    cena_jednostkowa_netto=cena_netto,
+                    wartosc_netto=wartosc_netto,
+                    stawka_vat=stawka_v,
+                    kwota_vat=kwota_vat_pos,
+                    wartosc_brutto=wartosc_brutto_pos,
+                    stawka_ryczaltu=stawka_ryczaltu,
+                    pkwiu=pkwiu,
+                )
+            )
 
         if not pozycje and suma_brutto > Decimal("0.00"):
-            pozycje.append(InvoiceItem(
-                opis="Dostawa towarów / świadczenie usług",
-                ilosc=Decimal("1"),
-                jednostka="usł",
-                cena_jednostkowa_netto=suma_netto,
-                wartosc_netto=suma_netto,
-                stawka_vat="23" if suma_vat > 0 else "zw",
-                kwota_vat=suma_vat,
-                wartosc_brutto=suma_brutto,
-            ))
+            pozycje.append(
+                InvoiceItem(
+                    opis="Dostawa towarów / świadczenie usług",
+                    ilosc=Decimal("1"),
+                    jednostka="usł",
+                    cena_jednostkowa_netto=suma_netto,
+                    wartosc_netto=suma_netto,
+                    stawka_vat="23" if suma_vat > 0 else "zw",
+                    kwota_vat=suma_vat,
+                    wartosc_brutto=suma_brutto,
+                )
+            )
 
         # 5. Określenie typu (sprzedaż czy koszt)
         typ = InvoiceType.SPRZEDAZ

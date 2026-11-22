@@ -2,16 +2,20 @@
 src/web/routers/companies.py
 Obsługa przełączania firm, okresów rozliczeniowych oraz dodawania nowej firmy (onboarding).
 """
+
 import re
-from typing import Optional, List
-from fastapi import APIRouter, Request, Response, Form
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from typing import Optional
+
+from fastapi import APIRouter, Form, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.core.company import initialize_company, CompanyProfile, FormaOpodatkowania, TypZUS
+from src.core.company import initialize_company
+from src.core.validators import validate_nip
 from src.level_1_ingestion.company_fetcher import CompanyFetcher
-from src.web.config import COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, COOKIE_ACTIVE_MONTH, TEMPLATES_DIR
+from src.web.config import COOKIE_ACTIVE_MONTH, COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, TEMPLATES_DIR
 from src.web.dependencies import get_global_context
+from src.web.utils.security import is_safe_redirect_url, is_secure_request
 
 router = APIRouter(prefix="/firmy", tags=["Firmy"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -26,12 +30,21 @@ async def switch_company(
 ):
     """
     Zmienia aktywną firmę zapisując ciasteczko sesyjne i przekierowuje na wybraną stronę.
+    Chroni przed atakami Open Redirect (SEC-16) oraz zabezpiecza ciasteczka (SameSite=Lax, Secure).
     """
     if nip == "__NEW__":
         return RedirectResponse(url="/firmy/nowa", status_code=303)
 
-    resp = RedirectResponse(url=redirect_url, status_code=303)
-    resp.set_cookie(key=COOKIE_ACTIVE_NIP, value=nip, max_age=30 * 86400, httponly=True)
+    target_url = redirect_url if is_safe_redirect_url(redirect_url) else "/"
+    resp = RedirectResponse(url=target_url, status_code=303)
+    resp.set_cookie(
+        key=COOKIE_ACTIVE_NIP,
+        value=nip,
+        max_age=30 * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure_request(request),
+    )
     return resp
 
 
@@ -45,12 +58,29 @@ async def switch_period(
 ):
     """
     Zmienia aktywny okres rozliczeniowy (rok i miesiąc) w ciasteczkach.
+    Chroni przed atakami Open Redirect (SEC-16) oraz zabezpiecza ciasteczka (SameSite=Lax, Secure).
     """
     if len(miesiac) == 1:
         miesiac = f"0{miesiac}"
-    resp = RedirectResponse(url=redirect_url, status_code=303)
-    resp.set_cookie(key=COOKIE_ACTIVE_YEAR, value=rok, max_age=30 * 86400, httponly=True)
-    resp.set_cookie(key=COOKIE_ACTIVE_MONTH, value=miesiac, max_age=30 * 86400, httponly=True)
+    target_url = redirect_url if is_safe_redirect_url(redirect_url) else "/"
+    resp = RedirectResponse(url=target_url, status_code=303)
+    is_secure = is_secure_request(request)
+    resp.set_cookie(
+        key=COOKIE_ACTIVE_YEAR,
+        value=rok,
+        max_age=30 * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure,
+    )
+    resp.set_cookie(
+        key=COOKIE_ACTIVE_MONTH,
+        value=miesiac,
+        max_age=30 * 86400,
+        httponly=True,
+        samesite="lax",
+        secure=is_secure,
+    )
     return resp
 
 
@@ -60,25 +90,27 @@ async def new_company_view(request: Request):
     Ekran dodawania nowej firmy do księgowania w TaxPilot AI.
     """
     ctx = get_global_context(request)
-    ctx.update({
-        "error_message": None,
-        "success_message": None,
-        "form_data": {
-            "nip": "",
-            "nazwa": "",
-            "adres": "",
-            "regon": "",
-            "forma_opodatkowania": "RYCZALT",
-            "domyslna_stawka_ryczaltu": "0.12",
-            "platnik_vat": True,
-            "zus_typ": "PELNY_ZUS",
-            "chorobowe_dobrowolne": True,
-            "kody_pkd": "62.01.Z, 62.02.Z",
-            "srodowisko_ksef": "PROD",
-            "token_ksef": "",
-            "auto_fetch": True,
+    ctx.update(
+        {
+            "error_message": None,
+            "success_message": None,
+            "form_data": {
+                "nip": "",
+                "nazwa": "",
+                "adres": "",
+                "regon": "",
+                "forma_opodatkowania": "RYCZALT",
+                "domyslna_stawka_ryczaltu": "0.12",
+                "platnik_vat": True,
+                "zus_typ": "PELNY_ZUS",
+                "chorobowe_dobrowolne": True,
+                "kody_pkd": "62.01.Z, 62.02.Z",
+                "srodowisko_ksef": "PROD",
+                "token_ksef": "",
+                "auto_fetch": True,
+            },
         }
-    })
+    )
     return templates.TemplateResponse(request=request, name="pages/new_company.html", context=ctx)
 
 
@@ -124,12 +156,15 @@ async def create_new_company_handler(
         "auto_fetch": should_auto_fetch,
     }
 
-    if len(clean_nip) != 10:
+    is_nip_valid, nip_err = validate_nip(clean_nip)
+    if not is_nip_valid:
         ctx = get_global_context(request)
-        ctx.update({
-            "error_message": f"Nieprawidłowy NIP ({nip}). Numer NIP musi składać się dokładnie z 10 cyfr.",
-            "form_data": form_dict,
-        })
+        ctx.update(
+            {
+                "error_message": f"Nieprawidłowy NIP ({nip}): {nip_err}",
+                "form_data": form_dict,
+            }
+        )
         return templates.TemplateResponse(request=request, name="pages/new_company.html", context=ctx, status_code=400)
 
     try:
@@ -157,17 +192,21 @@ async def create_new_company_handler(
         )
     except ValueError as e:
         ctx = get_global_context(request)
-        ctx.update({
-            "error_message": str(e),
-            "form_data": form_dict,
-        })
+        ctx.update(
+            {
+                "error_message": str(e),
+                "form_data": form_dict,
+            }
+        )
         return templates.TemplateResponse(request=request, name="pages/new_company.html", context=ctx, status_code=400)
     except Exception as e:
         ctx = get_global_context(request)
-        ctx.update({
-            "error_message": f"Błąd tworzenia profilu firmy: {str(e)}",
-            "form_data": form_dict,
-        })
+        ctx.update(
+            {
+                "error_message": f"Błąd tworzenia profilu firmy: {str(e)}",
+                "form_data": form_dict,
+            }
+        )
         return templates.TemplateResponse(request=request, name="pages/new_company.html", context=ctx, status_code=500)
 
     # Sukces – przekierowanie na pulpit z ciasteczkiem nowo dodanej firmy
@@ -187,7 +226,8 @@ async def lookup_company_nip_endpoint(request: Request):
     if request.method == "POST":
         try:
             body = await request.form()
-            raw_nip = body.get("nip", "")
+            nip_val = body.get("nip", "")
+            raw_nip = str(nip_val) if nip_val is not None else ""
         except Exception:
             pass
     if not raw_nip:
@@ -195,33 +235,28 @@ async def lookup_company_nip_endpoint(request: Request):
 
     clean_nip = re.sub(r"[^0-9]", "", str(raw_nip))
     if len(clean_nip) != 10:
-        return JSONResponse({
-            "success": False,
-            "error": "Podaj poprawny 10-cyfrowy NIP",
-            "data": None
-        }, status_code=400)
+        return JSONResponse({"success": False, "error": "Podaj poprawny 10-cyfrowy NIP", "data": None}, status_code=400)
 
     try:
         data = CompanyFetcher.fetch_company_info(clean_nip)
         kody = data.get("kody_pkd") or []
-        return JSONResponse({
-            "success": True,
-            "error": None,
-            "data": {
-                "nip": clean_nip,
-                "nazwa": data.get("nazwa") or "",
-                "adres": data.get("adres") or "",
-                "regon": data.get("regon") or "",
-                "platnik_vat": bool(data.get("platnik_vat", True)),
-                "kody_pkd": ", ".join(kody),
-                "status_vat": "Czynny podatnik VAT" if data.get("platnik_vat") else "Zwolniony z VAT",
-                "zrodlo": data.get("zrodlo") or "Biała Lista MF",
+        return JSONResponse(
+            {
+                "success": True,
+                "error": None,
+                "data": {
+                    "nip": clean_nip,
+                    "nazwa": data.get("nazwa") or "",
+                    "adres": data.get("adres") or "",
+                    "regon": data.get("regon") or "",
+                    "platnik_vat": bool(data.get("platnik_vat", True)),
+                    "kody_pkd": ", ".join(kody),
+                    "status_vat": "Czynny podatnik VAT" if data.get("platnik_vat") else "Zwolniony z VAT",
+                    "zrodlo": data.get("zrodlo") or "Biała Lista MF",
+                },
             }
-        })
+        )
     except Exception as e:
-        return JSONResponse({
-            "success": False,
-            "error": f"Błąd pobierania danych z rejestru: {str(e)}",
-            "data": None
-        }, status_code=500)
-
+        return JSONResponse(
+            {"success": False, "error": f"Błąd pobierania danych z rejestru: {str(e)}", "data": None}, status_code=500
+        )

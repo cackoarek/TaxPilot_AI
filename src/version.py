@@ -4,6 +4,7 @@ Moduł zarządzania wersją aplikacji TaxPilot AI.
 Wersja jest zarządzana deterministycznie: aktualizowana przez GitHub Actions przy wydawaniu tagu
 oraz odczytywana z pliku VERSION, zmiennych środowiskowych lub metadanych pakietu (bez wywołań subprocess/git).
 """
+
 import os
 from pathlib import Path
 from typing import Optional
@@ -49,6 +50,7 @@ def get_version(cached: bool = True) -> str:
     # 3. Metadane pakietu
     try:
         from importlib.metadata import version as pkg_version
+
         ver = pkg_version("taxpilot-ai")
         if ver and ver.strip():
             if cached:

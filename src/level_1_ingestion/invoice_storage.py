@@ -13,12 +13,12 @@ firmy/{NIP-Nazwa}/faktury/{rok}/{miesiac}/
 """
 
 from pathlib import Path
-import json
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple, Union
 
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceType
-from src.level_1_ingestion.invoice_deduplicator import InvoiceDeduplicator, DuplicateAnomaly
+from src.core.io import atomic_write_json, atomic_write_text
+from src.level_1_ingestion.invoice_deduplicator import DuplicateAnomaly, InvoiceDeduplicator
 
 
 class InvoiceStorage:
@@ -36,14 +36,26 @@ class InvoiceStorage:
         return profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2) / "sprzedaz"
 
     @classmethod
+    def get_koszty_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
+        return profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2) / "koszty"
+
+    @classmethod
+    def get_invoice_dir(
+        cls,
+        profile: CompanyProfile,
+        rok: str,
+        miesiac: str,
+        typ: Union[InvoiceType, str] = InvoiceType.KOSZT,
+    ) -> Path:
+        """Zwraca katalog faktur dla wskazanego typu (sprzedaz lub koszty)."""
+        is_sales = typ == InvoiceType.SPRZEDAZ or str(typ).lower() in ("sprzedaz", "sales")
+        return cls.get_sprzedaz_dir(profile, rok, miesiac) if is_sales else cls.get_koszty_dir(profile, rok, miesiac)
+
+    @classmethod
     def get_ksef_sprzedaz_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
         d = cls.get_sprzedaz_dir(profile, rok, miesiac) / "ksef"
         d.mkdir(parents=True, exist_ok=True)
         return d
-
-    @classmethod
-    def get_koszty_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
-        return profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2) / "koszty"
 
     @classmethod
     def get_ksef_koszty_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
@@ -55,7 +67,11 @@ class InvoiceStorage:
     def get_non_ksef_raw_dir(
         cls, profile: CompanyProfile, rok: str, miesiac: str, typ: InvoiceType = InvoiceType.KOSZT
     ) -> Path:
-        base_dir = cls.get_sprzedaz_dir(profile, rok, miesiac) if typ == InvoiceType.SPRZEDAZ else cls.get_koszty_dir(profile, rok, miesiac)
+        base_dir = (
+            cls.get_sprzedaz_dir(profile, rok, miesiac)
+            if typ == InvoiceType.SPRZEDAZ
+            else cls.get_koszty_dir(profile, rok, miesiac)
+        )
         d = base_dir / "non-ksef-raw"
         d.mkdir(parents=True, exist_ok=True)
         return d
@@ -64,7 +80,11 @@ class InvoiceStorage:
     def get_non_ksef_extracted_dir(
         cls, profile: CompanyProfile, rok: str, miesiac: str, typ: InvoiceType = InvoiceType.KOSZT
     ) -> Path:
-        base_dir = cls.get_sprzedaz_dir(profile, rok, miesiac) if typ == InvoiceType.SPRZEDAZ else cls.get_koszty_dir(profile, rok, miesiac)
+        base_dir = (
+            cls.get_sprzedaz_dir(profile, rok, miesiac)
+            if typ == InvoiceType.SPRZEDAZ
+            else cls.get_koszty_dir(profile, rok, miesiac)
+        )
         d = base_dir / "non-ksef-extracted"
         d.mkdir(parents=True, exist_ok=True)
         return d
@@ -96,13 +116,11 @@ class InvoiceStorage:
 
         base_filename = invoice.bezpieczny_numer_pliku
         json_path = target_dir / f"{base_filename}.json"
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(invoice.to_dict(), f, indent=2, ensure_ascii=False)
+        atomic_write_json(json_path, invoice.to_dict(), indent=2, ensure_ascii=False)
 
         xml_path = target_dir / f"{base_filename}.xml"
         if invoice.raw_xml:
-            with open(xml_path, "w", encoding="utf-8") as f:
-                f.write(invoice.raw_xml)
+            atomic_write_text(xml_path, invoice.raw_xml)
 
         return json_path, xml_path
 
@@ -136,13 +154,14 @@ class InvoiceStorage:
             filename = f"{invoice.bezpieczny_numer_pliku}.json"
 
         json_path = target_dir / filename
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(invoice.to_dict(), f, indent=2, ensure_ascii=False)
+        atomic_write_json(json_path, invoice.to_dict(), indent=2, ensure_ascii=False)
 
         return json_path
 
     @classmethod
-    def list_invoices(cls, profile: CompanyProfile, rok: str, miesiac: str, typ: Optional[InvoiceType] = None) -> List[Invoice]:
+    def list_invoices(
+        cls, profile: CompanyProfile, rok: str, miesiac: str, typ: Optional[InvoiceType] = None
+    ) -> List[Invoice]:
         """
         Zwraca listę unikalnych, zweryfikowanych faktur do zaksięgowania z danego miesiąca i roku.
         Przeprowadza pełną deduplikację przy użyciu InvoiceDeduplicator:
@@ -150,15 +169,11 @@ class InvoiceStorage:
         - eliminacja zdublowanych plików w non-ksef-raw
         - eliminacja duplikatów z innych miesięcy (Cross-Month Deduplication).
         """
-        clean_invoices, _ = InvoiceDeduplicator.deduplicate_month(
-            profile=profile, rok=rok, miesiac=miesiac, typ=typ
-        )
+        clean_invoices, _ = InvoiceDeduplicator.deduplicate_month(profile=profile, rok=rok, miesiac=miesiac, typ=typ)
         return clean_invoices
 
     @classmethod
-    def list_sales_invoices_for_pit(
-        cls, profile: CompanyProfile, rok: str, miesiac: str
-    ) -> List[Invoice]:
+    def list_sales_invoices_for_pit(cls, profile: CompanyProfile, rok: str, miesiac: str) -> List[Invoice]:
         """
         Zwraca faktury sprzedaży podlegające ujęciu w Ewidencji Przychodów (PIT-28) za dany miesiąc.
         Zgodnie z art. 14 ust. 1m ustawy o PIT w zw. z art. 12 ust. 11 ustawy o zryczałtowanym podatku:
@@ -189,7 +204,9 @@ class InvoiceStorage:
         if year_dir.exists():
             for m in range(m_int + 1, 13):
                 m_future_str = f"{m:02d}"
-                future_invoices = cls.list_invoices(profile, rok=rok_str, miesiac=m_future_str, typ=InvoiceType.SPRZEDAZ)
+                future_invoices = cls.list_invoices(
+                    profile, rok=rok_str, miesiac=m_future_str, typ=InvoiceType.SPRZEDAZ
+                )
                 for inv in future_invoices:
                     if inv.czy_korekta and inv.czy_korekta_wsteczna_pit:
                         if inv.okres_rozliczeniowy_pit == (rok_str, miesiac_str):
@@ -206,7 +223,5 @@ class InvoiceStorage:
         """
         Zwraca listę wykrytych anomalii duplikatów dla danego miesiąca.
         """
-        _, anomalies = InvoiceDeduplicator.deduplicate_month(
-            profile=profile, rok=rok, miesiac=miesiac, typ=typ
-        )
+        _, anomalies = InvoiceDeduplicator.deduplicate_month(profile=profile, rok=rok, miesiac=miesiac, typ=typ)
         return anomalies

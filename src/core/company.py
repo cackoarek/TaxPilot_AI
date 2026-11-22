@@ -2,14 +2,17 @@
 Modele danych profilu firmy podatnika i konfiguracji podatkowo-składkowej.
 """
 
-from dataclasses import dataclass, field, asdict
-from enum import Enum
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Union
 import json
 import re
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from src.config import FIRMY_DIR
+from src.core.security import decrypt_secret, encrypt_secret
+
+from .io import atomic_write_json
 
 
 class FormaOpodatkowania(str, Enum):
@@ -32,7 +35,9 @@ class ZUSConfig:
     zasada_odliczen: str = "MEMORIALOWA"  # "MEMORIALOWA" (domyślna) | "KASOWA" (biura rachunkowe)
     metoda_zdrowotna: str = "BIEZACA"  # "BIEZACA" (domyślna) | "UPROSZCZONA_UBIEGLY_ROK" (art. 81 ust. 2h)
     prog_zdrowotnej_uproszczony: str = "60k-300k"  # "<60k" | "60k-300k" | ">300k"
-    historia_typow: Dict[str, str] = field(default_factory=dict)  # np. {"2026-01": "TYLKO_ZDROWOTNA", "2026-04": "PELNY_ZUS"}
+    historia_typow: Dict[str, str] = field(
+        default_factory=dict
+    )  # np. {"2026-01": "TYLKO_ZDROWOTNA", "2026-04": "PELNY_ZUS"}
 
     def get_typ_for_period(self, rok: str, miesiac: str) -> TypZUS:
         """Zwraca właściwy typ ZUS dla danego okresu YYYY-MM na podstawie historii zmian."""
@@ -85,18 +90,20 @@ class KSeFConfig:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "KSeFConfig":
+        raw_token = data.get("token")
+        decrypted_token = decrypt_secret(raw_token) if raw_token else None
         return cls(
             srodowisko=data.get("srodowisko", "PROD"),
-            token=data.get("token"),
+            token=decrypted_token,
             token_env_var=data.get("token_env_var"),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, encrypt_secrets: bool = False) -> Dict[str, Any]:
         res: Dict[str, Any] = {
             "srodowisko": self.srodowisko,
         }
         if self.token is not None:
-            res["token"] = self.token
+            res["token"] = encrypt_secret(self.token) if encrypt_secrets else self.token
         if self.token_env_var is not None:
             res["token_env_var"] = self.token_env_var
         return res
@@ -116,6 +123,7 @@ class CompanyProfile:
     regon: Optional[str] = None
     adres: Optional[str] = None
     llm: Dict[str, Any] = field(default_factory=dict)
+    _custom_path: Optional[Path] = field(default=None, repr=False)
 
     def __post_init__(self):
         # Wyczyszczenie NIP z myślników i spacji
@@ -126,12 +134,20 @@ class CompanyProfile:
 
     @property
     def katalog_firmy(self) -> Path:
+        if self._custom_path is not None:
+            return Path(self._custom_path)
         return FIRMY_DIR / (self.katalog_nazwa or self.nip)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CompanyProfile":
         zus_data = data.get("zus", {})
         ksef_data = data.get("ksef", {})
+        llm_data = dict(data.get("llm", {}))
+        if "api_key" in llm_data and llm_data["api_key"]:
+            try:
+                llm_data["api_key"] = decrypt_secret(llm_data["api_key"])
+            except Exception:
+                pass
         return cls(
             nip=str(data["nip"]),
             nazwa=data["nazwa"],
@@ -144,15 +160,19 @@ class CompanyProfile:
             kody_pkd=list(data.get("kody_pkd", [])),
             regon=data.get("regon"),
             adres=data.get("adres"),
-            llm=dict(data.get("llm", {})),
+            llm=llm_data,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, encrypt_secrets: bool = False) -> Dict[str, Any]:
         res = asdict(self)
+        res.pop("_custom_path", None)
         res["forma_opodatkowania"] = self.forma_opodatkowania.value
         res["zus"]["typ"] = self.zus.typ.value
-        res["ksef"] = self.ksef.to_dict()
-        res["llm"] = self.llm
+        res["ksef"] = self.ksef.to_dict(encrypt_secrets=encrypt_secrets)
+        llm_copy = dict(self.llm)
+        if encrypt_secrets and "api_key" in llm_copy and llm_copy["api_key"]:
+            llm_copy["api_key"] = encrypt_secret(llm_copy["api_key"])
+        res["llm"] = llm_copy
         return res
 
     def set_ksef_token(self, token: str, srodowisko: Optional[str] = None) -> Path:
@@ -196,10 +216,14 @@ class CompanyProfile:
     def save(self) -> Path:
         target_dir = self.katalog_firmy
         target_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            target_dir.chmod(0o700)
+        except OSError:
+            pass
         profil_path = target_dir / "profil.json"
-        with open(profil_path, "w", encoding="utf-8") as f:
-            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
-        return profil_path
+        # Profil zawiera wrażliwe tokeny KSeF i klucze API - wymuszenie uprawnień 0600 (SEC-4) i opcjonalne szyfrowanie (SEC-13)
+        data = self.to_dict(encrypt_secrets=True)
+        return atomic_write_json(profil_path, data, indent=2, ensure_ascii=False, mode=0o600)
 
     @classmethod
     def load_from_dir(cls, directory_path: Path) -> "CompanyProfile":
@@ -208,7 +232,9 @@ class CompanyProfile:
             raise FileNotFoundError(f"Brak pliku profil.json w katalogu: {directory_path}")
         with open(profil_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return cls.from_dict(data)
+        profile = cls.from_dict(data)
+        profile._custom_path = directory_path.resolve()
+        return profile
 
     @classmethod
     def load_by_nip(cls, nip: str) -> Optional["CompanyProfile"]:
@@ -256,9 +282,14 @@ def initialize_company(
     tworzy profil.json, strukturę katalogów faktur i rozliczeń oraz wstępne reguły podatkowe.
     """
     from datetime import datetime
-    clean_nip = re.sub(r"[^0-9]", "", nip or "")
-    if len(clean_nip) != 10:
-        raise ValueError(f"Nieprawidłowy NIP ({nip}). Polski NIP musi składać się dokładnie z 10 cyfr.")
+
+    from src.core.validators import clean_nip as normalize_nip
+    from src.core.validators import validate_nip
+
+    clean_nip = normalize_nip(nip or "")
+    is_valid, nip_err = validate_nip(clean_nip)
+    if not is_valid:
+        raise ValueError(f"Nieprawidłowy NIP ({nip}): {nip_err}")
 
     existing = CompanyProfile.load_by_nip(clean_nip)
     if existing and not force:
@@ -273,6 +304,7 @@ def initialize_company(
     if auto_fetch:
         try:
             from src.level_1_ingestion.company_fetcher import CompanyFetcher
+
             public_data = CompanyFetcher.fetch_company_info(clean_nip, ceidg_token=ceidg_token)
             if public_data.get("nazwa") and not final_nazwa:
                 final_nazwa = public_data["nazwa"]
@@ -316,19 +348,40 @@ def initialize_company(
 
     # Wstępne reguły kosztowe
     try:
-        from src.skills.cost_classifier import RegulyKosztoweFirmy, RegulaPozycji, KwalifikacjaKosztu
+        from src.skills.cost_classifier import KwalifikacjaKosztu, RegulaPozycji, RegulyKosztoweFirmy
+
         reguly = RegulyKosztoweFirmy(nip_firmy=clean_nip)
         reguly.reguly_globalne.append(
-            RegulaPozycji(wzorzec="paliwo", kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50, uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)")
+            RegulaPozycji(
+                wzorzec="paliwo",
+                kwalifikacja=KwalifikacjaKosztu.SAMOCHOD_50,
+                uzasadnienie="Paliwo do pojazdu osobowego (art. 86a ustawy o VAT)",
+            )
         )
         is_it = any(code.startswith(("62.", "58.2", "63.")) for code in final_pkd)
         if is_it or not final_pkd:
-            reguly.reguly_globalne.extend([
-                RegulaPozycji(wzorzec="hosting", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Infrastruktura serwerowa i chmurowa"),
-                RegulaPozycji(wzorzec="cloud", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Usługi chmurowe"),
-                RegulaPozycji(wzorzec="serwer", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Serwery i bazy danych"),
-                RegulaPozycji(wzorzec="oprogramowanie", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Licencje na oprogramowanie"),
-            ])
+            reguly.reguly_globalne.extend(
+                [
+                    RegulaPozycji(
+                        wzorzec="hosting",
+                        kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100,
+                        uzasadnienie="Infrastruktura serwerowa i chmurowa",
+                    ),
+                    RegulaPozycji(
+                        wzorzec="cloud", kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100, uzasadnienie="Usługi chmurowe"
+                    ),
+                    RegulaPozycji(
+                        wzorzec="serwer",
+                        kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100,
+                        uzasadnienie="Serwery i bazy danych",
+                    ),
+                    RegulaPozycji(
+                        wzorzec="oprogramowanie",
+                        kwalifikacja=KwalifikacjaKosztu.FIRMOWY_100,
+                        uzasadnienie="Licencje na oprogramowanie",
+                    ),
+                ]
+            )
         reguly.save(profile)
     except Exception:
         pass
@@ -336,6 +389,7 @@ def initialize_company(
     # Puste reguły sprzedaży
     try:
         from src.level_2_bookkeeping.ledger import RegulySprzedazyFirmy
+
         reguly_sprz = RegulySprzedazyFirmy(nip_firmy=clean_nip)
         reguly_sprz.save(profile)
     except Exception:
@@ -353,4 +407,49 @@ def initialize_company(
     (profile.katalog_firmy / "rozliczenia").mkdir(parents=True, exist_ok=True)
     (profile.katalog_firmy / "weryfikacje").mkdir(parents=True, exist_ok=True)
 
+    migrate_data_permissions(profile.katalog_firmy)
+
     return profile
+
+
+def migrate_data_permissions(base_dir: Optional[Union[Path, str]] = None) -> int:
+    """
+    Migruje uprawnienia systemu plików (SEC-4, SEC-10, PERM-1):
+    - Nadaje chmod 700 (rwx------) wszystkim katalogom i podkatalogom firm
+    - Nadaje chmod 600 (rw-------) wszystkim plikom firmy (profil.json, reguly_*.json, faktury, rozliczenia)
+    Zwraca liczbę zaktualizowanych zasobów.
+    """
+    target_base = Path(base_dir) if base_dir else FIRMY_DIR
+    if not target_base.exists() or not target_base.is_dir():
+        return 0
+
+    count = 0
+    try:
+        # Jeśli target_base to pojedynczy katalog firmy
+        if (target_base / "profil.json").exists():
+            dirs_to_check = [target_base]
+        else:
+            dirs_to_check = [d for d in target_base.iterdir() if d.is_dir()]
+
+        for d in dirs_to_check:
+            try:
+                d.chmod(0o700)
+                count += 1
+            except OSError:
+                pass
+
+            for item in d.rglob("*"):
+                if item.is_dir():
+                    try:
+                        item.chmod(0o700)
+                    except OSError:
+                        pass
+                elif item.is_file():
+                    try:
+                        item.chmod(0o600)
+                        count += 1
+                    except OSError:
+                        pass
+    except Exception:
+        pass
+    return count

@@ -8,48 +8,93 @@ Rozbija faktury zakupowe na pojedyncze pozycje i kwalifikuje:
 Trwale zapisuje nauczone reguły w: firmy/{NIP}/reguly_kosztowe.json
 """
 
-from dataclasses import dataclass, field, asdict
-from decimal import Decimal, ROUND_HALF_UP
-from enum import Enum
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
 import json
 import re
+from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceItem
+from src.core.io import atomic_write_json
 
 
 class KwalifikacjaKosztu(str, Enum):
-    FIRMOWY_100 = "FIRMOWY_100"          # 100% odliczenia VAT, 100% koszt uzyskania przychodu
-    SAMOCHOD_50 = "SAMOCHOD_50"          # 50% odliczenia VAT, 75% koszt uzyskania przychodu
-    PRYWATNY_0 = "PRYWATNY_0"            # 0% odliczenia VAT, wydatek osobisty (nie stanowi kosztu)
-    DO_WYJASNIENIA = "DO_WYJASNIENIA"   # Agent ma wątpliwości, dopytuje użytkownika
+    FIRMOWY_100 = "FIRMOWY_100"  # 100% odliczenia VAT, 100% koszt uzyskania przychodu
+    SAMOCHOD_50 = "SAMOCHOD_50"  # 50% odliczenia VAT, 75% koszt uzyskania przychodu
+    PRYWATNY_0 = "PRYWATNY_0"  # 0% odliczenia VAT, wydatek osobisty (nie stanowi kosztu)
+    DO_WYJASNIENIA = "DO_WYJASNIENIA"  # Agent ma wątpliwości, dopytuje użytkownika
 
 
 # Wbudowane heurystyki
 HEURYSTYKI_PRYWATNE = [
-    r"\btv\b", r"telewizj", r"pakiet tv", r"vod", r"netflix", r"hbo", r"disney",
-    r"playstation", r"xbox", r"gra komputerowa", r"kino",
-    r"usług[iaęy]? medyczn.*rodzinn", r"pakiet.*medyczn.*rodzinn", r"pakiet.*rodzinn",
-    r"zabawk", r"kosmetyk", r"fryzjer"
+    r"\btv\b",
+    r"telewizj",
+    r"pakiet tv",
+    r"vod",
+    r"netflix",
+    r"hbo",
+    r"disney",
+    r"playstation",
+    r"xbox",
+    r"gra komputerowa",
+    r"kino",
+    r"usług[iaęy]? medyczn.*rodzinn",
+    r"pakiet.*medyczn.*rodzinn",
+    r"pakiet.*rodzinn",
+    r"zabawk",
+    r"kosmetyk",
+    r"fryzjer",
 ]
 
 HEURYSTYKI_SAMOCHOD = [
-    r"paliwo", r"benzyn", r"diesel", r"lpg", r"efecta", r"myjnia", r"wulkanizacj",
-    r"opon", r"serwis auta", r"parking", r"autostrad"
+    r"paliwo",
+    r"benzyn",
+    r"diesel",
+    r"lpg",
+    r"efecta",
+    r"myjnia",
+    r"wulkanizacj",
+    r"opon",
+    r"serwis auta",
+    r"parking",
+    r"autostrad",
 ]
 
 HEURYSTYKI_FIRMOWE = [
-    r"internet", r"\bświatłowód\b", r"\btelefon\b", r"telekomunikacyjn", r"komputer",
-    r"kamera", r"klawiatur", r"monitor", r"serwer", r"hosting", r"chmur", r"cloud",
-    r"księgow", r"doradztwo", r"biurow", r"kawa", r"espresso", r"nespresso"
+    r"internet",
+    r"\bświatłowód\b",
+    r"\btelefon\b",
+    r"telekomunikacyjn",
+    r"komputer",
+    r"kamera",
+    r"klawiatur",
+    r"monitor",
+    r"serwer",
+    r"hosting",
+    r"chmur",
+    r"cloud",
+    r"księgow",
+    r"doradztwo",
+    r"biurow",
+    r"kawa",
+    r"espresso",
+    r"nespresso",
 ]
 
 HEURYSTYKI_NIEPEWNE = [
-    r"^usługi inne$", r"^usługa inna$", r"^usługi dodatkowe$", r"^opłata$", r"^inne$",
-    r"\blego\b", r"klocki", r"premia bankowa", r"\bpremia\b"
+    r"^usługi inne$",
+    r"^usługa inna$",
+    r"^usługi dodatkowe$",
+    r"^opłata$",
+    r"^inne$",
+    r"\blego\b",
+    r"klocki",
+    r"premia bankowa",
+    r"\bpremia\b",
 ]
 
 
@@ -109,15 +154,10 @@ class RegulyKosztoweFirmy:
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "nip_firmy": self.nip_firmy,
-            "reguly_kontrahentow": {
-                nip: [r.to_dict() for r in regs]
-                for nip, regs in self.reguly_kontrahentow.items()
-            },
+            "reguly_kontrahentow": {nip: [r.to_dict() for r in regs] for nip, regs in self.reguly_kontrahentow.items()},
             "reguly_globalne": [r.to_dict() for r in self.reguly_globalne],
         }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return path
+        return atomic_write_json(path, data, indent=2, ensure_ascii=False)
 
     def dodaj_regule(
         self,
@@ -125,7 +165,7 @@ class RegulyKosztoweFirmy:
         wzorzec: str,
         kwalifikacja: KwalifikacjaKosztu,
         uzasadnienie: str,
-        nip_kontrahenta: Optional[str] = None
+        nip_kontrahenta: Optional[str] = None,
     ):
         wzorzec_clean = wzorzec.strip().lower()
         wz_norm = CostClassifier.normalize_desc(wzorzec_clean)
@@ -145,12 +185,7 @@ class RegulyKosztoweFirmy:
             self.reguly_globalne.insert(0, regula)
         self.save(profile)
 
-    def usun_regule(
-        self,
-        profile: CompanyProfile,
-        wzorzec: str,
-        nip_kontrahenta: Optional[str] = None
-    ) -> bool:
+    def usun_regule(self, profile: CompanyProfile, wzorzec: str, nip_kontrahenta: Optional[str] = None) -> bool:
         wzorzec_clean = wzorzec.strip().lower()
         wz_norm = CostClassifier.normalize_desc(wzorzec_clean)
         zmieniono = False
@@ -160,7 +195,8 @@ class RegulyKosztoweFirmy:
             if nip_clean in self.reguly_kontrahentow:
                 pocz_len = len(self.reguly_kontrahentow[nip_clean])
                 self.reguly_kontrahentow[nip_clean] = [
-                    r for r in self.reguly_kontrahentow[nip_clean]
+                    r
+                    for r in self.reguly_kontrahentow[nip_clean]
                     if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
                 ]
                 if len(self.reguly_kontrahentow[nip_clean]) < pocz_len:
@@ -170,8 +206,7 @@ class RegulyKosztoweFirmy:
         else:
             pocz_len = len(self.reguly_globalne)
             self.reguly_globalne = [
-                r for r in self.reguly_globalne
-                if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
+                r for r in self.reguly_globalne if CostClassifier.normalize_desc(r.wzorzec) != wz_norm
             ]
             if len(self.reguly_globalne) < pocz_len:
                 zmieniono = True
@@ -191,26 +226,30 @@ class RegulyKosztoweFirmy:
         # 1. Reguły przypisane do kontrahentów
         for nip, reguly in self.reguly_kontrahentow.items():
             for r in reguly:
-                wyniki.append({
-                    "typ": "KONTRAHENT",
-                    "nip_kontrahenta": nip,
+                wyniki.append(
+                    {
+                        "typ": "KONTRAHENT",
+                        "nip_kontrahenta": nip,
+                        "wzorzec": r.wzorzec,
+                        "kwalifikacja": r.kwalifikacja.value,
+                        "kwalifikacja_label": labels.get(r.kwalifikacja, r.kwalifikacja.value),
+                        "uzasadnienie": r.uzasadnienie,
+                        "data_utworzenia": r.data_utworzenia,
+                    }
+                )
+        # 2. Reguły globalne
+        for r in self.reguly_globalne:
+            wyniki.append(
+                {
+                    "typ": "GLOBALNA",
+                    "nip_kontrahenta": "",
                     "wzorzec": r.wzorzec,
                     "kwalifikacja": r.kwalifikacja.value,
                     "kwalifikacja_label": labels.get(r.kwalifikacja, r.kwalifikacja.value),
                     "uzasadnienie": r.uzasadnienie,
                     "data_utworzenia": r.data_utworzenia,
-                })
-        # 2. Reguły globalne
-        for r in self.reguly_globalne:
-            wyniki.append({
-                "typ": "GLOBALNA",
-                "nip_kontrahenta": "",
-                "wzorzec": r.wzorzec,
-                "kwalifikacja": r.kwalifikacja.value,
-                "kwalifikacja_label": labels.get(r.kwalifikacja, r.kwalifikacja.value),
-                "uzasadnienie": r.uzasadnienie,
-                "data_utworzenia": r.data_utworzenia,
-            })
+                }
+            )
         return wyniki
 
 
@@ -220,6 +259,7 @@ class ReczneKwalifikacjeService:
     Wybór w selektorze okresowym zapisuje decyzję dla konkretnej faktury / pozycji w danym miesiącu,
     nie modyfikując ogólnych reguł firmy w reguly_kosztowe.json.
     """
+
     @classmethod
     def sciezka_pliku(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
         m_pad = str(miesiac).zfill(2)
@@ -244,7 +284,7 @@ class ReczneKwalifikacjeService:
         miesiac: str,
         numer_faktury: str,
         kwalifikacja: KwalifikacjaKosztu,
-        opis_pozycji: Optional[str] = None
+        opis_pozycji: Optional[str] = None,
     ) -> Path:
         path = cls.sciezka_pliku(profile, rok, miesiac)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -260,12 +300,10 @@ class ReczneKwalifikacjeService:
             "kwalifikacja": kwalifikacja.value,
             "numer_faktury": num_clean,
             "opis_pozycji": opis_pozycji.strip() if opis_pozycji else None,
-            "data_zapisu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "data_zapisu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(overrides, f, indent=2, ensure_ascii=False)
-        return path
+        return atomic_write_json(path, overrides, indent=2, ensure_ascii=False)
 
     @classmethod
     def save_bulk_overrides(
@@ -275,7 +313,7 @@ class ReczneKwalifikacjeService:
         miesiac: str,
         numer_faktury: str,
         kwalifikacja: KwalifikacjaKosztu,
-        opisy_pozycji: List[str]
+        opisy_pozycji: List[str],
     ) -> Path:
         """
         Zapisuje zbiorczą decyzję ręczną dla wszystkich pozycji wskazanej faktury w jednym zapisie.
@@ -306,18 +344,11 @@ class ReczneKwalifikacjeService:
                     "data_zapisu": now_str,
                 }
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(overrides, f, indent=2, ensure_ascii=False)
-        return path
+        return atomic_write_json(path, overrides, indent=2, ensure_ascii=False)
 
     @classmethod
     def clear_override(
-        cls,
-        profile: CompanyProfile,
-        rok: str,
-        miesiac: str,
-        numer_faktury: str,
-        opis_pozycji: Optional[str] = None
+        cls, profile: CompanyProfile, rok: str, miesiac: str, numer_faktury: str, opis_pozycji: Optional[str] = None
     ) -> bool:
         path = cls.sciezka_pliku(profile, rok, miesiac)
         if not path.exists():
@@ -331,8 +362,7 @@ class ReczneKwalifikacjeService:
 
         if klucz in overrides:
             del overrides[klucz]
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(overrides, f, indent=2, ensure_ascii=False)
+            atomic_write_json(path, overrides, indent=2, ensure_ascii=False)
             return True
         return False
 
@@ -452,7 +482,7 @@ class CostClassifier:
                     item,
                     KwalifikacjaKosztu.DO_WYJASNIENIA,
                     "Zbyt ogólny opis pozycji – wymaga potwierdzenia przez przedsiębiorcę",
-                    "DO_WYJASNIENIA"
+                    "DO_WYJASNIENIA",
                 )
 
         # 3b. Prywatne / osobiste
@@ -462,7 +492,7 @@ class CostClassifier:
                     item,
                     KwalifikacjaKosztu.PRYWATNY_0,
                     f"Wydatek o charakterze osobistym (wzorzec '{pattern}') – nie stanowi kosztu firmy",
-                    "HEURYSTYKA"
+                    "HEURYSTYKA",
                 )
 
         # 3c. Samochód osobowy (tryb mieszany 50% VAT)
@@ -472,7 +502,7 @@ class CostClassifier:
                     item,
                     KwalifikacjaKosztu.SAMOCHOD_50,
                     "Eksploatacja pojazdu osobowego w trybie mieszanym (art. 86a ustawy o VAT)",
-                    "HEURYSTYKA"
+                    "HEURYSTYKA",
                 )
 
         # 3d. Firmowe
@@ -483,25 +513,18 @@ class CostClassifier:
                     item,
                     KwalifikacjaKosztu.FIRMOWY_100,
                     f"Wydatek firmowy związany z prowadzoną działalnością{pkd_info}",
-                    "HEURYSTYKA"
+                    "HEURYSTYKA",
                 )
 
         # Domyślnie – jeśli nic nie pasuje: firmowy 100% z ostrożną notatką
         pkd_domyslne = f" (profil PKD: {', '.join(kody_pkd[:2])})" if kody_pkd else ""
         return cls._build_result(
-            item,
-            KwalifikacjaKosztu.FIRMOWY_100,
-            f"Standardowy wydatek bieżący firmy{pkd_domyslne}",
-            "DOMYSLNA"
+            item, KwalifikacjaKosztu.FIRMOWY_100, f"Standardowy wydatek bieżący firmy{pkd_domyslne}", "DOMYSLNA"
         )
 
     @classmethod
     def _build_result(
-        cls,
-        item: InvoiceItem,
-        kwalifikacja: KwalifikacjaKosztu,
-        uzasadnienie: str,
-        zrodlo: str
+        cls, item: InvoiceItem, kwalifikacja: KwalifikacjaKosztu, uzasadnienie: str, zrodlo: str
     ) -> PozycjaKwalifikacjaResult:
         if kwalifikacja == KwalifikacjaKosztu.FIRMOWY_100:
             ratio_vat = Decimal("1.00")
@@ -538,6 +561,7 @@ class CostClassifier:
 @dataclass
 class InvoiceTaxAuditReport:
     """Kompletny raport audytu podatkowego faktury kosztowej."""
+
     numer_faktury: str
     data: str
     sprzedawca_nazwa: str
@@ -598,10 +622,7 @@ def audit_invoice_expense(
             if ov:
                 target_kwal = KwalifikacjaKosztu(ov["kwalifikacja"])
                 res = CostClassifier._build_result(
-                    p,
-                    target_kwal,
-                    "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
-                    "DECYZJA_RECZNA"
+                    p, target_kwal, "Ręczna decyzja przedsiębiorcy w bieżącym okresie", "DECYZJA_RECZNA"
                 )
             else:
                 res = CostClassifier.classify_item(p, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
@@ -617,16 +638,13 @@ def audit_invoice_expense(
             opis=invoice.numer,
             wartosc_netto=invoice.suma_netto,
             kwota_vat=invoice.suma_vat,
-            wartosc_brutto=invoice.suma_brutto
+            wartosc_brutto=invoice.suma_brutto,
         )
         ov = overrides.get(inv_num_clean)
         if ov:
             target_kwal = KwalifikacjaKosztu(ov["kwalifikacja"])
             res = CostClassifier._build_result(
-                dummy_item,
-                target_kwal,
-                "Ręczna decyzja przedsiębiorcy w bieżącym okresie",
-                "DECYZJA_RECZNA"
+                dummy_item, target_kwal, "Ręczna decyzja przedsiębiorcy w bieżącym okresie", "DECYZJA_RECZNA"
             )
         else:
             res = CostClassifier.classify_item(dummy_item, invoice.sprzedawca.nip, reguly_firmy, kody_pkd=kody_pkd)
@@ -656,18 +674,23 @@ def audit_invoice_expense(
         else:
             kwalifikowane_netto = sum((p.netto_do_kup for p in pozycje_wyniki), Decimal("0.00"))
             kwalifikowany_vat = sum((p.vat_do_odliczenia for p in pozycje_wyniki), Decimal("0.00"))
-            odrzucone_netto = sum((p.wartosc_netto for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0), Decimal("0.00"))
-            odrzucony_vat = sum((p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0), Decimal("0.00"))
+            odrzucone_netto = sum(
+                (p.wartosc_netto for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
+                Decimal("0.00"),
+            )
+            odrzucony_vat = sum(
+                (p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
+                Decimal("0.00"),
+            )
     else:
         kwalifikowane_netto = sum((p.netto_do_kup for p in pozycje_wyniki), Decimal("0.00"))
         kwalifikowany_vat = sum((p.vat_do_odliczenia for p in pozycje_wyniki), Decimal("0.00"))
         odrzucone_netto = sum(
             (p.wartosc_netto for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
-            Decimal("0.00")
+            Decimal("0.00"),
         )
         odrzucony_vat = sum(
-            (p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0),
-            Decimal("0.00")
+            (p.kwota_vat for p in pozycje_wyniki if p.kwalifikacja == KwalifikacjaKosztu.PRYWATNY_0), Decimal("0.00")
         )
 
     return InvoiceTaxAuditReport(
@@ -686,4 +709,3 @@ def audit_invoice_expense(
         wymaga_wyjasnienia=bool(pytania),
         pytania_do_uzytkownika=pytania,
     )
-

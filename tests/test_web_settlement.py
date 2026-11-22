@@ -2,43 +2,34 @@
 tests/test_web_settlement.py
 Testy integracyjne modułu Wstępnego Przeglądu i Akceptacji Dokumentów (Pre-settlement Review - Kamień Milowy M3).
 """
+
 import unittest
-import shutil
-from pathlib import Path
 from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.skills.aml_tools import AMLVerificationEngine
+from src.web.app import app
 
 
 class TestWebSettlement(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from src.core.company import CompanyProfile
-        from tests.fixtures import setup_test_company
-        cls.profile = setup_test_company()
+        from tests.fixtures import setup_isolated_test_company
 
-        # Kopia zapasowa reguł kosztowych firmy domyślnej
-        cls.rules_path = cls.profile.katalog_firmy / "reguly_kosztowe.json"
-        cls.rules_backup = None
-        if cls.rules_path.exists():
-            cls.rules_backup = cls.rules_path.read_text(encoding="utf-8")
+        cls.profile = setup_isolated_test_company()
 
     @classmethod
     def tearDownClass(cls):
-        # Przywrócenie pierwotnych reguł kosztowych
-        if cls.rules_backup is not None and cls.rules_path.exists():
-            cls.rules_path.write_text(cls.rules_backup, encoding="utf-8")
+        from tests.fixtures import cleanup_test_company
+
+        cleanup_test_company(cls.profile)
 
     def setUp(self):
         AMLVerificationEngine.clear_cache()
-        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
-        if not p_path.exists() or not (p_path / "faktury" / "2026" / "10").exists():
-            from tests.fixtures import setup_test_company
-            setup_test_company()
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
+
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
 
     def test_review_page_renders_successfully(self):
@@ -71,7 +62,7 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_qualify_expense_item_htmx(self):
         """Test zmiany kwalifikacji podatkowej wydatku (HTMX inline-editing)."""
-        if not (Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski") / "faktury" / "2026" / "01" / "koszty").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "01" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-01 dla firmy testowej")
         response = self.client.post(
             "/api/costs/qualify?lp=1&numer=FV/TEST/001",
@@ -93,7 +84,7 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_qualify_expense_item_overrides_unapproved_ai_suggestion(self):
         """Wybór użytkownika (np. SAMOCHOD_50) ma bezwzględne pierwszeństwo przed niezatwierdzoną sugestią AI (FIRMOWY_100)."""
-        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        p_path = self.profile.katalog_firmy
         if not (p_path / "faktury" / "2026" / "01" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-01 dla firmy testowej")
         from src.core.company import CompanyProfile
@@ -135,8 +126,9 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_save_custom_rule(self):
         """Test utrwalania reguły kosztowej w reguly_kosztowe.json."""
-        if not self.rules_path or not self.rules_path.exists():
-            self.skipTest("Firma testowa 7770001122 nie istnieje w środowisku testowym")
+        rules_path = self.profile.katalog_firmy / "reguly_kosztowe.json"
+        if not rules_path.exists():
+            self.skipTest("Brak pliku reguly_kosztowe.json dla firmy testowej")
         response = self.client.post(
             "/api/rules/save",
             data={
@@ -151,7 +143,7 @@ class TestWebSettlement(unittest.TestCase):
         self.assertIn("Reguła została pomyślnie zapisana", html)
 
         # Sprawdzenie czy plik reguł faktycznie zawiera nowy wzorzec (zapisywany lowercase)
-        saved_rules = self.rules_path.read_text(encoding="utf-8")
+        saved_rules = rules_path.read_text(encoding="utf-8")
         self.assertIn("abonament testowy hosting", saved_rules.lower())
 
     def test_close_month_settlement_redirect(self):
@@ -179,7 +171,7 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_qualify_single_position_endpoint(self):
         """Test zmiany kwalifikacji konkretnej pozycji POST /api/costs/qualify-item."""
-        if not (Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski") / "faktury" / "2026" / "01" / "koszty").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "01" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-01 dla firmy testowej")
         response = self.client.post(
             "/api/costs/qualify-item?numer=FV/TEST/001&item_idx=0&lp=1",
@@ -203,7 +195,7 @@ class TestWebSettlement(unittest.TestCase):
 
         # Upewnienie się, że w DOM jest dokładnie jeden kontener modalu #invoice-modal-container
         self.assertEqual(rev_res.text.count('id="invoice-modal-container"'), 1)
-        self.assertIn('window.Alpine.initTree(evt.detail.target)', rev_res.text)
+        self.assertIn("window.Alpine.initTree(evt.detail.target)", rev_res.text)
 
         # Wywołanie dla przykładowego numeru (lub 404 dla nieistniejącego)
         response_404 = self.client.get("/api/invoices/preview?numer=NIEISTNIEJACA_FAKTURA_999&typ=koszty")
@@ -232,7 +224,7 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_approve_expense_endpoints(self):
         """Test zatwierdzania faktury i pozycji kosztowej."""
-        if not (Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski") / "faktury" / "2026" / "01" / "koszty").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "01" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-01 dla firmy testowej")
         # Test zatwierdzenia całej faktury
         res = self.client.post("/api/costs/approve?numer=FV/TEST/001&lp=1")
@@ -248,11 +240,11 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_approve_item_with_private_zero_does_not_create_rule_and_preserves_zero(self):
         """Zatwierdzenie pozycji z kwalifikacją PRYWATNY_0 nie tworzy trwałej reguły i zachowuje 0% odliczenia."""
-        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
+        p_path = self.profile.katalog_firmy
         if not (p_path / "faktury" / "2026" / "10" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
         from src.core.company import CompanyProfile
-        from src.skills.cost_classifier import RegulyKosztoweFirmy, ReczneKwalifikacjeService
+        from src.skills.cost_classifier import ReczneKwalifikacjeService, RegulyKosztoweFirmy
         from src.web.services.ai_cost_qualifier import AICostQualifierService, AIQualificationItem
 
         self.client.post("/firmy/period", data={"rok": "2026", "miesiac": "10"})
@@ -308,9 +300,10 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_copilot_history_endpoint(self):
         """Test endpointu historii Copilota GET /api/copilot/history."""
-        from src.web.routers.copilot import CopilotSessionHistory, ChatSessionManager
-        from src.web.dependencies import get_global_context
         from unittest.mock import MagicMock
+
+        from src.web.dependencies import get_global_context
+        from src.web.routers.copilot import ChatSessionManager, CopilotSessionHistory
 
         # Dynamiczne pobranie profilu i powiązanego identyfikatora sesji
         ctx = get_global_context(MagicMock(query_params={}, cookies=self.client.cookies))
@@ -347,7 +340,7 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_qualify_samochod_50_selection_not_reverting_to_zero(self):
         """Test czy wybór SAMOCHOD_50 (np. dla faktury Orlen F 37804/1561/26) zaznacza wyłącznie 50% i nie dubluje 0%."""
-        if not (Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski") / "faktury" / "2026" / "10" / "koszty").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "10" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
         self.client.post("/firmy/period", data={"rok": "2026", "miesiac": "10"})
         res = self.client.post(
@@ -369,7 +362,7 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_multi_position_rule_isolation_play_invoice(self):
         """Test czy zmiana kwalifikacji ogólnej pozycji 'Usługi telekomunikacyjne' nie nadpisuje 'Usługi telekomunikacyjne – TV'."""
-        if not (Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski") / "faktury" / "2026" / "10" / "koszty").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "10" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
         self.client.post("/firmy/period", data={"rok": "2026", "miesiac": "10"})
         # Najpierw upewnij się, że reguła dla TV jest PRYWATNY_0
@@ -410,8 +403,9 @@ class TestWebSettlement(unittest.TestCase):
 
     def test_qualify_selection_does_not_create_permanent_rule(self):
         """Wybór opcji w <select> nie może tworzyć stałej reguły w reguly_kosztowe.json, a jedynie miesięczny override."""
-        from src.skills.cost_classifier import RegulyKosztoweFirmy, ReczneKwalifikacjeService
         from src.core.company import CompanyProfile
+        from src.skills.cost_classifier import ReczneKwalifikacjeService, RegulyKosztoweFirmy
+
         profile = CompanyProfile.load_by_nip("7770001122")
         if not profile or not (profile.katalog_firmy / "faktury" / "2026" / "10" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
@@ -435,22 +429,24 @@ class TestWebSettlement(unittest.TestCase):
         # 1. Reguła NIE może powstać w reguly_kosztowe.json
         reguly_po = RegulyKosztoweFirmy.load(profile)
         pasujace_reguly = [
-            r for r in reguly_po.pobierz_wszystkie_reguly()
-            if "specyficzny_testowy_wydatek_xyz" in r["wzorzec"]
+            r for r in reguly_po.pobierz_wszystkie_reguly() if "specyficzny_testowy_wydatek_xyz" in r["wzorzec"]
         ]
-        self.assertEqual(len(pasujace_reguly), 0, "Wybór w <select> nie powinien tworzyć reguły w reguly_kosztowe.json!")
+        self.assertEqual(
+            len(pasujace_reguly), 0, "Wybór w <select> nie powinien tworzyć reguły w reguly_kosztowe.json!"
+        )
 
         # 2. Miesięczny override MUSI powstać w reczne_kwalifikacje.json
         overrides = ReczneKwalifikacjeService.load_overrides(profile, "2026", "10")
         self.assertTrue(
             any("XYZ_999" in k for k in overrides.keys()),
-            "Miesięczny override powinien zostać zapisany w reczne_kwalifikacje.json"
+            "Miesięczny override powinien zostać zapisany w reczne_kwalifikacje.json",
         )
 
     def test_save_rule_from_item_button_creates_permanent_rule(self):
         """Kliknięcie dedykowanego przycisku 'Reguła' (POST /api/rules/save-from-item) tworzy stałą regułę firmy."""
-        from src.skills.cost_classifier import RegulyKosztoweFirmy
         from src.core.company import CompanyProfile
+        from src.skills.cost_classifier import RegulyKosztoweFirmy
+
         profile = CompanyProfile.load_by_nip("7770001122")
         if not profile or not (profile.katalog_firmy / "faktury" / "2026" / "10" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
@@ -476,17 +472,15 @@ class TestWebSettlement(unittest.TestCase):
 
         # Reguła musi teraz istnieć w reguly_kosztowe.json
         reguly_po = RegulyKosztoweFirmy.load(profile)
-        pasujace = [
-            r for r in reguly_po.pobierz_wszystkie_reguly()
-            if "paliwo_vpower_racing_99" in r["wzorzec"]
-        ]
+        pasujace = [r for r in reguly_po.pobierz_wszystkie_reguly() if "paliwo_vpower_racing_99" in r["wzorzec"]]
         self.assertEqual(len(pasujace), 1)
         self.assertEqual(pasujace[0]["kwalifikacja"], "SAMOCHOD_50")
 
     def test_rules_list_and_delete_endpoints(self):
         """Test wyświetlania listy reguł GET /api/rules/list oraz usuwania POST /api/rules/delete."""
-        from src.skills.cost_classifier import RegulyKosztoweFirmy, KwalifikacjaKosztu
         from src.core.company import CompanyProfile
+        from src.skills.cost_classifier import KwalifikacjaKosztu, RegulyKosztoweFirmy
+
         profile = CompanyProfile.load_by_nip("7770001122")
         if not profile or not (profile.katalog_firmy / "reguly_kosztowe.json").exists():
             self.skipTest("Brak pliku reguł kosztowych dla firmy testowej")
@@ -517,15 +511,16 @@ class TestWebSettlement(unittest.TestCase):
         )
         self.assertEqual(res_del.status_code, 200)
         self.assertIn("Usunięto regułę", res_del.text)
-        tbody_part = res_del.text[res_del.text.find("<tbody"):res_del.text.find("</tbody>")] if "<tbody" in res_del.text else ""
+        tbody_part = (
+            res_del.text[res_del.text.find("<tbody") : res_del.text.find("</tbody>")]
+            if "<tbody" in res_del.text
+            else ""
+        )
         self.assertNotIn("test_do_usuniecia_123", tbody_part)
 
         # Upewnienie się, że w pliku reguła zniknęła
         reguly_po = RegulyKosztoweFirmy.load(profile)
-        pasujace = [
-            r for r in reguly_po.pobierz_wszystkie_reguly()
-            if "test_do_usuniecia_123" in r["wzorzec"]
-        ]
+        pasujace = [r for r in reguly_po.pobierz_wszystkie_reguly() if "test_do_usuniecia_123" in r["wzorzec"]]
         self.assertEqual(len(pasujace), 0)
 
     def test_bulk_qualify_all_items_when_more_than_5_positions(self):
@@ -535,7 +530,7 @@ class TestWebSettlement(unittest.TestCase):
         2. Faktura z 4 pozycjami (F/60131422/10/26) NIE ma paska zbiorczej kwalifikacji.
         3. Endpoint POST /api/costs/qualify-all-items ustawia kwalifikację dla wszystkich pozycji jednocześnie.
         """
-        if not (Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski") / "faktury" / "2026" / "10" / "koszty").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "10" / "koszty").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
         # Ustawienie okresu 2026-10
         self.client.post("/firmy/period", data={"rok": "2026", "miesiac": "10"})
@@ -556,9 +551,7 @@ class TestWebSettlement(unittest.TestCase):
         self.assertNotIn("Faktura wielopozycyjna (4 pozycji) – Zbiorcza kwalifikacja", html)
 
         # 2. Test zbiorczego ustawienia SAMOCHOD_50
-        res_bulk_50 = self.client.post(
-            "/api/costs/qualify-all-items?numer=6550172&lp=1&kwalifikacja=SAMOCHOD_50"
-        )
+        res_bulk_50 = self.client.post("/api/costs/qualify-all-items?numer=6550172&lp=1&kwalifikacja=SAMOCHOD_50")
         self.assertEqual(res_bulk_50.status_code, 200)
         html_50 = res_bulk_50.text
         # Wszystkie opcje powinny być teraz wybrane jako SAMOCHOD_50
@@ -566,18 +559,14 @@ class TestWebSettlement(unittest.TestCase):
         self.assertIn("update-costs-summary", res_bulk_50.headers.get("HX-Trigger", ""))
 
         # 3. Test zbiorczego ustawienia PRYWATNY_0
-        res_bulk_0 = self.client.post(
-            "/api/costs/qualify-all-items?numer=6550172&lp=1&kwalifikacja=PRYWATNY_0"
-        )
+        res_bulk_0 = self.client.post("/api/costs/qualify-all-items?numer=6550172&lp=1&kwalifikacja=PRYWATNY_0")
         self.assertEqual(res_bulk_0.status_code, 200)
         html_0 = res_bulk_0.text
         self.assertIn("⛔ 0% Prywatny", html_0)
         self.assertIn("Odliczenie: <strong>0.00 zł</strong>", html_0)
 
         # 4. Test zbiorczego powrotu do FIRMOWY_100
-        res_bulk_100 = self.client.post(
-            "/api/costs/qualify-all-items?numer=6550172&lp=1&kwalifikacja=FIRMOWY_100"
-        )
+        res_bulk_100 = self.client.post("/api/costs/qualify-all-items?numer=6550172&lp=1&kwalifikacja=FIRMOWY_100")
         self.assertEqual(res_bulk_100.status_code, 200)
         html_100 = res_bulk_100.text
         self.assertIn("✅ 100% Firmowy", html_100)

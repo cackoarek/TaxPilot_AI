@@ -6,13 +6,11 @@ Umożliwia przeglądanie interfejsu offline oraz hosting na GitHub Pages
 """
 
 import json
-import logging
-import os
 import re
 import shutil
 import urllib.parse
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from starlette.testclient import TestClient
 
@@ -20,7 +18,7 @@ from src.config import BASE_DIR
 from src.core.company import CompanyProfile
 from src.logging_config import get_logger
 from src.web.app import app
-from src.web.config import COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR, COOKIE_ACTIVE_MONTH
+from src.web.config import COOKIE_ACTIVE_MONTH, COOKIE_ACTIVE_NIP, COOKIE_ACTIVE_YEAR
 
 logger = get_logger("taxpilot.web.export")
 
@@ -62,8 +60,8 @@ def make_offline_friendly(html: str) -> str:
     - Neutralizuje akcje formularzy wymagających aktywnego backendu.
     """
     # 1. Assety statyczne (/static/... -> static/...)
-    html = re.sub(r'([href|src]=["\'])/static/', r'\1static/', html)
-    html = re.sub(r'url\(["\']?/static/', 'url(static/', html)
+    html = re.sub(r'([href|src]=["\'])/static/', r"\1static/", html)
+    html = re.sub(r'url\(["\']?/static/', "url(static/", html)
     html = html.replace('href="/static/favicon.svg"', 'href="static/favicon.svg"')
 
     # 2. Zakładki modułu Księgowanie (/ksiegowanie?tab=... -> ksiegowanie_...html)
@@ -103,9 +101,15 @@ def make_offline_friendly(html: str) -> str:
     html = re.sub(r'href="/ksiegowanie\?[^"]*"', 'href="ksiegowanie.html"', html)
 
     # 5. Linki do pobierania oficjalnych raportów PDF i MD
-    html = re.sub(r'href="/aml/raport/pdf(\?[^"]*)?"', 'href="reports/raport-weryfikacji-2026-10.pdf" target="_blank"', html)
-    html = re.sub(r'href="/aml/raport/md(\?[^"]*)?"', 'href="reports/raport-weryfikacji-2026-10.md" target="_blank"', html)
-    html = re.sub(r'href="/aml/karta/pdf/([0-9A-Za-z]+)(\?[^"]*)?"', r'href="reports/\1-karta.pdf" target="_blank"', html)
+    html = re.sub(
+        r'href="/aml/raport/pdf(\?[^"]*)?"', 'href="reports/raport-weryfikacji-2026-10.pdf" target="_blank"', html
+    )
+    html = re.sub(
+        r'href="/aml/raport/md(\?[^"]*)?"', 'href="reports/raport-weryfikacji-2026-10.md" target="_blank"', html
+    )
+    html = re.sub(
+        r'href="/aml/karta/pdf/([0-9A-Za-z]+)(\?[^"]*)?"', r'href="reports/\1-karta.pdf" target="_blank"', html
+    )
 
     # 6. JavaScript inline
     html = html.replace("window.location.href='/firmy/nowa'", "window.location.href='firmy_nowa.html'")
@@ -114,7 +118,7 @@ def make_offline_friendly(html: str) -> str:
 
     # 7. Wstrzyknięcie banera demo po znaczniku <body>
     if "<body" in html:
-        html = re.sub(r'(<body[^>]*>)', r'\1\n' + DEMO_TOP_BANNER, html, count=1)
+        html = re.sub(r"(<body[^>]*>)", r"\1\n" + DEMO_TOP_BANNER, html, count=1)
 
     # 8. Wstrzyknięcie skryptu demo przed </body>
     demo_script_tag = """
@@ -141,7 +145,7 @@ def prepare_demo_data(client: TestClient, output_dir: Path, profile: CompanyProf
     js_dir = output_dir / "static" / "js"
     js_dir.mkdir(parents=True, exist_ok=True)
 
-    demo_data = {
+    demo_data: Dict[str, Any] = {
         "qrModals": {},
         "invoiceModals": {},
         "rulesList": "",
@@ -162,6 +166,7 @@ def prepare_demo_data(client: TestClient, output_dir: Path, profile: CompanyProf
 
     # 3. Dynamiczne pobranie podglądów wszystkich faktur danego okresu
     from src.level_1_ingestion.invoice_storage import InvoiceStorage
+
     invoices = InvoiceStorage.list_invoices(profile, rok, miesiac)
 
     for inv in invoices:
@@ -184,7 +189,12 @@ def prepare_demo_data(client: TestClient, output_dir: Path, profile: CompanyProf
         json.dump(demo_data, f, ensure_ascii=False, indent=2)
         f.write(";\n")
 
-    logger.info("Zapisano dane demonstracyjne (%d faktur, %d kodów QR): %s", len(invoices), len(demo_data["qrModals"]), demo_data_js_path)
+    logger.info(
+        "Zapisano dane demonstracyjne (%d faktur, %d kodów QR): %s",
+        len(invoices),
+        len(demo_data["qrModals"]),
+        demo_data_js_path,
+    )
 
 
 def write_demo_js_helper(output_dir: Path) -> None:
@@ -216,7 +226,7 @@ def write_demo_js_helper(output_dir: Path) -> None:
     toast.className = 'fixed bottom-5 right-5 z-[9999] max-w-md p-4 rounded-xl shadow-2xl border transition-all duration-300 transform translate-y-0 opacity-100 flex items-start space-x-3 text-xs bg-slate-900 text-white border-blue-500/50';
 
     var icon = type === 'warning' ? '⚠️' : '✨';
-    toast.innerHTML = 
+    toast.innerHTML =
       '<span class="text-xl shrink-0">' + icon + '</span>' +
       '<div class="flex-1">' +
         '<strong class="block font-bold text-blue-400 text-sm mb-1">Tryb Pokazowy (GitHub Pages)</strong>' +
@@ -351,7 +361,7 @@ def copy_official_reports(company_dir: Path, output_dir: Path, rok: str, miesiac
     if wer_dir.exists():
         for f in wer_dir.glob("raport-weryfikacji.*"):
             shutil.copy2(f, dest_reports / f"{f.stem}-{rok}-{miesiac}{f.suffix}")
-        
+
         # Karty kontrahentów (PDF, MD)
         karty_dir = wer_dir / "karty"
         if karty_dir.exists():
@@ -386,6 +396,7 @@ def export_demo_pages(
 
     # 1. Upewnienie się że firma testowa istnieje w katalogu roboczym firmy/
     from tests.fixtures import setup_test_company
+
     profile = setup_test_company()
     company_dir = profile.katalog_firmy
 
@@ -416,7 +427,11 @@ def export_demo_pages(
         ("/ksiegowanie?tab=przelewy", "ksiegowanie_przelewy.html", "Księgowanie – Zestawienie Zobowiązań i Przelewów"),
         ("/ksiegowanie?tab=ytd", "ksiegowanie_ytd.html", "Księgowanie – Zestawienie Narastające Roczne YTD"),
         ("/ksiegowanie?tab=audyt", "ksiegowanie_audyt.html", "Księgowanie – Sprawozdanie i Audyt Podatkowy"),
-        ("/ksiegowanie?tab=wskazniki", "ksiegowanie_wskazniki.html", "Księgowanie – Wskaźniki Makroekonomiczne ZUS/GUS"),
+        (
+            "/ksiegowanie?tab=wskazniki",
+            "ksiegowanie_wskazniki.html",
+            "Księgowanie – Wskaźniki Makroekonomiczne ZUS/GUS",
+        ),
         ("/faktury", "faktury.html", "Przeglądarka Faktur KSeF & Non-KSeF"),
         ("/aml", "aml.html", "Compliance AML, Biała Lista VAT i Sankcje"),
         ("/doradca", "doradca.html", "Doradca Podatkowy & Symulacja Form"),
@@ -465,6 +480,7 @@ def export_demo_pages(
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Eksporter statycznych stron demo HTML TaxPilot AI")
     parser.add_argument("--output", "-o", default=str(DEFAULT_OUTPUT_DIR), help="Katalog docelowy")
     parser.add_argument("--nip", default=DEFAULT_DEMO_NIP, help="NIP firmy demonstracyjnej")

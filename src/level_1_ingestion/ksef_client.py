@@ -4,24 +4,28 @@ Obsługuje środowiska PROD i TEST z asynchronicznym uwierzytelnieniem tokenem (
 oraz automatyczną synchronizacją i zapisem faktur w archiwum firmy.
 """
 
-import os
-import time
-import json
 import base64
 import calendar
+import json
+import os
+import time
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 import requests
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from src.config import KSEF_URLS, DEFAULT_KSEF_ENV
+from src.config import DEFAULT_KSEF_ENV, KSEF_URLS
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice
-from src.level_1_ingestion.ksef_parser import KSeFParser
+from src.core.io import atomic_write_json
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.ksef_parser import KSeFParser
 
 
 class KSeFClient:
@@ -111,9 +115,14 @@ class KSeFClient:
         history.insert(0, entry)
         history = history[:100]  # Ograniczenie do 100 ostatnich zdarzeń
         try:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(history, f, indent=2, ensure_ascii=False)
+            atomic_write_json(
+                file_path,
+                history,
+                indent=2,
+                ensure_ascii=False,
+                mode=0o600,
+                lock=True,
+            )
         except Exception:
             pass
         return entry
@@ -128,7 +137,6 @@ class KSeFClient:
             if h.get("rok") == rok_str and h.get("miesiac") == miesiac_str:
                 return h
         return history[0] if history else None
-
 
     def authenticate(self) -> str:
         """
@@ -159,34 +167,26 @@ class KSeFClient:
         r_certs = self.session.get(f"{self.base_url}/security/public-key-certificates", timeout=10)
         r_certs.raise_for_status()
         certs = r_certs.json()
-        token_cert_info = next(
-            (c for c in certs if "KsefTokenEncryption" in c.get("usage", [])),
-            certs[0]
-        )
+        token_cert_info = next((c for c in certs if "KsefTokenEncryption" in c.get("usage", [])), certs[0])
         cert_bytes = base64.b64decode(token_cert_info["certificate"])
         cert = x509.load_der_x509_certificate(cert_bytes)
         public_key = cert.public_key()
 
         # 3. Szyfrowanie RSA-OAEP SHA-256
+        if not isinstance(public_key, RSAPublicKey):
+            raise TypeError("Oczekiwano klucza publicznego RSA z certyfikatu MF.")
         payload_to_encrypt = f"{token}|{timestamp_ms}".encode("utf-8")
         encrypted = public_key.encrypt(
             payload_to_encrypt,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+            padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
         )
         encrypted_b64 = base64.b64encode(encrypted).decode("ascii")
 
         # 4. Inicjalizacja uwierzytelnienia
         auth_body = {
             "challenge": challenge,
-            "contextIdentifier": {
-                "type": "Nip",
-                "value": self.profile.nip
-            },
-            "encryptedToken": encrypted_b64
+            "contextIdentifier": {"type": "Nip", "value": self.profile.nip},
+            "encryptedToken": encrypted_b64,
         }
         r_auth = self.session.post(f"{self.base_url}/auth/ksef-token", json=auth_body, timeout=10)
         r_auth.raise_for_status()
@@ -227,16 +227,14 @@ class KSeFClient:
             self.authenticate()
 
     def fetch_invoices_metadata_range(
-        self,
-        date_from: str,
-        date_to: str,
-        subject_type: str = "Subject1"
+        self, date_from: str, date_to: str, subject_type: str = "Subject1"
     ) -> List[Dict[str, Any]]:
         """
         Pobiera z KSeF listę metadanych faktur dla zadanego zakresu dat (ISO 8601).
         Automatycznie dzieli zakresy > 85 dni na podprzedziały, spełniając wymóg MF (max 100 dni).
         """
         from datetime import timedelta
+
         self._ensure_authenticated()
 
         dt_from = datetime.fromisoformat(date_from)
@@ -252,10 +250,7 @@ class KSeFClient:
                 break
             cur = nxt + timedelta(seconds=1)
 
-        api_headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
-        }
+        api_headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
 
         all_invoices: List[Dict[str, Any]] = []
 
@@ -264,19 +259,11 @@ class KSeFClient:
             page_size = 100
 
             while True:
-                query_payload = {
+                query_payload: Dict[str, Any] = {
                     "subjectType": subject_type,
-                    "dateRange": {
-                        "dateType": "Issue",
-                        "from": c_from,
-                        "to": c_to
-                    }
+                    "dateRange": {"dateType": "Issue", "from": c_from, "to": c_to},
                 }
-                params = {
-                    "pageOffset": page_offset,
-                    "pageSize": page_size,
-                    "sortOrder": "Asc"
-                }
+                params: Dict[str, Any] = {"pageOffset": page_offset, "pageSize": page_size, "sortOrder": "Asc"}
 
                 # Pętla z ponawianiem na wypadek rate limitu 429
                 max_retries = 6
@@ -286,7 +273,7 @@ class KSeFClient:
                         headers=api_headers,
                         json=query_payload,
                         params=params,
-                        timeout=25
+                        timeout=25,
                     )
                     if resp.status_code == 429:
                         try:
@@ -299,7 +286,9 @@ class KSeFClient:
                                 desc = resp.json().get("status", {}).get("details", [""])[0]
                             except Exception:
                                 desc = resp.text
-                            raise requests.HTTPError(f"Przekroczono limit zapytań KSeF (MF 429: {desc}). Wymagany czas oczekiwania: {wait_sec} sekund.")
+                            raise requests.HTTPError(
+                                f"Przekroczono limit zapytań KSeF (MF 429: {desc}). Wymagany czas oczekiwania: {wait_sec} sekund."
+                            )
                         time.sleep(wait_sec)
                         continue
                     resp.raise_for_status()
@@ -322,7 +311,7 @@ class KSeFClient:
         self,
         rok: str,
         miesiac: str,
-        subject_type: str = "Subject1"  # "Subject1" = Sprzedaż, "Subject2" = Zakup
+        subject_type: str = "Subject1",  # "Subject1" = Sprzedaż, "Subject2" = Zakup
     ) -> List[Dict[str, Any]]:
         """
         Pobiera z KSeF listę metadanych faktur dla wskazanego pojedynczego miesiąca.
@@ -358,7 +347,9 @@ class KSeFClient:
                         desc = resp.json().get("status", {}).get("details", [""])[0]
                     except Exception:
                         desc = resp.text
-                    raise requests.HTTPError(f"Przekroczono limit pobierania faktur KSeF (MF 429: {desc}). Wymagany czas oczekiwania: {wait_sec}s.")
+                    raise requests.HTTPError(
+                        f"Przekroczono limit pobierania faktur KSeF (MF 429: {desc}). Wymagany czas oczekiwania: {wait_sec}s."
+                    )
                 print(f"    ⏳ [Limit 16/min KSeF] Czekam {wait_sec + 2}s przed ponowieniem próby...", flush=True)
                 time.sleep(wait_sec + 2)
                 continue
@@ -374,6 +365,7 @@ class KSeFClient:
         Pomija faktury już obecne w archiwum dyskowym.
         """
         from src.core.invoice import InvoiceType
+
         rok_str = str(rok)
         miesiac_str = str(miesiac).zfill(2)
 
@@ -446,10 +438,10 @@ class KSeFClient:
             "nowe_kosztow": nowe_k,
             "liczba_sprzedazy": len(saved_sprzedaz),
             "liczba_kosztow": len(saved_koszty),
-            "suma_sprzedaz_netto": str(sum((i.suma_netto for i in saved_sprzedaz), 0)),
-            "suma_sprzedaz_vat": str(sum((i.suma_vat for i in saved_sprzedaz), 0)),
-            "suma_koszty_netto": str(sum((i.suma_netto for i in saved_koszty), 0)),
-            "suma_koszty_vat": str(sum((i.suma_vat for i in saved_koszty), 0)),
+            "suma_sprzedaz_netto": str(sum((i.suma_netto for i in saved_sprzedaz), Decimal("0.00"))),
+            "suma_sprzedaz_vat": str(sum((i.suma_vat for i in saved_sprzedaz), Decimal("0.00"))),
+            "suma_koszty_netto": str(sum((i.suma_netto for i in saved_koszty), Decimal("0.00"))),
+            "suma_koszty_vat": str(sum((i.suma_vat for i in saved_koszty), Decimal("0.00"))),
             "faktury_sprzedazy": [
                 {
                     "numer": i.numer,
@@ -458,7 +450,7 @@ class KSeFClient:
                     "nabywca": i.nabywca.nazwa,
                     "netto": str(i.suma_netto),
                     "vat": str(i.suma_vat),
-                    "brutto": str(i.suma_brutto)
+                    "brutto": str(i.suma_brutto),
                 }
                 for i in saved_sprzedaz
             ],
@@ -470,10 +462,10 @@ class KSeFClient:
                     "sprzedawca": i.sprzedawca.nazwa,
                     "netto": str(i.suma_netto),
                     "vat": str(i.suma_vat),
-                    "brutto": str(i.suma_brutto)
+                    "brutto": str(i.suma_brutto),
                 }
                 for i in saved_koszty
-            ]
+            ],
         }
 
     def sync_range_invoices(self, date_from: str, date_to: str) -> Dict[str, Any]:
@@ -483,6 +475,7 @@ class KSeFClient:
         folderach miesięcy w archiwum firmy.
         """
         from decimal import Decimal
+
         self._ensure_authenticated()
 
         # Znajdź wszystkie już pobrane numery referencyjne KSeF w firmie (cache hit)

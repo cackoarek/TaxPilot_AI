@@ -2,12 +2,14 @@
 tests/test_web_settings.py
 Testy integracyjne modułu Ustawień Firmy, KSeF i Silników AI (Kamień Milowy M6).
 """
+
 import unittest
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
-from src.web.app import app
 from src.core.company import CompanyProfile
+from src.web.app import app
 
 
 class TestWebSettings(unittest.TestCase):
@@ -17,6 +19,7 @@ class TestWebSettings(unittest.TestCase):
         cls.profile = CompanyProfile.load_by_nip("7770001122")
         if not cls.profile:
             from tests.fixtures import setup_test_company
+
             cls.profile = setup_test_company()
         cls.initial_token = cls.profile.ksef.token
         cls.initial_env = cls.profile.ksef.srodowisko
@@ -49,6 +52,7 @@ class TestWebSettings(unittest.TestCase):
             cls.profile.zus.historia_typow = cls.initial_historia
             cls.profile.save()
         import os
+
         os.environ.pop("TAXPILOT_LLM_MODEL", None)
         os.environ.pop("TAXPILOT_LLM_PROVIDER", None)
         os.environ.pop("GEMINI_API_KEY", None)
@@ -56,6 +60,7 @@ class TestWebSettings(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         from src.web.config import COOKIE_ACTIVE_NIP
+
         self.client.cookies[COOKIE_ACTIVE_NIP] = self.profile.nip
 
     def test_settings_view_renders(self):
@@ -131,8 +136,8 @@ class TestWebSettings(unittest.TestCase):
     @patch("src.web.routers.settings.save_key_to_env")
     def test_update_llm_settings_antigravity(self, mock_save_env):
         """Test konfiguracji providera Antigravity (agy)."""
-        from src.web.services.llm.factory import LLMProviderFactory
         from src.web.services.llm.antigravity_provider import AntigravityProvider
+        from src.web.services.llm.factory import LLMProviderFactory
 
         response = self.client.post(
             "/ustawienia/llm",

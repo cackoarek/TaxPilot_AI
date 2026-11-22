@@ -4,26 +4,26 @@ Kontroler procesu księgowania (Księgowanie & Ewidencje Podatkowe).
 Prezentuje podsumowanie dokumentów zakwalifikowanych do księgowania,
 pozwala na deterministyczne zamykanie miesiąca i podgląd ewidencji księgowych.
 """
+
 import json
 from decimal import Decimal
-from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Request, Form, Query, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.logging_config import get_logger
-from src.web.config import TEMPLATES_DIR
-from src.web.dependencies import get_global_context
-from src.skills.pre_settlement_review import PreSettlementReview
 from src.level_3_tax_settlement.settlement_service import SettlementService
+from src.logging_config import get_logger
+from src.skills.pre_settlement_review import PreSettlementReview
 from src.skills.zus_indicators import (
+    calculate_zus_breakdown_preview,
     get_zus_indicators,
     is_official,
     update_zus_indicators,
-    calculate_zus_breakdown_preview,
 )
+from src.web.config import TEMPLATES_DIR
+from src.web.dependencies import get_global_context
 from src.web.utils.markdown import render_markdown
 
 logger = get_logger("taxpilot.bookkeeping")
@@ -133,31 +133,33 @@ async def bookkeeping_dashboard(
     ewidencja_sumy_html = render_markdown(bundle["ewidencja_sumy_md"]) if bundle["ewidencja_sumy_md"] else None
     sprawozdanie_html = render_markdown(bundle["sprawozdanie_md"]) if bundle["sprawozdanie_md"] else None
 
-    ctx.update({
-        "active_tab": "bookkeeping",
-        "review": review,
-        "is_settled": is_settled,
-        "settlement": settlement_data,
-        "ewidencja_md": bundle["ewidencja_md"],
-        "ewidencja_sumy_md": bundle["ewidencja_sumy_md"],
-        "ewidencja_sumy_html": ewidencja_sumy_html,
-        "sprawozdanie_md": bundle["sprawozdanie_md"],
-        "sprawozdanie_html": sprawozdanie_html,
-        "rozliczenie_md": bundle["rozliczenie_md"],
-        "pozycje_do_wyjasnienia_cnt": pozycje_do_wyjasnienia_cnt,
-        "ready_to_settle": ready_to_settle,
-        "kwalifikowany_vat": kwalifikowany_vat,
-        "odrzucony_vat": odrzucony_vat,
-        "wykluczone_pozycje_cnt": wykluczone_pozycje_cnt,
-        "stawki_podsumowanie": stawki_podsumowanie,
-        "sukces": sukces == "1",
-        "zus_macro": zus_macro,
-        "zus_preview": zus_preview,
-        "is_zus_official": is_zus_official,
-        "wskazniki_zapisane": wskazniki_zapisane,
-        "blad_wskaznikow": blad_wskaznikow,
-        "tab_param": tab_param,
-    })
+    ctx.update(
+        {
+            "active_tab": "bookkeeping",
+            "review": review,
+            "is_settled": is_settled,
+            "settlement": settlement_data,
+            "ewidencja_md": bundle["ewidencja_md"],
+            "ewidencja_sumy_md": bundle["ewidencja_sumy_md"],
+            "ewidencja_sumy_html": ewidencja_sumy_html,
+            "sprawozdanie_md": bundle["sprawozdanie_md"],
+            "sprawozdanie_html": sprawozdanie_html,
+            "rozliczenie_md": bundle["rozliczenie_md"],
+            "pozycje_do_wyjasnienia_cnt": pozycje_do_wyjasnienia_cnt,
+            "ready_to_settle": ready_to_settle,
+            "kwalifikowany_vat": kwalifikowany_vat,
+            "odrzucony_vat": odrzucony_vat,
+            "wykluczone_pozycje_cnt": wykluczone_pozycje_cnt,
+            "stawki_podsumowanie": stawki_podsumowanie,
+            "sukces": sukces == "1",
+            "zus_macro": zus_macro,
+            "zus_preview": zus_preview,
+            "is_zus_official": is_zus_official,
+            "wskazniki_zapisane": wskazniki_zapisane,
+            "blad_wskaznikow": blad_wskaznikow,
+            "tab_param": tab_param,
+        }
+    )
 
     return templates.TemplateResponse(request=request, name="pages/bookkeeping.html", context=ctx)
 
@@ -184,7 +186,9 @@ async def execute_settlement(
     except Exception:
         nadwyzka_dec = Decimal("0.00")
 
-    logger.info("Uruchamianie księgowania dla %s za %s-%s (nadwyżka VAT: %s)", profile.nazwa, rok, miesiac, nadwyzka_dec)
+    logger.info(
+        "Uruchamianie księgowania dla %s za %s-%s (nadwyżka VAT: %s)", profile.nazwa, rok, miesiac, nadwyzka_dec
+    )
 
     SettlementService.settle_month(
         profile=profile,
@@ -194,14 +198,18 @@ async def execute_settlement(
         zapisz_raporty=True,
     )
 
-    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("accept", "")
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get(
+        "accept", ""
+    )
     if is_ajax:
-        return JSONResponse({
-            "status": "ok",
-            "message": f"Miesiąc {rok}-{miesiac} został pomyślnie zaksięgowany!",
-            "rok": rok,
-            "miesiac": miesiac,
-        })
+        return JSONResponse(
+            {
+                "status": "ok",
+                "message": f"Miesiąc {rok}-{miesiac} został pomyślnie zaksięgowany!",
+                "rok": rok,
+                "miesiac": miesiac,
+            }
+        )
 
     return RedirectResponse(url="/ksiegowanie?sukces=1", status_code=303)
 
@@ -218,6 +226,7 @@ async def save_zus_macro_indicators(
     """
     Zapisuje zweryfikowane lub zmodyfikowane wskaźniki makroekonomiczne ZUS/GUS dla danego roku.
     """
+
     def _parse(val: str) -> Decimal:
         cleaned = val.replace(" ", "").replace(",", ".").replace("zł", "").strip()
         return Decimal(cleaned)
@@ -237,7 +246,11 @@ async def save_zus_macro_indicators(
         )
         logger.info(
             "Zaktualizowano wskaźniki ZUS dla roku %s: pełny=%s, pref=%s, zdrow=%s, źródło=%s",
-            rok, spol, pref, zdrow, zrodlo
+            rok,
+            spol,
+            pref,
+            zdrow,
+            zrodlo,
         )
     except Exception as exc:
         logger.error("Błąd zapisu wskaźników ZUS dla roku %s: %s", rok, exc)

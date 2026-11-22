@@ -4,12 +4,13 @@ Serwis AI Copilota integrujący kontekst finansowo-podatkowy firmy z warstwą LL
 Przestrzega reguły Zero-Hallucination: nie liczy podatków w pamięci,
 lecz prezentuje deterministyczne wyliczenia silnika Python.
 """
-from typing import List, Optional, AsyncGenerator, Dict, Any
+
+from typing import AsyncGenerator, List, Optional
 
 from src.core.company import CompanyProfile
-from src.web.services.llm.base import BaseLLMProvider, ChatMessage
+from src.web.routers.dashboard import load_aml_stats, load_settlement_data
+from src.web.services.llm.base import ChatMessage
 from src.web.services.llm.factory import LLMProviderFactory
-from src.web.routers.dashboard import load_settlement_data, load_aml_stats
 
 
 class CopilotService:
@@ -58,20 +59,18 @@ class CopilotService:
             pit = settlement.get("pit28", {}).get("zaliczka_pit28_zaokraglona", "0")
             vat = settlement.get("vat", {}).get("vat_do_zaplaty_zaokraglony", "0")
             zus = settlement.get("zus", {}).get("lacznie_do_zaplaty", "0")
-            przychod = (
-                settlement.get("ewidencja", {})
-                .get("ewidencja_przychodow", {})
-                .get("laczny_przychod_netto", "0")
+            przychod = settlement.get("ewidencja", {}).get("ewidencja_przychodow", {}).get("laczny_przychod_netto", "0")
+            context_lines.extend(
+                [
+                    f"Status rozliczenia za {rok}-{miesiac}: SFINALIZOWANE (Rozliczone)",
+                    f"- Przychody netto: {przychod} zł",
+                    f"- Zaliczka PIT-28: {pit} zł (termin: 20. następnego miesiąca)",
+                    f"- VAT-7 do zapłaty: {vat} zł (termin: 25. następnego miesiąca)",
+                    f"- ZUS łącznie: {zus} zł (termin: 20. następnego miesiąca)",
+                    f"- Mikrorachunek podatkowy US: 10 1010 0055 0225 {profile.nip} 000",
+                    f"- Rachunek NRS ZUS: 83 1010 1023 0000 26{profile.nip}",
+                ]
             )
-            context_lines.extend([
-                f"Status rozliczenia za {rok}-{miesiac}: SFINALIZOWANE (Rozliczone)",
-                f"- Przychody netto: {przychod} zł",
-                f"- Zaliczka PIT-28: {pit} zł (termin: 20. następnego miesiąca)",
-                f"- VAT-7 do zapłaty: {vat} zł (termin: 25. następnego miesiąca)",
-                f"- ZUS łącznie: {zus} zł (termin: 20. następnego miesiąca)",
-                f"- Mikrorachunek podatkowy US: 10 1010 0055 0225 {profile.nip} 000",
-                f"- Rachunek NRS ZUS: 83 1010 1023 0000 26{profile.nip}",
-            ])
         else:
             context_lines.append(
                 f"Status rozliczenia za {rok}-{miesiac}: W TRAKCIE (wymaga weryfikacji w Krok 2: /przeglad)"
@@ -82,16 +81,18 @@ class CopilotService:
                 f"Compliance AML: zweryfikowano {aml_stats.get('liczba_kontrahentow', 0)} kontrahentów."
             )
 
-        context_lines.extend([
-            "",
-            "ZASADY ODPOWIADANIA I FORMATOWANIA DLA STRONY WWW (BEZWZGLĘDNE):",
-            "1. ŚRODOWISKO WYŚWIETLANIA: Rozmowa jest wyświetlana na żywo na stronie WWW w bocznym oknie czatu Copilota o ograniczonej szerokości (ok. 450px).",
-            "2. Zero-Hallucination: Nigdy nie licz podatków ani ZUS 'w pamięci'. Wszystkie liczby muszą pochodzić z powyższego kontekstu.",
-            "3. TABELE DLA STRONY WWW: Gdy prezentujesz zestawienia kwot, terminów lub faktur, twórz zwarte tabele w standardzie Markdown (maksymalnie 2-3 kolumny: np. | Pozycja | Kwota | Termin |) z pełnym wierszem nagłówka i separatora (|---|---|---|). Nie wstawiaj spacji przed pierwszą kreską '|'. Silnik strony WWW automatycznie przekształca je na estetyczne, responsywne tabele HTML.",
-            "4. LINKI W SYSTEMIE: Wskazuj przedsiębiorcy linki do ekranów: [Pulpit](/), [Wstępny Przegląd](/przeglad), [Weryfikacja AML](/aml), [Doradca Podatkowy](/doradca), [Księgowanie](/ksiegowanie).",
-            "5. CZYTELNOŚĆ: Odpowiadaj zwięźle, dziel tekst na krótkie akapity, używaj punktorów dla list i pogrubień dla kluczowych liczb (np. **1 850,00 zł**).",
-            f"6. IZOLACJA FIRMY: Pod żadnym pozorem nie odnoś się do danych innych podmiotów. Cała analiza dotyczy wyłącznie aktywnej firmy: {profile.nazwa} (NIP: {profile.nip}) w jej katalogu {company_folder_str}.",
-        ])
+        context_lines.extend(
+            [
+                "",
+                "ZASADY ODPOWIADANIA I FORMATOWANIA DLA STRONY WWW (BEZWZGLĘDNE):",
+                "1. ŚRODOWISKO WYŚWIETLANIA: Rozmowa jest wyświetlana na żywo na stronie WWW w bocznym oknie czatu Copilota o ograniczonej szerokości (ok. 450px).",
+                "2. Zero-Hallucination: Nigdy nie licz podatków ani ZUS 'w pamięci'. Wszystkie liczby muszą pochodzić z powyższego kontekstu.",
+                "3. TABELE DLA STRONY WWW: Gdy prezentujesz zestawienia kwot, terminów lub faktur, twórz zwarte tabele w standardzie Markdown (maksymalnie 2-3 kolumny: np. | Pozycja | Kwota | Termin |) z pełnym wierszem nagłówka i separatora (|---|---|---|). Nie wstawiaj spacji przed pierwszą kreską '|'. Silnik strony WWW automatycznie przekształca je na estetyczne, responsywne tabele HTML.",
+                "4. LINKI W SYSTEMIE: Wskazuj przedsiębiorcy linki do ekranów: [Pulpit](/), [Wstępny Przegląd](/przeglad), [Weryfikacja AML](/aml), [Doradca Podatkowy](/doradca), [Księgowanie](/ksiegowanie).",
+                "5. CZYTELNOŚĆ: Odpowiadaj zwięźle, dziel tekst na krótkie akapity, używaj punktorów dla list i pogrubień dla kluczowych liczb (np. **1 850,00 zł**).",
+                f"6. IZOLACJA FIRMY: Pod żadnym pozorem nie odnoś się do danych innych podmiotów. Cała analiza dotyczy wyłącznie aktywnej firmy: {profile.nazwa} (NIP: {profile.nip}) w jej katalogu {company_folder_str}.",
+            ]
+        )
 
         return "\n".join(context_lines)
 

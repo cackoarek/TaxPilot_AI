@@ -7,14 +7,20 @@ Wszystkie operacje matematyczne oparte są wyłącznie na typie Decimal.
 """
 
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List, Optional, Any
-from pathlib import Path
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Dict, List, Optional
 
-from src.core.company import CompanyProfile, FormaOpodatkowania
+from src.core.company import CompanyProfile
 from src.core.invoice import InvoiceType
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.skills.zus_tools import DEFAULT_ZUS_PARAMS, STOPA_EMERYTALNA, STOPA_RENTOWA, STOPA_CHOROBOWA, STOPA_WYPADKOWA, STOPA_FP
+from src.skills.zus_tools import (
+    DEFAULT_ZUS_PARAMS,
+    STOPA_CHOROBOWA,
+    STOPA_EMERYTALNA,
+    STOPA_FP,
+    STOPA_RENTOWA,
+    STOPA_WYPADKOWA,
+)
 
 
 def _round_money(val: Decimal) -> Decimal:
@@ -24,6 +30,7 @@ def _round_money(val: Decimal) -> Decimal:
 @dataclass
 class RegimeCalculation:
     """Szczegółowe wyliczenie obciążeń dla danej formy opodatkowania w skali roku."""
+
     nazwa_formy: str
     przychod_roczny: Decimal
     koszty_roczne: Decimal
@@ -55,6 +62,7 @@ class RegimeCalculation:
 @dataclass
 class TaxRegimeComparison:
     """Porównanie 3 form opodatkowania."""
+
     rok: str
     stawka_ryczaltu: Decimal
     ryczalt: RegimeCalculation
@@ -97,17 +105,14 @@ class TaxRegimeComparison:
 
 
 def simulate_tax_regimes(
-    przychody_roczne: Decimal,
-    koszty_roczne: Decimal,
-    stawka_ryczaltu: Decimal = Decimal("0.12"),
-    rok: str = "2026"
+    przychody_roczne: Decimal, koszty_roczne: Decimal, stawka_ryczaltu: Decimal = Decimal("0.12"), rok: str = "2026"
 ) -> TaxRegimeComparison:
     """
     Precyzyjnie symuluje i porównuje łączne obciążenia podatkowo-składkowe w 3 formach opodatkowania JDG.
     """
     params = DEFAULT_ZUS_PARAMS.get(str(rok), DEFAULT_ZUS_PARAMS["2026"])
     podstawa_spol_msc = params["podstawa_pelny_zus"]
-    
+
     # Składki społeczne rocznie (12 miesięcy pełnego ZUS z chorobowym)
     stopa_spoleczna_laczna = STOPA_EMERYTALNA + STOPA_RENTOWA + STOPA_CHOROBOWA + STOPA_WYPADKOWA + STOPA_FP
     spoleczne_rocznie = _round_money(podstawa_spol_msc * stopa_spoleczna_laczna * Decimal("12"))
@@ -154,7 +159,9 @@ def simulate_tax_regimes(
     # -------------------------------------------------------------
     # Zdrowotna 4.9% dochodu po odliczeniu składek społecznych (z minimalną podstawą)
     dochod_po_spolecznych = max(Decimal("0.00"), dochod_brutto - spoleczne_rocznie)
-    min_zdrowotna_rocznie = _round_money(Decimal("4800.00") * Decimal("0.09") * Decimal("12"))  # 9% z min. wynagrodzenia
+    min_zdrowotna_rocznie = _round_money(
+        Decimal("4800.00") * Decimal("0.09") * Decimal("12")
+    )  # 9% z min. wynagrodzenia
     zdrowotna_liniowy_wyliczona = _round_money(dochod_po_spolecznych * Decimal("0.049"))
     zdrowotna_liniowy = max(min_zdrowotna_rocznie, zdrowotna_liniowy_wyliczona)
 
@@ -221,11 +228,7 @@ def simulate_tax_regimes(
     )
 
     # Wybór formy z najwyższym dochodem netto "na rękę"
-    ranking = sorted(
-        [regime_ryczalt, regime_liniowy, regime_skala],
-        key=lambda r: r.dochod_netto_na_reke,
-        reverse=True
-    )
+    ranking = sorted([regime_ryczalt, regime_liniowy, regime_skala], key=lambda r: r.dochod_netto_na_reke, reverse=True)
     zwyciezca = ranking[0]
     drugi = ranking[1]
     oszczednosc = zwyciezca.dochod_netto_na_reke - drugi.dochod_netto_na_reke
@@ -243,7 +246,7 @@ def simulate_tax_regimes(
 
 @dataclass
 class ExpenseLeakAlert:
-    typ: str                 # "BRAKUJACY_KOSZT" | "SKOK_KWOTY" | "NOWY_KONTRAHENT"
+    typ: str  # "BRAKUJACY_KOSZT" | "SKOK_KWOTY" | "NOWY_KONTRAHENT"
     nip_kontrahenta: str
     nazwa_kontrahenta: str
     opis: str
@@ -273,7 +276,7 @@ class ExpenseAuditResult:
                     "ostatnia_kwota": str(a.ostatnia_kwota) if a.ostatnia_kwota else None,
                 }
                 for a in self.alerty
-            ]
+            ],
         }
 
 
@@ -328,6 +331,7 @@ def audit_expense_leaks(profile: CompanyProfile, rok: str, miesiac: str) -> Expe
 def _load_single_year_data(profile: CompanyProfile, target_rok: str):
     """Pobiera sumę przychodów i kosztów dla zadanego roku ze wszystkich 12 miesięcy."""
     import json
+
     months_data = {}
     total_przychod = Decimal("0.00")
     total_koszt = Decimal("0.00")
@@ -369,11 +373,7 @@ def _load_single_year_data(profile: CompanyProfile, target_rok: str):
     return months_data, total_przychod, total_koszt
 
 
-def get_annual_financial_summary(
-    profile: CompanyProfile,
-    rok: str,
-    current_month: str = "01"
-) -> Dict[str, Any]:
+def get_annual_financial_summary(profile: CompanyProfile, rok: str, current_month: str = "01") -> Dict[str, Any]:
     """
     Zwraca rzeczywiste roczne podsumowanie przychodów i kosztów firmy:
     - Sumuje dane ze wszystkich miesięcy z rozliczeń lub faktur w danym roku podatkowym.
@@ -399,7 +399,9 @@ def get_annual_financial_summary(
     source_year = str(rok)
 
     # Gdy jest styczeń i nie ma z czego symulować (lub brak jakichkolwiek danych w bieżącym roku)
-    if (str(current_month) == "01" and (len(months_data) <= 1 or total_przychod == Decimal("0.00"))) or len(months_data) == 0:
+    if (str(current_month) == "01" and (len(months_data) <= 1 or total_przychod == Decimal("0.00"))) or len(
+        months_data
+    ) == 0:
         prev_rok = str(int(rok) - 1)
         prev_months, prev_p, prev_k = _load_single_year_data(profile, prev_rok)
         if len(prev_months) > 0 and (prev_p > 0 or prev_k > 0):
@@ -438,5 +440,3 @@ def get_annual_financial_summary(
         "extrapolated_koszt": extrapolated_koszt,
         "can_extrapolate": can_extrapolate,
     }
-
-

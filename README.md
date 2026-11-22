@@ -9,7 +9,9 @@
 [![Zero-Hallucination](https://img.shields.io/badge/Policy-Zero--Hallucination%20(Decimal)-orange.svg?style=flat-square)](#-1-naczelna-zasada-zero-hallucination-policy)
 [![KSeF 2.0 Ready](https://img.shields.io/badge/KSeF-2.0%20(FA%202%20%2F%20FA%203)-red.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![Web UI: FastAPI + HTMX](https://img.shields.io/badge/web%20ui-FastAPI%20%2B%20HTMX%20%2B%20Tailwind-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](#-nowoczesna-nakładka-www-interfejs-użytkownika)
-[![Tests: unittest](https://img.shields.io/badge/tests-unittest%20(168%20passed)-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Tests: unittest](https://img.shields.io/badge/tests-unittest%20(232%20passed)-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Types: Mypy](https://img.shields.io/badge/types-mypy%20(strict)-blue.svg?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
+[![Coverage](https://img.shields.io/badge/coverage-71%25-brightgreen.svg?style=flat-square)](#)
 [![LLM-Agnostic](https://img.shields.io/badge/LLM-Agnostic%20(Claude%20%7C%20GPT%20%7C%20Gemini%20%7C%20AGY)-blueviolet.svg?style=flat-square)](#-elastyczność-llm-oraz-tryb-zero-llm)
 [![Local-First](https://img.shields.io/badge/privacy-Local--First-2e7d32.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
@@ -59,7 +61,7 @@ Tradycyjne programy księgowe bywają skomplikowane i wymagają żmudnego ręczn
 * 📱 **Paczka Przelewów z Kodami QR:** Natychmiastowe generowanie kodów QR zgodnych ze standardem Związku Banków Polskich dla przelewów ZUS (NRS), PIT-28 (mikrorachunek) oraz VAT-7 – opłać podatki smartfonem w mObywatelu lub aplikacji bankowej w kilka sekund!
 * 🛡️ **Należyta Staranność & Compliance AML:** Automatyczne sprawdzanie kontrahentów w rejestrach MF (Biała Lista VAT, rachunki bankowe), listach sankcyjnych (MSWiA, UE) oraz generowanie oficjalnych Kart Weryfikacji Kontrahenta (PDF A4) i zbiorczych raportów compliance (PDF A4 pejzaż z sumami kontrolnymi SHA-256) jako dowód na 5 lat.
 * ⚖️ **Doradca Podatkowy & Symulator Form:** Porównanie form opodatkowania w czasie rzeczywistym (Ryczałt vs Podatek Liniowy 19% vs Skala Podatkowa 12%/32%) wraz z audytem brakujących kosztów cyklicznych.
-* 🔒 **100% Local-First & Multi-Tenancy:** Wszystkie dane, faktury, profile i klucze przechowywane są wyłącznie lokalnie w izolowanych katalogach firmowych `firmy/{NIP-Nazwa}/`. Żadne dane finansowe nie wyciekają do zewnętrznych baz danych.
+* 🔒 **100% Local-First & Prywatność Danych:** TaxPilot AI jest autonomicznym asystentem księgowym typu Local-First, przeznaczonym do uruchamiania lokalnie na stacji roboczej przedsiębiorcy lub w zabezpieczonym prywatnym środowisku VPN/Tailscale. Wszystkie dane, faktury, profile i klucze przechowywane są wyłącznie lokalnie w odseparowanych katalogach firmowych `firmy/{NIP-Nazwa}/`. Żadne dane finansowe nie wyciekają do zewnętrznych baz danych.
 
 ---
 
@@ -243,9 +245,9 @@ python -m src.cli weryfikuj-miesiac --nip 7770001122 --rok 2026 --miesiac 10
 
 ---
 
-## 📁 Struktura Danych i Multi-Tenancy
+## 📁 Struktura Danych i Separacja Katalogowa (Local-First)
 
-Wszystkie dane każdej firmy są w 100% odseparowane w fizycznej strukturze katalogów:
+Wszystkie dane każdej firmy są w 100% odseparowane w fizycznej strukturze katalogów (architektura Local-First):
 
 ```text
 firmy/{NIP-NazwaFirmy}/
@@ -289,7 +291,7 @@ W repozytorium znajduje się również śledzony katalog [examples/](examples/) 
 
 ## 🧪 Testy Jednostkowe i Jakość Kodu
 
-Repozytorium posiada bogaty zestaw 168 deterministycznych testów jednostkowych i integracyjnych pokrywających wszystkie moduły aplikacji:
+Repozytorium posiada bogaty zestaw ponad 197 deterministycznych testów jednostkowych i integracyjnych pokrywających wszystkie moduły aplikacji:
 
 ```bash
 # Uruchomienie pełnego zestawu testów

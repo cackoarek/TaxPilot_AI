@@ -5,20 +5,22 @@ Przetwarza surowe pliki wrzucone przez użytkownika:
   faktury/{ROK}/{MIESIĄC}/sprzedaz/non-ksef-raw/      ->  sprzedaz/non-ksef-extracted/{stem}.json
 """
 
-from datetime import datetime
 import json
-import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from src.core.company import CompanyProfile
-from src.core.invoice import Invoice, InvoiceType, InvoiceParty, InvoiceItem
+from src.core.invoice import Invoice, InvoiceItem, InvoiceParty, InvoiceType
+from src.core.io import atomic_write_json
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.logging_config import get_logger
 
+logger = get_logger("taxpilot.non_ksef_extractor")
 
 NUM = r"(\d{1,3}(?:[ \t]\d{3})*(?:[,\.]\d{2})|\d+(?:[,\.]\d{2})?)"
 
@@ -52,8 +54,8 @@ def _detect_is_sales(text: str, filename: str, profile_nip: str) -> bool:
     naby_line_idx, naby_col = -1, -1
     nip_line_idx, nip_col = -1, -1
 
-    for idx, l in enumerate(lines):
-        l_low = l.lower()
+    for idx, line_text in enumerate(lines):
+        l_low = line_text.lower()
         if "sprzedawca" in l_low and sprz_line_idx == -1:
             sprz_line_idx = idx
             sprz_col = l_low.find("sprzedawca")
@@ -62,14 +64,14 @@ def _detect_is_sales(text: str, filename: str, profile_nip: str) -> bool:
             m_n = re.search(r"(?:nabywca|odbiorca|klient)", l_low)
             if m_n:
                 naby_col = m_n.start()
-        if profile_nip in l and nip_line_idx == -1:
+        if profile_nip in line_text and nip_line_idx == -1:
             nip_line_idx = idx
-            nip_col = l.find(profile_nip)
+            nip_col = line_text.find(profile_nip)
 
     if nip_line_idx == -1:
         clean_nip = profile_nip
-        for idx, l in enumerate(lines):
-            l_clean = l.replace("-", "").replace(" ", "")
+        for idx, line_text in enumerate(lines):
+            l_clean = line_text.replace("-", "").replace(" ", "")
             if clean_nip in l_clean and nip_line_idx == -1:
                 nip_line_idx = idx
                 nip_col = 0
@@ -123,7 +125,7 @@ KNOWN_CONTRACTORS: Dict[str, str] = {
     "5831023182": "MOL Polska Sp. z o.o.",
     "5270011878": "ANWIM S.A. (MOYA)",
     "5321867627": "MOBILNY.NET.PL ARTUR CHMARZYŃSKI",
-    "9520007036": 'LETA S.C. CZAJKOWSKI TADEUSZ, CZAJKOWSKI LESZEK',
+    "9520007036": "LETA S.C. CZAJKOWSKI TADEUSZ, CZAJKOWSKI LESZEK",
     "1230986525": "MJ KLIMA Lewandowski Łukasz",
     "8733250257": "ADMIN.NET.PL TOMASZ RZEPKA",
     "7792329907": "IBOOD SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
@@ -278,11 +280,7 @@ class NonKSeFExtractor:
             except Exception:
                 pass
 
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(extracted_invoice.to_dict(), f, indent=2, ensure_ascii=False)
-
-        return out_path
+        return atomic_write_json(out_path, extracted_invoice.to_dict(), indent=2, ensure_ascii=False)
 
     @classmethod
     def _extract_from_json(
@@ -341,7 +339,9 @@ class NonKSeFExtractor:
         elif p_clean and b_clean == p_clean:
             actual_type = InvoiceType.KOSZT
         elif "typ" in data:
-            actual_type = InvoiceType.SPRZEDAZ if data["typ"].lower() in ["sprzedaz", "sprzedaż", "sales"] else InvoiceType.KOSZT
+            actual_type = (
+                InvoiceType.SPRZEDAZ if data["typ"].lower() in ["sprzedaz", "sprzedaż", "sales"] else InvoiceType.KOSZT
+            )
         else:
             actual_type = invoice_type
 
@@ -375,7 +375,11 @@ class NonKSeFExtractor:
         items = []
         raw_items = data.get("items") or data.get("pozycje") or []
         for it in raw_items:
-            opis = it.get("description") or it.get("opis") or ("Usługa IT" if invoice_type == InvoiceType.SPRZEDAZ else "Pozycja kosztowa")
+            opis = (
+                it.get("description")
+                or it.get("opis")
+                or ("Usługa IT" if invoice_type == InvoiceType.SPRZEDAZ else "Pozycja kosztowa")
+            )
             it_netto = _clean_amount(str(it.get("net") or it.get("wartosc_netto") or netto))
             it_vat = _clean_amount(str(it.get("vat") or it.get("kwota_vat") or vat))
             it_brutto = _clean_amount(str(it.get("gross") or it.get("wartosc_brutto") or brutto))
@@ -457,9 +461,24 @@ class NonKSeFExtractor:
                 r"(?:faktura(?:\s+vat|\s+proforma)?|fv|invoice|rachunek)[\s:#]+([A-Za-z0-9][A-Za-z0-9\/\-_]+)",
             ]
             blacklist = [
-                "dokumentu", "konta", "rachunku", "klienta", "telefonu", "faktury",
-                "orygina", "oryginał", "kopia", "duplikat", "data", "strona", "sprzedawca",
-                "nabywca", "vat", "za", "okres", "miesiąc"
+                "dokumentu",
+                "konta",
+                "rachunku",
+                "klienta",
+                "telefonu",
+                "faktury",
+                "orygina",
+                "oryginał",
+                "kopia",
+                "duplikat",
+                "data",
+                "strona",
+                "sprzedawca",
+                "nabywca",
+                "vat",
+                "za",
+                "okres",
+                "miesiąc",
             ]
             for p in patterns:
                 for m in re.finditer(p, clean_text, re.IGNORECASE):
@@ -490,7 +509,9 @@ class NonKSeFExtractor:
         data_sprz = dates[1] if len(dates) > 1 else data_wyst
 
         # 3. Kontrahent NIP
-        nipy_raw = re.findall(r"\b(\d{3}[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{2}|\d{3}[-\s]?\d{2}[-\s]?\d{2}[-\s]?\d{3}|\d{10})\b", clean_text)
+        nipy_raw = re.findall(
+            r"\b(\d{3}[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{2}|\d{3}[-\s]?\d{2}[-\s]?\d{2}[-\s]?\d{3}|\d{10})\b", clean_text
+        )
         nipy = [re.sub(r"[^\d]", "", n) for n in nipy_raw]
         other_nip = "0000000000"
         for n in nipy:
@@ -567,28 +588,28 @@ class NonKSeFExtractor:
         if actual_type == InvoiceType.SPRZEDAZ:
             seller = InvoiceParty(nip=profile.nip, nazwa=profile.nazwa, kraj="PL")
             buyer_name = KNOWN_CONTRACTORS.get(other_nip, "Klient Zewnętrzny")
-            ryczalt_rate: Optional[str] = "0.12"
+            ryczalt_rate: Optional[Decimal] = Decimal("0.12")
 
             if "promocja" in filename.lower() or "erste" in clean_text.lower():
                 buyer_nip = "8960005673"
                 buyer_name = "Erste Bank Polska S.A."
                 item_desc = "Premia bankowa - promocja dla firm"
-                ryczalt_rate = "0.12"
+                ryczalt_rate = Decimal("0.12")
             elif other_nip == "1132737407":
                 buyer_nip = "1132737407"
                 buyer_name = "Edukacja sp. z o.o."
                 item_desc = "Usługi szkoleniowo-dydaktyczne"
-                ryczalt_rate = "0.085"
+                ryczalt_rate = Decimal("0.085")
             elif other_nip in ["5252877477", "5252545285"]:
                 buyer_nip = "5252545285"
                 buyer_name = "Kaft Spółka Z Ograniczoną Odpowiedzialnością"
                 item_desc = "Usługi programistyczne i wsparcia"
-                ryczalt_rate = "0.12"
+                ryczalt_rate = Decimal("0.12")
             elif other_nip == "5213242793":
                 buyer_nip = "5213242793"
                 buyer_name = "Piotr Wiśniewski"
                 item_desc = "Usługi programistyczne"
-                ryczalt_rate = "0.12"
+                ryczalt_rate = Decimal("0.12")
             else:
                 buyer_nip = other_nip
                 buyer_m = re.search(r"(?:nabywca|buyer|klient|odbiorca)[\s:]*([^\n\r]+)", clean_text, re.IGNORECASE)
@@ -686,22 +707,56 @@ class NonKSeFExtractor:
         miesiac: str,
         invoice_type: InvoiceType = InvoiceType.KOSZT,
     ) -> Invoice:
-        """Konwertuje PDF na tekst za pomocą pdftotext i dokonuje ekstrakcji."""
+        """Konwertuje PDF na tekst za pomocą wbudowanej biblioteki pypdf (lub pdftotext jako fallback) i dokonuje ekstrakcji."""
         if pdf_path.name in KNOWN_RECEIPTS_MAP:
             return cls._create_fallback_invoice(pdf_path, profile, rok, miesiac, invoice_type=invoice_type)
+
         text = ""
+
+        # 1. Próba odczytu czystym Pythonem (pypdf - natywnie na Linux i Windows bez aplikacji zewnętrznych)
         try:
-            res = subprocess.run(
-                ["/usr/bin/pdftotext", "-layout", str(pdf_path), "-"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-            )
-            if res.returncode == 0:
-                text = res.stdout
-        except Exception:
+            from pypdf import PdfReader
+
+            reader = PdfReader(str(pdf_path))
+            pages_text = []
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    pages_text.append(page_text)
+            if pages_text:
+                text = "\n".join(pages_text)
+        except Exception as exc:
+            logger.debug("pypdf nie zdołał odczytać tekstu z %s: %s", pdf_path.name, exc)
             text = ""
+
+        # 2. Opcjonalny fallback do systemowego pdftotext (jeśli pypdf nie zwrócił tekstu i narzędzie istnieje w OS)
+        if not text.strip():
+            pdftotext_bin = shutil.which("pdftotext")
+            if pdftotext_bin:
+                try:
+                    res = subprocess.run(
+                        [pdftotext_bin, "-layout", str(pdf_path), "-"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=False,
+                        timeout=15.0,
+                    )
+                    if res.returncode == 0:
+                        text = res.stdout
+                    else:
+                        logger.warning(
+                            "Błąd konwersji pdftotext dla %s (kod: %d): %s",
+                            pdf_path.name,
+                            res.returncode,
+                            res.stderr[:200] if res.stderr else "",
+                        )
+                except subprocess.TimeoutExpired:
+                    logger.warning("Przekroczono limit czasu (15s) podczas odczytu PDF: %s", pdf_path.name)
+                    text = ""
+                except Exception as exc:
+                    logger.warning("Błąd uruchomienia pdftotext dla %s: %s", pdf_path.name, exc)
+                    text = ""
 
         if text.strip():
             return cls._extract_from_text(text, profile, pdf_path.name, rok, miesiac, invoice_type=invoice_type)
@@ -811,9 +866,11 @@ class NonKSeFExtractor:
         """
         if use_ai:
             from src.level_1_ingestion.ai_document_extractor import AIDocumentExtractor
+
             invoices = AIDocumentExtractor.extract_unprocessed(profile, str(rok), str(miesiac).zfill(2))
             return [
-                InvoiceStorage.get_non_ksef_extracted_dir(profile, str(rok), str(miesiac).zfill(2), typ=inv.typ) / f"{Path(inv.plik_zrodlowy or inv.numer).stem}.json"
+                InvoiceStorage.get_non_ksef_extracted_dir(profile, str(rok), str(miesiac).zfill(2), typ=inv.typ)
+                / f"{Path(inv.plik_zrodlowy or inv.numer).stem}.json"
                 for inv in invoices
             ]
         types_to_process = [typ] if typ else [InvoiceType.KOSZT, InvoiceType.SPRZEDAZ]
@@ -827,7 +884,8 @@ class NonKSeFExtractor:
                 continue
 
             raw_files = [
-                f for f in raw_dir.iterdir()
+                f
+                for f in raw_dir.iterdir()
                 if f.is_file()
                 and not f.name.startswith(".")
                 and not f.name.endswith(".PRZENIESIONO.txt")

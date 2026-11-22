@@ -4,18 +4,13 @@ Testy są w 100% hermetyczne (mockowane zapytania HTTP).
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
-import shutil
-import tempfile
-import json
+from unittest.mock import MagicMock, patch
 
-from src.core.company import CompanyProfile, FormaOpodatkowania, TypZUS
+from src.core.company import CompanyProfile
 from src.level_1_ingestion.company_fetcher import CompanyFetcher
 
 
 class TestCompanyFetcher(unittest.TestCase):
-
     def test_clean_nip(self):
         self.assertEqual(CompanyFetcher.clean_nip("777-000-11-22"), "7770001122")
         self.assertEqual(CompanyFetcher.clean_nip(" PL 777 000 11 22 "), "7770001122")
@@ -33,7 +28,7 @@ class TestCompanyFetcher(unittest.TestCase):
                     "statusVat": "Czynny",
                     "regon": "123456789",
                     "workingAddress": "ul. Testowa 1, 00-001 Warszawa",
-                    "accountNumbers": ["12345678901234567890123456"]
+                    "accountNumbers": ["12345678901234567890123456"],
                 }
             }
         }
@@ -63,6 +58,7 @@ class TestCompanyFetcher(unittest.TestCase):
     @patch("requests.get")
     def test_fetch_mf_biala_lista_connection_error(self, mock_get):
         import requests
+
         mock_get.side_effect = requests.exceptions.ConnectionError("Brak sieci")
 
         res = CompanyFetcher.fetch_from_mf_biala_lista("7770001122")
@@ -80,7 +76,7 @@ class TestCompanyFetcher(unittest.TestCase):
                     "nazwa": "PROGRAMOWANIE JAN KOWALSKI",
                     "pkd": ["62.01.Z", "62.02.Z", "58.29.Z"],
                     "pkdGlowny": "62.01.Z",
-                    "status": "AKTYWNY"
+                    "status": "AKTYWNY",
                 }
             ]
         }
@@ -98,7 +94,7 @@ class TestCompanyFetcher(unittest.TestCase):
             nazwa="Test PKD Company",
             kody_pkd=["62.01.Z", "62.02.Z"],
             regon="123456789",
-            adres="ul. Prosta 1, Warszawa"
+            adres="ul. Prosta 1, Warszawa",
         )
         d = profile.to_dict()
         self.assertEqual(d["kody_pkd"], ["62.01.Z", "62.02.Z"])
@@ -113,4 +109,3 @@ class TestCompanyFetcher(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

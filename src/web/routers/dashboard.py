@@ -2,17 +2,17 @@
 src/web/routers/dashboard.py
 Trasa główna: Pulpit Przedsiębiorcy, Paczka Przelewów i Wskaźniki.
 """
+
 import json
-from pathlib import Path
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, Request
+from typing import Any, Dict, Optional
+
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from src.web.config import TEMPLATES_DIR
 from src.web.dependencies import get_global_context
 from src.web.services.qr_generator import get_transfer_qr_package
-from fastapi import HTTPException
 
 router = APIRouter(tags=["Pulpit"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -58,9 +58,15 @@ def load_aml_stats(profile, rok: str, miesiac: str) -> Optional[Dict[str, Any]]:
                     # Jeśli starszy format, zlicz rachunki z listy kontrahentów
                     if "rachunki_sprawdzone" not in stats and "kontrahenci" in data:
                         kontr = data.get("kontrahenci", [])
-                        defaults["rachunki_sprawdzone"] = sum(1 for k in kontr if k.get("status_rachunku") not in (None, "NIE_PODANO"))
-                        defaults["rachunki_zgodne"] = sum(1 for k in kontr if k.get("status_rachunku") == "ZGODNY_BIALA_LISTA")
-                        defaults["rachunki_niezgodne"] = sum(1 for k in kontr if k.get("status_rachunku") == "BRAK_NA_BIALEJ_LISCIE")
+                        defaults["rachunki_sprawdzone"] = sum(
+                            1 for k in kontr if k.get("status_rachunku") not in (None, "NIE_PODANO")
+                        )
+                        defaults["rachunki_zgodne"] = sum(
+                            1 for k in kontr if k.get("status_rachunku") == "ZGODNY_BIALA_LISTA"
+                        )
+                        defaults["rachunki_niezgodne"] = sum(
+                            1 for k in kontr if k.get("status_rachunku") == "BRAK_NA_BIALEJ_LISCIE"
+                        )
                     return defaults
                 return None
         except Exception:
@@ -134,4 +140,3 @@ async def get_transfer_qr_modal(request: Request, typ: str):
         "qr": qr_pkg,
     }
     return templates.TemplateResponse(request=request, name="partials/transfer_qr_modal.html", context=modal_ctx)
-

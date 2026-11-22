@@ -3,32 +3,120 @@ src/web/routers/invoices.py
 Kontroler Magazynu Dokumentów: przeglądanie faktur KSeF/Non-KSeF, upload Drag&Drop,
 auto-routing oraz wywołanie synchronizacji z KSeF 2.0.
 """
-import os
-import re
-import shutil
-from pathlib import Path
-from decimal import Decimal
-from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Request, Form, UploadFile, File, Query, HTTPException, Response
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
+import json
+import re
+from decimal import Decimal
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.core.invoice import Invoice, InvoiceType
 from src.core.company import CompanyProfile
+from src.core.invoice import InvoiceType
+from src.core.io import atomic_write_bytes
+from src.level_1_ingestion.invoice_storage import InvoiceStorage
+from src.level_1_ingestion.ksef_client import KSeFClient
+from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
+from src.logging_config import get_logger
 from src.web.config import TEMPLATES_DIR
 from src.web.dependencies import get_global_context
-from src.level_1_ingestion.invoice_storage import InvoiceStorage
-from src.level_1_ingestion.non_ksef_extractor import NonKSeFExtractor
-from src.level_1_ingestion.ksef_client import KSeFClient
 
+logger = get_logger("taxpilot.invoices")
 router = APIRouter(prefix="/faktury", tags=["Magazyn Faktur & KSeF"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 ALLOWED_EXTENSIONS = {".pdf", ".json", ".txt", ".md", ".jpg", ".jpeg", ".png"}
 
+# Limity uploadu (ochrona przed DoS pamięciowym i wyczerpaniem dysku)
+MAX_SINGLE_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
+MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+CHUNK_SIZE = 64 * 1024  # 64 KB bufor odczytu strumieniowego
 
-def get_month_invoices_summary(profile: CompanyProfile, rok: str, miesiac: str, typ_filter: Optional[str] = None) -> Dict[str, Any]:
+
+def sanitize_filename(raw_filename: str) -> str:
+    """
+    Sanityzuje nazwę pliku, usuwając sekwencje path traversal oraz niebezpieczne znaki.
+    Normalizuje nazwę do znaków bezpiecznych [a-zA-Z0-9._-].
+    """
+    normalized = raw_filename.strip().replace("\\", "/").split("/")[-1]
+    stem = Path(normalized).stem
+    ext = Path(normalized).suffix.lower()
+    clean_stem = re.sub(r"[^a-zA-Z0-9._-]", "_", stem)
+    clean_stem = re.sub(r"_+", "_", clean_stem).strip("._-")
+    if not clean_stem:
+        clean_stem = "dokument"
+    return f"{clean_stem}{ext}"
+
+
+def validate_file_content(content: bytes, ext: str) -> Tuple[bool, str]:
+    """
+    Weryfikuje rzeczywistą zawartość pliku na podstawie nagłówków (Magic Bytes).
+    Chroni przed wstrzyknięciem plików wykonywalnych ze zmienionym rozszerzeniem.
+    """
+    if not content:
+        return False, "Plik jest pusty (0 bajtów)"
+
+    ext_clean = ext.lower().strip()
+
+    if ext_clean == ".pdf":
+        if not (content.startswith(b"%PDF-") or b"%PDF-" in content[:1024]):
+            return False, "Brak poprawnej sygnatury PDF (%PDF-)"
+        # Głęboka inspekcja PDF: blokowanie złośliwych dyrektyw uruchomieniowych (SEC-5)
+        lower_content = content.lower()
+        for dangerous_tag in (b"/javascript", b"/js", b"/launch", b"/embeddedfiles"):
+            if dangerous_tag in lower_content:
+                return (
+                    False,
+                    f"Odrzucono plik PDF: wykryto niebezpieczną zawartość aktywną ({dangerous_tag.decode('ascii')})",
+                )
+        return True, ""
+
+    if ext_clean == ".png":
+        if not content.startswith(b"\x89PNG\r\n\x1a\n"):
+            return False, "Brak poprawnej sygnatury obrazu PNG"
+        return True, ""
+
+    if ext_clean in (".jpg", ".jpeg"):
+        if not content.startswith(b"\xff\xd8\xff"):
+            return False, "Brak poprawnej sygnatury obrazu JPEG"
+        return True, ""
+
+    if ext_clean == ".json":
+        try:
+            parsed = json.loads(content.decode("utf-8"))
+            if not isinstance(parsed, (dict, list)):
+                return False, "JSON musi zawierać obiekt lub listę"
+            return True, ""
+        except Exception as e:
+            return False, f"Niepoprawny format JSON: {e}"
+
+    if ext_clean in (".txt", ".md"):
+        if b"\x00" in content:
+            return False, "Wykryto zawartość binarną w pliku tekstowym"
+        # Ochrona przed wstrzykiwaniem niebezpiecznego HTML / skryptów w plikach tekstowych (SEC-5)
+        lower_content = content.lower()
+        for forbidden in (b"<script", b"<iframe", b"<object", b"<embed"):
+            if forbidden in lower_content:
+                return False, "Odrzucono plik tekstowy: wykryto niedozwolone znaczniki kodu wykonywalnego HTML/JS"
+        try:
+            content.decode("utf-8")
+            return True, ""
+        except UnicodeDecodeError:
+            try:
+                content.decode("cp1250")
+                return True, ""
+            except Exception:
+                return False, "Brak poprawnego kodowania tekstowego UTF-8 / CP1250"
+
+    return False, f"Nieobsługiwany format zawartości {ext}"
+
+
+def get_month_invoices_summary(
+    profile: CompanyProfile, rok: str, miesiac: str, typ_filter: Optional[str] = None
+) -> Dict[str, Any]:
     """Zbiera wszystkie faktury, statystyki i relokacje dla wybranego miesiąca."""
     typ_enum = None
     if typ_filter == "sprzedaz":
@@ -56,11 +144,13 @@ def get_month_invoices_summary(profile: CompanyProfile, rok: str, miesiac: str, 
         if raw_dir.exists():
             for marker in raw_dir.glob("*.PRZENIESIONO.txt"):
                 try:
-                    relokacje.append({
-                        "plik": marker.name.replace(".PRZENIESIONO.txt", ""),
-                        "katalog": check_type.value,
-                        "tresc": marker.read_text(encoding="utf-8")
-                    })
+                    relokacje.append(
+                        {
+                            "plik": marker.name.replace(".PRZENIESIONO.txt", ""),
+                            "katalog": check_type.value,
+                            "tresc": marker.read_text(encoding="utf-8"),
+                        }
+                    )
                 except Exception:
                     pass
 
@@ -123,7 +213,9 @@ async def invoices_table_partial(
     last_sync = None
     sync_history = []
     if profile:
-        summary = get_month_invoices_summary(profile, rok, miesiac, typ_filter=tab_clean if tab_clean != "all" else None)
+        summary = get_month_invoices_summary(
+            profile, rok, miesiac, typ_filter=tab_clean if tab_clean != "all" else None
+        )
         last_sync = KSeFClient.get_last_sync(profile, rok, miesiac)
         sync_history = KSeFClient.load_sync_history(profile)
 
@@ -179,6 +271,7 @@ async def upload_invoice_file(
         """
         summary = get_month_invoices_summary(profile, rok, miesiac)
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         unprocessed = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
         ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
         return templates.TemplateResponse(
@@ -205,20 +298,49 @@ async def upload_invoice_file(
     saved_files: List[str] = []
     rejected_files: List[tuple] = []
     relocated_files: List[str] = []
+    size_exceeded_files: List[tuple] = []
+    total_upload_size = 0
 
     for f in all_files:
-        filename = Path(f.filename).name
-        ext = Path(filename).suffix.lower()
+        raw_name = f.filename or "nieznany_plik"
+        ext = Path(raw_name).suffix.lower()
 
         if ext not in ALLOWED_EXTENSIONS:
-            rejected_files.append((filename, f"Niedozwolony format {ext}"))
+            rejected_files.append((raw_name, f"Niedozwolony format {ext}"))
             continue
 
-        dest_path = raw_dir / filename
-        content_bytes = await f.read()
-        with open(dest_path, "wb") as out_f:
-            out_f.write(content_bytes)
-        saved_files.append(filename)
+        clean_filename = sanitize_filename(raw_name)
+
+        # Bezpieczny odczyt strumieniowy z twardym limitem pamięciowym
+        try:
+            chunks: List[bytes] = []
+            file_size = 0
+            while True:
+                chunk = await f.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                file_size += len(chunk)
+                if file_size > MAX_SINGLE_FILE_SIZE:
+                    raise ValueError("Plik przekracza dopuszczalny limit 15 MB")
+                if total_upload_size + file_size > MAX_TOTAL_UPLOAD_SIZE:
+                    raise ValueError("Łączny rozmiar paczki plików przekracza dopuszczalny limit 50 MB")
+                chunks.append(chunk)
+
+            content_bytes = b"".join(chunks)
+            total_upload_size += file_size
+        except ValueError as ve:
+            size_exceeded_files.append((raw_name, str(ve)))
+            continue
+
+        # Weryfikacja Magic Bytes (rzeczywistej zawartości)
+        is_valid, error_msg = validate_file_content(content_bytes, ext)
+        if not is_valid:
+            rejected_files.append((raw_name, error_msg))
+            continue
+
+        dest_path = raw_dir / clean_filename
+        atomic_write_bytes(dest_path, content_bytes, mode=0o600)
+        saved_files.append(clean_filename)
 
     # Uruchomienie ekstrakcji dla zapisanych plików
     if saved_files:
@@ -253,26 +375,51 @@ async def upload_invoice_file(
         </div>
         """)
 
+    if size_exceeded_files:
+        size_html = ", ".join([f"<strong>{fn}</strong> ({err})" for fn, err in size_exceeded_files])
+        alert_parts.append(f"""
+        <div class="p-4 bg-red-50 text-red-900 border border-red-300 rounded-xl text-xs space-y-1 shadow-xs fade-in mb-4">
+            <div class="flex items-center space-x-2 font-bold">
+                <span>⛔</span>
+                <span>Przekroczono limit rozmiaru plików – pominięto:</span>
+            </div>
+            <div>{size_html}. Limit: 15 MB na plik, 50 MB łącznie na paczkę.</div>
+        </div>
+        """)
+
     if rejected_files:
         rej_html = ", ".join([f"<strong>{fn}</strong> ({reason})" for fn, reason in rejected_files])
         alert_parts.append(f"""
         <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-1 shadow-xs fade-in mb-4">
             <div class="flex items-center space-x-2 font-bold">
                 <span>⚠️</span>
-                <span>Niedozwolony format pliku – pominięto:</span>
+                <span>Niedozwolony format lub błędna sygnatura pliku – pominięto:</span>
             </div>
             <div>{rej_html}. Dozwolone formaty: PDF, JSON, TXT, JPG, PNG.</div>
         </div>
         """)
 
-    # Jeśli nie zapisano żadnego pliku z powodu niedozwolonych rozszerzeń, zwróć status 400 z komunikatem błędu
-    if not saved_files and rejected_files:
-        rej_names = ", ".join([fn for fn, _ in rejected_files])
+    # Jeśli wystąpiło przekroczenie limitu rozmiaru i nie zapisano żadnego pliku -> HTTP 413
+    if not saved_files and size_exceeded_files:
+        size_err = ", ".join([f"<code>{fn}</code> ({err})" for fn, err in size_exceeded_files])
         return HTMLResponse(
             content=f"""
             <div class="p-3 bg-red-50 text-red-800 text-xs font-semibold rounded-lg border border-red-200 flex items-center space-x-2">
                 <span>⛔</span>
-                <span>Niedozwolony format pliku: <code>{rej_names}</code>. Dozwolone: PDF, JSON, TXT, JPG, PNG.</span>
+                <span>Przekroczono dopuszczalny limit rozmiaru: {size_err}. Maksymalny rozmiar pliku to 15 MB (łączny limit: 50 MB).</span>
+            </div>
+            """,
+            status_code=413,
+        )
+
+    # Jeśli nie zapisano żadnego pliku z powodu niedozwolonych rozszerzeń lub błędnych sygnatur -> HTTP 400
+    if not saved_files and rejected_files:
+        rej_details = ", ".join([f"<code>{fn}</code> ({reason})" for fn, reason in rejected_files])
+        return HTMLResponse(
+            content=f"""
+            <div class="p-3 bg-red-50 text-red-800 text-xs font-semibold rounded-lg border border-red-200 flex items-center space-x-2">
+                <span>⛔</span>
+                <span>Niedozwolony format pliku lub niepoprawna sygnatura: {rej_details}. Dozwolone formaty: PDF, JSON, TXT, JPG, PNG.</span>
             </div>
             """,
             status_code=400,
@@ -280,8 +427,9 @@ async def upload_invoice_file(
 
     alert_html = "".join(alert_parts)
     summary = get_month_invoices_summary(profile, rok, miesiac)
-    
+
     from src.level_1_ingestion.extraction_service import ExtractionService
+
     unprocessed = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
     ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
 
@@ -402,7 +550,9 @@ async def download_invoice_file(
     try:
         target_path.relative_to(company_root)
     except ValueError:
-        raise HTTPException(status_code=403, detail="Dostęp zabroniony: Próba nieautoryzowanego odczytu spoza katalogu firmy.")
+        raise HTTPException(
+            status_code=403, detail="Dostęp zabroniony: Próba nieautoryzowanego odczytu spoza katalogu firmy."
+        )
 
     if not target_path.exists() or not target_path.is_file():
         raise HTTPException(status_code=404, detail="Plik faktury nie został odnaleziony na dysku.")
@@ -429,6 +579,7 @@ async def trigger_ai_extraction(request: Request):
         raise HTTPException(status_code=400, detail="Brak profilu firmy")
 
     from src.level_1_ingestion.extraction_service import ExtractionService
+
     ExtractionService.start_ai_extraction(profile, rok, miesiac)
 
     # Odśwież stan kontekstu
@@ -457,6 +608,7 @@ async def check_ai_extraction_status(request: Request):
     headers = {}
     if profile:
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         ext_status = ExtractionService.get_task_status(profile, rok, miesiac)
         ctx["extraction_status"] = ext_status
         ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
@@ -491,6 +643,7 @@ async def dismiss_ai_extraction_status(request: Request):
 
     if profile:
         from src.level_1_ingestion.extraction_service import ExtractionService
+
         ExtractionService.clear_task_status(profile, rok, miesiac)
         ctx["extraction_status"] = {"status": "idle", "message": ""}
         ctx["unprocessed_invoices"] = ExtractionService.get_unprocessed_invoices(profile, rok, miesiac)
@@ -501,4 +654,3 @@ async def dismiss_ai_extraction_status(request: Request):
         name="partials/unprocessed_invoices_banner.html",
         context=ctx,
     )
-

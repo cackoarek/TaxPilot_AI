@@ -23,7 +23,7 @@ comp = simulate_tax_regimes(
     przychody_roczne=Decimal("{PRZYCHODY}"),
     koszty_roczne=Decimal("{KOSZTY}"),
     stawka_ryczaltu=Decimal("{STAWKA_RYCZALTU}"),  # np. Decimal("0.12") dla IT
-    rok="{ROK}"
+    rok="{ROK}",
 )
 print(comp.generate_markdown())
 ```

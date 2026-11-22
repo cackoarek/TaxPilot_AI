@@ -11,21 +11,19 @@ Zapewnia:
 6. Tworzenie zbiorczych miesięcznych raportów compliance w folderze: firmy/{NIP}/weryfikacje/{ROK}/{MIESIAC}/.
 """
 
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from decimal import Decimal
-from enum import Enum
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
-from typing import Dict, List, Optional, Any, Set, Tuple, Union
-
-import requests
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from decimal import Decimal
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from src.core.company import CompanyProfile
-from src.core.invoice import Invoice, InvoiceType
+from src.core.invoice import InvoiceType
 from src.level_1_ingestion.company_fetcher import CompanyFetcher
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 
@@ -105,14 +103,15 @@ def _normalize_name(name: str) -> str:
         return ""
     s = name.lower()
     # Usunięcie polskich diakrytyków
-    replacements = {
-        "ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n",
-        "ó": "o", "ś": "s", "ź": "z", "ż": "z"
-    }
+    replacements = {"ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n", "ó": "o", "ś": "s", "ź": "z", "ż": "z"}
     for k, v in replacements.items():
         s = s.replace(k, v)
     # Usunięcie form prawnych i znaków interpunkcyjnych
-    s = re.sub(r"\b(sp\.?\s*z\s*o\.?\s*o\.?|spolka\s+z\s+ograniczona\s+odpowiedzialnoscia|s\.?a\.?|spolka\s+akcyjna|sp\.?\s*k\.?|gmbh|llc|inc|corp)\b", "", s)
+    s = re.sub(
+        r"\b(sp\.?\s*z\s*o\.?\s*o\.?|spolka\s+z\s+ograniczona\s+odpowiedzialnoscia|s\.?a\.?|spolka\s+akcyjna|sp\.?\s*k\.?|gmbh|llc|inc|corp)\b",
+        "",
+        s,
+    )
     s = re.sub(r"[^a-z0-9]", "", s)
     return s.strip()
 
@@ -122,10 +121,7 @@ def _get_normalized_tokens(name: str) -> List[str]:
     if not name:
         return []
     s = name.lower()
-    replacements = {
-        "ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n",
-        "ó": "o", "ś": "s", "ź": "z", "ż": "z"
-    }
+    replacements = {"ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n", "ó": "o", "ś": "s", "ź": "z", "ż": "z"}
     for k, v in replacements.items():
         s = s.replace(k, v)
     words = re.findall(r"[a-z0-9]+", s)
@@ -180,13 +176,17 @@ def check_sanctions(
             if len(s_tokens) > 1 and s_tokens.issubset(p_tokens):
                 mswia_hit = True
                 ue_hit = True
-                trafienia.append(f"Osoba powiązana (zarząd/beneficjent) '{p}' figuruje na liście sankcyjnej jako: {s_person}")
+                trafienia.append(
+                    f"Osoba powiązana (zarząd/beneficjent) '{p}' figuruje na liście sankcyjnej jako: {s_person}"
+                )
                 break
             # Jeśli pojedyncze kluczowe nazwisko (np. deripaska, putin, rotenberg):
             elif len(s_tokens) == 1 and next(iter(s_tokens)) in p_tokens:
                 mswia_hit = True
                 ue_hit = True
-                trafienia.append(f"Osoba powiązana (zarząd/beneficjent) '{p}' figuruje na liście sankcyjnej jako: {s_person}")
+                trafienia.append(
+                    f"Osoba powiązana (zarząd/beneficjent) '{p}' figuruje na liście sankcyjnej jako: {s_person}"
+                )
                 break
 
     return mswia_hit, ue_hit, trafienia
@@ -238,6 +238,7 @@ def _register_pdf_fonts() -> Tuple[str, str]:
 @dataclass
 class KartaWeryfikacjiKontrahenta:
     """Kompletna Karta Weryfikacji Kontrahenta (AML / Sankcje / Biała Lista)."""
+
     nip: str
     nazwa: str
     adres: Optional[str]
@@ -308,13 +309,25 @@ class KartaWeryfikacjiKontrahenta:
             "NIE_DOTYCZY_ZAGRANICZNA": "ℹ️ Nie dotyczy polskiego CRBR (Spółka zagraniczna podlegająca dyrektywie AML w kraju siedziby - UE)",
         }.get(self.crbr_status, self.crbr_status)
 
-        mswia_badge = "🚨 FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)" if self.sankcje_mswia else "✅ Brak na polskiej liście sankcyjnej MSWiA"
-        ue_badge = "🚨 FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)" if self.sankcje_ue else "✅ Brak na unijnej liście sankcyjnej (EU Sanctions)"
+        mswia_badge = (
+            "🚨 FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)"
+            if self.sankcje_mswia
+            else "✅ Brak na polskiej liście sankcyjnej MSWiA"
+        )
+        ue_badge = (
+            "🚨 FIGURUJE NA LIŚCIE SANKCYJNEJ (STOP!)"
+            if self.sankcje_ue
+            else "✅ Brak na unijnej liście sankcyjnej (EU Sanctions)"
+        )
 
         if self.blad_polaczenia:
             vat_badge = "⚠️ Brak połączenia z API MF (błąd sieci / tryb offline)"
         else:
-            vat_badge = "✅ Czynny podatnik VAT" if self.platnik_vat_czynny else f"⚠️ {self.status_vat or 'Zwolniony / Niezarejestrowany'}"
+            vat_badge = (
+                "✅ Czynny podatnik VAT"
+                if self.platnik_vat_czynny
+                else f"⚠️ {self.status_vat or 'Zwolniony / Niezarejestrowany'}"
+            )
 
         rachunek_badge = {
             StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: "✅ Potwierdzony na Białej Liście Podatników VAT (MF)",
@@ -340,21 +353,23 @@ class KartaWeryfikacjiKontrahenta:
 
         linie = [
             "# KARTA WERYFIKACJI KONTRAHENTA (AML / SANKCJE / BIAŁA LISTA)",
-            f"*Sporządzono w ramach procedury należytej staranności TaxPilot AI (zgodnie z ustawą AML i ustawą sankcyjną)*",
+            "*Sporządzono w ramach procedury należytej staranności TaxPilot AI (zgodnie z ustawą AML i ustawą sankcyjną)*",
         ]
 
         if self.blad_polaczenia:
-            linie.extend([
-                "",
-                "> [!WARNING]",
-                "> ### ⚠️ WERYFIKACJA NIEKOMPLETNA – BRAK DOSTĘPU DO REJESTRÓW MF (BŁĄD SIECI / OFFLINE)",
-                f"> Podczas badania podmiotu wystąpił brak połączenia z API Białej Listy Ministerstwa Finansów ({self.komunikat_bledu or 'brak sieci'}).",
-                "> **Status podatnika VAT, REGON oraz rachunki bankowe NIE ZOSTAŁY zweryfikowane.**",
-                "> ",
-                "> ⛔ **Karta nie stanowi ostatecznego dowodu należytej staranności i nie powinna być zatwierdzana w tym stanie.**",
-                "> 👉 **Zalecenie:** Po przywróceniu połączenia internetowego ponów weryfikację poleceniem:",
-                f"> `python -m src.cli weryfikuj --kontrahent-nip {self.nip} --force`",
-            ])
+            linie.extend(
+                [
+                    "",
+                    "> [!WARNING]",
+                    "> ### ⚠️ WERYFIKACJA NIEKOMPLETNA – BRAK DOSTĘPU DO REJESTRÓW MF (BŁĄD SIECI / OFFLINE)",
+                    f"> Podczas badania podmiotu wystąpił brak połączenia z API Białej Listy Ministerstwa Finansów ({self.komunikat_bledu or 'brak sieci'}).",
+                    "> **Status podatnika VAT, REGON oraz rachunki bankowe NIE ZOSTAŁY zweryfikowane.**",
+                    "> ",
+                    "> ⛔ **Karta nie stanowi ostatecznego dowodu należytej staranności i nie powinna być zatwierdzana w tym stanie.**",
+                    "> 👉 **Zalecenie:** Po przywróceniu połączenia internetowego ponów weryfikację poleceniem:",
+                    f"> `python -m src.cli weryfikuj --kontrahent-nip {self.nip} --force`",
+                ]
+            )
 
         krs_label = self.krs
         if not krs_label:
@@ -365,28 +380,32 @@ class KartaWeryfikacjiKontrahenta:
             else:
                 krs_label = "Brak"
 
-        linie.extend([
-            "",
-            "---",
-            "## 1. Dane podstawowe",
-            f"* **Data i godzina weryfikacji:** `{self.data_weryfikacji_tekst}` (UTC: `{self.data_weryfikacji}`)",
-            f"* **Osoba / Narzędzie weryfikujące:** {self.osoba_weryfikujaca}",
-            f"* **Nazwa kontrahenta:** **{self.nazwa}**",
-            f"* **Numer NIP:** `{self.nip}`",
-            f"* **REGON:** `{self.regon or 'Brak'}` | **KRS:** `{krs_label}`",
-            f"* **Adres siedziby / działalności:** {self.adres or 'Brak danych adresowych'}",
-            f"* **Forma prawna:** {self.forma_prawna}",
-            "",
-            "---",
-            "## 2. Wyniki sprawdzenia w rejestrach publicznych",
-            f"* **Rejestr podstawowy ({self.zrodlo_rejestru}):** {rejestr_badge}",
-        ])
+        linie.extend(
+            [
+                "",
+                "---",
+                "## 1. Dane podstawowe",
+                f"* **Data i godzina weryfikacji:** `{self.data_weryfikacji_tekst}` (UTC: `{self.data_weryfikacji}`)",
+                f"* **Osoba / Narzędzie weryfikujące:** {self.osoba_weryfikujaca}",
+                f"* **Nazwa kontrahenta:** **{self.nazwa}**",
+                f"* **Numer NIP:** `{self.nip}`",
+                f"* **REGON:** `{self.regon or 'Brak'}` | **KRS:** `{krs_label}`",
+                f"* **Adres siedziby / działalności:** {self.adres or 'Brak danych adresowych'}",
+                f"* **Forma prawna:** {self.forma_prawna}",
+                "",
+                "---",
+                "## 2. Wyniki sprawdzenia w rejestrach publicznych",
+                f"* **Rejestr podstawowy ({self.zrodlo_rejestru}):** {rejestr_badge}",
+            ]
+        )
 
         if self.reprezentacja:
             linie.append(f"  * **Osoby uprawnione do reprezentacji:** {', '.join(self.reprezentacja)}")
         else:
             if "ZAGRANICZNA" in self.forma_prawna:
-                linie.append("  * **Osoby uprawnione do reprezentacji:** Zarząd / Dyrektorzy zgodnie z właściwym rejestrem handlowym państwa siedziby")
+                linie.append(
+                    "  * **Osoby uprawnione do reprezentacji:** Zarząd / Dyrektorzy zgodnie z właściwym rejestrem handlowym państwa siedziby"
+                )
             elif "JDG" in self.forma_prawna or "JEDNOOSOBOWA" in self.forma_prawna:
                 linie.append("  * **Osoby uprawnione do reprezentacji:** Przedsiębiorca osobiście (właściciel JDG)")
             else:
@@ -396,45 +415,53 @@ class KartaWeryfikacjiKontrahenta:
         if self.beneficjenci_rzeczywisci:
             linie.append(f"  * **Ustaleni beneficjenci rzeczywiści (UBO):** {', '.join(self.beneficjenci_rzeczywisci)}")
 
-        linie.extend([
-            f"* **Polska lista sankcyjna MSWiA:** {mswia_badge}",
-            f"* **Unijna lista sankcyjna (EU Sanctions Map):** {ue_badge}",
-            f"* **Biała Lista Podatników VAT (Ministerstwo Finansów):** {vat_badge}",
-            f"* **Status rachunku bankowego:** {rachunek_badge}",
-        ])
+        linie.extend(
+            [
+                f"* **Polska lista sankcyjna MSWiA:** {mswia_badge}",
+                f"* **Unijna lista sankcyjna (EU Sanctions Map):** {ue_badge}",
+                f"* **Biała Lista Podatników VAT (Ministerstwo Finansów):** {vat_badge}",
+                f"* **Status rachunku bankowego:** {rachunek_badge}",
+            ]
+        )
         if self.zweryfikowany_rachunek:
             linie.append(f"  * **Sprawdzany numer rachunku:** `{self.zweryfikowany_rachunek}`")
 
         if self.sankcje_szczegoly:
-            linie.extend([
-                "",
-                "### 🚨 Szczegóły alertów sankcyjnych:",
-            ])
+            linie.extend(
+                [
+                    "",
+                    "### 🚨 Szczegóły alertów sankcyjnych:",
+                ]
+            )
             for s in self.sankcje_szczegoly:
                 linie.append(f"* ⚠️ **{s}**")
 
-        linie.extend([
-            "",
-            "---",
-            "## 3. Ocena ryzyka i decyzja compliance",
-            f"* **Czy kontrahent lub beneficjent ma status PEP (osoba na eksponowanym stanowisku)?** {'TAK ⚠️' if self.status_pep else 'NIE'}",
-            f"* **Poziom ryzyka kontrahenta:** **{ryzyko_badge}**",
-            f"* **Decyzja o współpracy i księgowaniu:** **{decyzja_badge}**",
-            f"* **Uzasadnienie merytoryczne:** {self.uzasadnienie_decyzji}",
-        ])
+        linie.extend(
+            [
+                "",
+                "---",
+                "## 3. Ocena ryzyka i decyzja compliance",
+                f"* **Czy kontrahent lub beneficjent ma status PEP (osoba na eksponowanym stanowisku)?** {'TAK ⚠️' if self.status_pep else 'NIE'}",
+                f"* **Poziom ryzyka kontrahenta:** **{ryzyko_badge}**",
+                f"* **Decyzja o współpracy i księgowaniu:** **{decyzja_badge}**",
+                f"* **Uzasadnienie merytoryczne:** {self.uzasadnienie_decyzji}",
+            ]
+        )
 
         if self.uwagi_dodatkowe:
             linie.append(f"* **Uwagi dodatkowe:** {self.uwagi_dodatkowe}")
 
-        linie.extend([
-            "",
-            "---",
-            "## 4. Dowody weryfikacji i ślad audytowy (Audit Trail)",
-            f"* **Identyfikator kryptograficzny dowodu (SHA-256):** `{self.sha256_hash}`",
-            f"* **Wymóg retencji dowodów:** Minimum 5 lat od zakończenia roku obrotowego (art. 34 ustawy AML / art. 86 Ordynacji podatkowej).",
-            f"* **Pliki źródłowe powiązane:** Zapisane w archiwum: `karty/{self.nip}-raw.json`.",
-            "",
-        ])
+        linie.extend(
+            [
+                "",
+                "---",
+                "## 4. Dowody weryfikacji i ślad audytowy (Audit Trail)",
+                f"* **Identyfikator kryptograficzny dowodu (SHA-256):** `{self.sha256_hash}`",
+                "* **Wymóg retencji dowodów:** Minimum 5 lat od zakończenia roku obrotowego (art. 34 ustawy AML / art. 86 Ordynacji podatkowej).",
+                f"* **Pliki źródłowe powiązane:** Zapisane w archiwum: `karty/{self.nip}-raw.json`.",
+                "",
+            ]
+        )
 
         return "\n".join(linie)
 
@@ -444,10 +471,10 @@ class KartaWeryfikacjiKontrahenta:
         zgodną z procedurą należytej staranności (KAS, GIIF, retencja 5 lat).
         Nowoczesny, reprezentacyjny layout w standardzie corporate / banking compliance.
         """
-        from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -464,39 +491,36 @@ class KartaWeryfikacjiKontrahenta:
         )
 
         # Style typograficzne (Standard Executive Compliance)
-        hdr_brand = ParagraphStyle('HdrBrand', fontName=font_bold, fontSize=7.5, leading=9.5, textColor=colors.HexColor('#38BDF8'))
-        hdr_title = ParagraphStyle('HdrTitle', fontName=font_bold, fontSize=12.5, leading=15, textColor=colors.white)
-        hdr_sub = ParagraphStyle('HdrSub', fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor('#CBD5E1'))
-        hdr_right = ParagraphStyle('HdrRight', fontName=font_bold, fontSize=8, leading=10, textColor=colors.HexColor('#F8FAFC'), alignment=2)
-        hdr_right_sub = ParagraphStyle('HdrRightSub', fontName=font_regular, fontSize=6.5, leading=8.5, textColor=colors.HexColor('#94A3B8'), alignment=2)
-
-        sec_hdr = ParagraphStyle(
-            'SecHdr',
-            fontName=font_bold,
-            fontSize=8.5,
-            leading=11,
-            textColor=colors.HexColor('#0F172A')
+        hdr_brand = ParagraphStyle(
+            "HdrBrand", fontName=font_bold, fontSize=7.5, leading=9.5, textColor=colors.HexColor("#38BDF8")
         )
-        cell_bold = ParagraphStyle(
-            'CellB',
-            fontName=font_bold,
-            fontSize=7.5,
-            leading=10,
-            textColor=colors.HexColor('#334155')
+        hdr_title = ParagraphStyle("HdrTitle", fontName=font_bold, fontSize=12.5, leading=15, textColor=colors.white)
+        hdr_sub = ParagraphStyle(
+            "HdrSub", fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor("#CBD5E1")
         )
-        cell_norm = ParagraphStyle(
-            'CellN',
-            fontName=font_regular,
-            fontSize=7.5,
-            leading=10,
-            textColor=colors.HexColor('#0F172A')
+        hdr_right = ParagraphStyle(
+            "HdrRight", fontName=font_bold, fontSize=8, leading=10, textColor=colors.HexColor("#F8FAFC"), alignment=2
         )
-        footer_style = ParagraphStyle(
-            'FooterS',
+        hdr_right_sub = ParagraphStyle(
+            "HdrRightSub",
             fontName=font_regular,
             fontSize=6.5,
             leading=8.5,
-            textColor=colors.HexColor('#64748B')
+            textColor=colors.HexColor("#94A3B8"),
+            alignment=2,
+        )
+
+        sec_hdr = ParagraphStyle(
+            "SecHdr", fontName=font_bold, fontSize=8.5, leading=11, textColor=colors.HexColor("#0F172A")
+        )
+        cell_bold = ParagraphStyle(
+            "CellB", fontName=font_bold, fontSize=7.5, leading=10, textColor=colors.HexColor("#334155")
+        )
+        cell_norm = ParagraphStyle(
+            "CellN", fontName=font_regular, fontSize=7.5, leading=10, textColor=colors.HexColor("#0F172A")
+        )
+        footer_style = ParagraphStyle(
+            "FooterS", fontName=font_regular, fontSize=6.5, leading=8.5, textColor=colors.HexColor("#64748B")
         )
 
         elements = []
@@ -505,51 +529,59 @@ class KartaWeryfikacjiKontrahenta:
         header_table = Table(
             [
                 [
-                    Paragraph('TAXPILOT AI • CENTRUM COMPLIANCE I NALEŻYTEJ STARANNOŚCI', hdr_brand),
-                    Paragraph('URZĘDOWY DOWÓD WERYFIKACJI', hdr_right),
+                    Paragraph("TAXPILOT AI • CENTRUM COMPLIANCE I NALEŻYTEJ STARANNOŚCI", hdr_brand),
+                    Paragraph("URZĘDOWY DOWÓD WERYFIKACJI", hdr_right),
                 ],
                 [
-                    Paragraph('KARTA WERYFIKACJI KONTRAHENTA', hdr_title),
-                    Paragraph(f'NIP: <b>{self.nip}</b>', hdr_right),
+                    Paragraph("KARTA WERYFIKACJI KONTRAHENTA", hdr_title),
+                    Paragraph(f"NIP: <b>{self.nip}</b>", hdr_right),
                 ],
                 [
-                    Paragraph('Procedura: art. 34 ustawy AML • art. 22p ustawy o PIT • art. 96b ustawy o VAT', hdr_sub),
-                    Paragraph(f'Audyt: {self.data_weryfikacji_tekst[:16]}', hdr_right_sub),
+                    Paragraph("Procedura: art. 34 ustawy AML • art. 22p ustawy o PIT • art. 96b ustawy o VAT", hdr_sub),
+                    Paragraph(f"Audyt: {self.data_weryfikacji_tekst[:16]}", hdr_right_sub),
                 ],
             ],
-            colWidths=[360, 165]
+            colWidths=[360, 165],
         )
-        header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 12),
-            ('RIGHTPADDING', (0,0), (-1,-1), 12),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
+        header_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0F172A")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ]
+            )
+        )
         elements.append(header_table)
         elements.append(Spacer(1, 8))
 
         # 2. Status Decyzji i Poziomu Ryzyka (Decision Card)
         if self.blad_polaczenia:
-            dec_bg = colors.HexColor('#FEF2F2')
-            dec_border = colors.HexColor('#DC2626')
+            dec_bg = colors.HexColor("#FEF2F2")
+            dec_border = colors.HexColor("#DC2626")
             dec_title = '<font color="#991B1B" size="9.5"><b>[!] STATUS: WERYFIKACJA NIEKOMPLETNA – BŁĄD SIECI / API MF</b></font>'
             dec_sub = f'<font color="#7F1D1D" size="7.5">Rejestry MF nie odpowiedziały poprawnie ({self.komunikat_bledu or "offline"}). Wymagane ponowienie z parametrem --force.</font>'
         elif self.decyzja == DecyzjaWspolpracy.AKCEPTACJA:
-            dec_bg = colors.HexColor('#F0FDF4')
-            dec_border = colors.HexColor('#16A34A')
+            dec_bg = colors.HexColor("#F0FDF4")
+            dec_border = colors.HexColor("#16A34A")
             dec_title = '<font color="#15803D" size="9.5"><b>✓ STATUS: AKCEPTACJA WSPÓŁPRACY I PŁATNOŚCI</b></font>'
             dec_sub = '<font color="#166534" size="7.5">Brak ryzyk sankcyjnych (MSWiA / UE), status VAT czynny, pełna ochrona kosztów podatkowych.</font>'
         elif self.decyzja == DecyzjaWspolpracy.WYMAGA_WYJASNIENIA:
-            dec_bg = colors.HexColor('#FFFBEB')
-            dec_border = colors.HexColor('#D97706')
-            dec_title = '<font color="#B45309" size="9.5"><b>[!] STATUS: WYMAGA WYJAŚNIENIA / ZGODY ZARZĄDZAJĄCEGO</b></font>'
+            dec_bg = colors.HexColor("#FFFBEB")
+            dec_border = colors.HexColor("#D97706")
+            dec_title = (
+                '<font color="#B45309" size="9.5"><b>[!] STATUS: WYMAGA WYJAŚNIENIA / ZGODY ZARZĄDZAJĄCEGO</b></font>'
+            )
             dec_sub = f'<font color="#92400E" size="7.5">{self.uzasadnienie_decyzji}</font>'
         else:
-            dec_bg = colors.HexColor('#FEF2F2')
-            dec_border = colors.HexColor('#DC2626')
-            dec_title = '<font color="#991B1B" size="9.5"><b>[✗] STATUS: BEZWZGLĘDNA BLOKADA TRANSAKCJI (SANKCJE)</b></font>'
+            dec_bg = colors.HexColor("#FEF2F2")
+            dec_border = colors.HexColor("#DC2626")
+            dec_title = (
+                '<font color="#991B1B" size="9.5"><b>[✗] STATUS: BEZWZGLĘDNA BLOKADA TRANSAKCJI (SANKCJE)</b></font>'
+            )
             dec_sub = '<font color="#7F1D1D" size="7.5">Kontrahent figuruje na liście sankcyjnej – kategoryczny zakaz udostępniania zasobów gospodarczych.</font>'
 
         ryzyko_badge = {
@@ -562,34 +594,44 @@ class KartaWeryfikacjiKontrahenta:
         decision_card = Table(
             [
                 [
-                    Paragraph(f'{dec_title}<br/>{dec_sub}', cell_norm),
-                    Paragraph(f'<b>Poziom ryzyka:</b> {ryzyko_badge}<br/><b>Audytor:</b> {self.osoba_weryfikujaca}', cell_norm),
+                    Paragraph(f"{dec_title}<br/>{dec_sub}", cell_norm),
+                    Paragraph(
+                        f"<b>Poziom ryzyka:</b> {ryzyko_badge}<br/><b>Audytor:</b> {self.osoba_weryfikujaca}", cell_norm
+                    ),
                 ]
             ],
-            colWidths=[335, 190]
+            colWidths=[335, 190],
         )
-        decision_card.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), dec_bg),
-            ('BOX', (0,0), (-1,-1), 1, dec_border),
-            ('LINELEFT', (0,0), (0,-1), 4, dec_border),
-            ('TOPPADDING', (0,0), (-1,-1), 5),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
+        decision_card.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), dec_bg),
+                    ("BOX", (0, 0), (-1, -1), 1, dec_border),
+                    ("LINELEFT", (0, 0), (0, -1), 4, dec_border),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ]
+            )
+        )
         elements.append(decision_card)
         elements.append(Spacer(1, 8))
 
         # 3. Sekcja 1: Dane identyfikacyjne kontrahenta
-        s1_bar = Table([[Paragraph('1. DANE IDENTYFIKACYJNE PODMIOTU', sec_hdr)]], colWidths=[525])
-        s1_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-            ('LINELEFT', (0,0), (-1,-1), 3, colors.HexColor('#2563EB')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        s1_bar = Table([[Paragraph("1. DANE IDENTYFIKACYJNE PODMIOTU", sec_hdr)]], colWidths=[525])
+        s1_bar.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F1F5F9")),
+                    ("LINELEFT", (0, 0), (-1, -1), 3, colors.HexColor("#2563EB")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(s1_bar)
         elements.append(Spacer(1, 3))
 
@@ -603,34 +645,48 @@ class KartaWeryfikacjiKontrahenta:
                 krs_pdf = "Brak"
 
         dane_k = [
-            [Paragraph('Pełna nazwa firmy:', cell_bold), Paragraph(f'<b>{self.nazwa}</b>', cell_norm)],
-            [Paragraph('Identyfikator NIP:', cell_bold), Paragraph(f'<b>{self.nip}</b>', cell_norm)],
-            [Paragraph('REGON / KRS:', cell_bold), Paragraph(f'{self.regon or "Brak"} • KRS: {krs_pdf}', cell_norm)],
-            [Paragraph('Adres siedziby:', cell_bold), Paragraph(f'{self.adres or "Brak danych adresowych"}', cell_norm)],
-            [Paragraph('Forma prawna:', cell_bold), Paragraph(f'{self.forma_prawna}', cell_norm)],
+            [Paragraph("Pełna nazwa firmy:", cell_bold), Paragraph(f"<b>{self.nazwa}</b>", cell_norm)],
+            [Paragraph("Identyfikator NIP:", cell_bold), Paragraph(f"<b>{self.nip}</b>", cell_norm)],
+            [Paragraph("REGON / KRS:", cell_bold), Paragraph(f"{self.regon or 'Brak'} • KRS: {krs_pdf}", cell_norm)],
+            [
+                Paragraph("Adres siedziby:", cell_bold),
+                Paragraph(f"{self.adres or 'Brak danych adresowych'}", cell_norm),
+            ],
+            [Paragraph("Forma prawna:", cell_bold), Paragraph(f"{self.forma_prawna}", cell_norm)],
         ]
         t1 = Table(dane_k, colWidths=[150, 375])
-        t1.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        t1.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(t1)
         elements.append(Spacer(1, 8))
 
         # 4. Sekcja 2: Wyniki weryfikacji w rejestrach
-        s2_bar = Table([[Paragraph('2. WYNIKI WERYFIKACJI W REJESTRACH PUBLICZNYCH I LISTACH SANKCYJNYCH', sec_hdr)]], colWidths=[525])
-        s2_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-            ('LINELEFT', (0,0), (-1,-1), 3, colors.HexColor('#2563EB')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        s2_bar = Table(
+            [[Paragraph("2. WYNIKI WERYFIKACJI W REJESTRACH PUBLICZNYCH I LISTACH SANKCYJNYCH", sec_hdr)]],
+            colWidths=[525],
+        )
+        s2_bar.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F1F5F9")),
+                    ("LINELEFT", (0, 0), (-1, -1), 3, colors.HexColor("#2563EB")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(s2_bar)
         elements.append(Spacer(1, 3))
 
@@ -649,13 +705,25 @@ class KartaWeryfikacjiKontrahenta:
             "NIE_DOTYCZY_ZAGRANICZNA": '<font color="#2563EB"><b>[i] Nie dotyczy polskiego CRBR</b> (Rejestr UBO w kraju siedziby - UE)</font>',
         }.get(self.crbr_status, self.crbr_status)
 
-        mswia_badge = '<font color="#DC2626"><b>[✗] FIGURUJE NA LIŚCIE SANKCYJNEJ MSWiA (STOP!)</b></font>' if self.sankcje_mswia else '<font color="#15803D"><b>✓ Brak na polskiej liście sankcyjnej MSWiA</b></font>'
-        ue_badge = '<font color="#DC2626"><b>[✗] FIGURUJE NA LIŚCIE SANKCYJNEJ UE (STOP!)</b></font>' if self.sankcje_ue else '<font color="#15803D"><b>✓ Brak na liście sankcyjnej Unii Europejskiej</b></font>'
-        
+        mswia_badge = (
+            '<font color="#DC2626"><b>[✗] FIGURUJE NA LIŚCIE SANKCYJNEJ MSWiA (STOP!)</b></font>'
+            if self.sankcje_mswia
+            else '<font color="#15803D"><b>✓ Brak na polskiej liście sankcyjnej MSWiA</b></font>'
+        )
+        ue_badge = (
+            '<font color="#DC2626"><b>[✗] FIGURUJE NA LIŚCIE SANKCYJNEJ UE (STOP!)</b></font>'
+            if self.sankcje_ue
+            else '<font color="#15803D"><b>✓ Brak na liście sankcyjnej Unii Europejskiej</b></font>'
+        )
+
         if self.blad_polaczenia:
             vat_badge = '<font color="#DC2626"><b>[!] BŁĄD SIECI / BRAK POŁĄCZENIA Z API MF</b></font>'
         else:
-            vat_badge = '<font color="#15803D"><b>✓ Czynny podatnik VAT</b> (Status potwierdzony w MF)</font>' if self.platnik_vat_czynny else f'<font color="#D97706"><b>[!] {self.status_vat or "Zwolniony / Niezarejestrowany"}</b></font>'
+            vat_badge = (
+                '<font color="#15803D"><b>✓ Czynny podatnik VAT</b> (Status potwierdzony w MF)</font>'
+                if self.platnik_vat_czynny
+                else f'<font color="#D97706"><b>[!] {self.status_vat or "Zwolniony / Niezarejestrowany"}</b></font>'
+            )
 
         rachunek_badge = {
             StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: '<font color="#15803D"><b>✓ Potwierdzony na Białej Liście Podatników VAT (MF)</b></font>',
@@ -663,7 +731,7 @@ class KartaWeryfikacjiKontrahenta:
             StatusRachunkuBankowego.NIE_PODANO: '<font color="#64748B"><b>[i] Nie wskazano rachunku do weryfikacji</b></font>',
         }.get(self.status_rachunku, self.status_rachunku.value)
         if self.zweryfikowany_rachunek:
-            rachunek_badge += f"<br/><font size=\"6.5\" color=\"#475569\">Sprawdzany numer konta: <b>{self.zweryfikowany_rachunek}</b></font>"
+            rachunek_badge += f'<br/><font size="6.5" color="#475569">Sprawdzany numer konta: <b>{self.zweryfikowany_rachunek}</b></font>'
 
         if self.reprezentacja:
             rep_text = f"Reprezentacja: {', '.join(self.reprezentacja)}"
@@ -674,54 +742,78 @@ class KartaWeryfikacjiKontrahenta:
         else:
             rep_text = "Reprezentacja: Zarząd zgodnie z odpisem KRS"
 
-        rejestr_tytul = "Rejestr handlowy państwa siedziby" if "ZAGRANICZNA" in self.forma_prawna else f"Rejestr CEIDG/KRS ({self.zrodlo_rejestru})"
+        rejestr_tytul = (
+            "Rejestr handlowy państwa siedziby"
+            if "ZAGRANICZNA" in self.forma_prawna
+            else f"Rejestr CEIDG/KRS ({self.zrodlo_rejestru})"
+        )
         rej_data = [
-            [Paragraph(f'{rejestr_tytul}:', cell_bold), Paragraph(f'{rejestr_badge} • {rep_text}', cell_norm)],
-            [Paragraph('Biała Lista Podatników VAT (MF):', cell_bold), Paragraph(f'{vat_badge}', cell_norm)],
-            [Paragraph('Status rachunku bankowego:', cell_bold), Paragraph(f'{rachunek_badge}', cell_norm)],
-            [Paragraph('Lista sankcyjna MSWiA (Polska):', cell_bold), Paragraph(f'{mswia_badge}', cell_norm)],
-            [Paragraph('Lista sankcyjna Unii Europejskiej:', cell_bold), Paragraph(f'{ue_badge}', cell_norm)],
-            [Paragraph('Rejestr Beneficjentów (CRBR):', cell_bold), Paragraph(f'{crbr_badge}', cell_norm)],
+            [Paragraph(f"{rejestr_tytul}:", cell_bold), Paragraph(f"{rejestr_badge} • {rep_text}", cell_norm)],
+            [Paragraph("Biała Lista Podatników VAT (MF):", cell_bold), Paragraph(f"{vat_badge}", cell_norm)],
+            [Paragraph("Status rachunku bankowego:", cell_bold), Paragraph(f"{rachunek_badge}", cell_norm)],
+            [Paragraph("Lista sankcyjna MSWiA (Polska):", cell_bold), Paragraph(f"{mswia_badge}", cell_norm)],
+            [Paragraph("Lista sankcyjna Unii Europejskiej:", cell_bold), Paragraph(f"{ue_badge}", cell_norm)],
+            [Paragraph("Rejestr Beneficjentów (CRBR):", cell_bold), Paragraph(f"{crbr_badge}", cell_norm)],
         ]
         t2 = Table(rej_data, colWidths=[170, 355])
-        t2.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        t2.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(t2)
         elements.append(Spacer(1, 8))
 
         # 5. Sekcja 3: Konkluzja i uzasadnienie
-        s3_bar = Table([[Paragraph('3. WNIOSKI I MERYTORYCZNE UZASADNIENIE DECYZJI', sec_hdr)]], colWidths=[525])
-        s3_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-            ('LINELEFT', (0,0), (-1,-1), 3, colors.HexColor('#2563EB')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        s3_bar = Table([[Paragraph("3. WNIOSKI I MERYTORYCZNE UZASADNIENIE DECYZJI", sec_hdr)]], colWidths=[525])
+        s3_bar.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F1F5F9")),
+                    ("LINELEFT", (0, 0), (-1, -1), 3, colors.HexColor("#2563EB")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(s3_bar)
         elements.append(Spacer(1, 3))
 
         dec_data = [
-            [Paragraph('Status PEP (osoba eksponowana):', cell_bold), Paragraph('TAK (Wymaga wzmożonych środków bezpieczeństwa)' if self.status_pep else 'NIE (Brak statusu osoby eksponowanej politycznie)', cell_norm)],
-            [Paragraph('Konkluzja compliance:', cell_bold), Paragraph(f'{self.uzasadnienie_decyzji}', cell_norm)],
+            [
+                Paragraph("Status PEP (osoba eksponowana):", cell_bold),
+                Paragraph(
+                    "TAK (Wymaga wzmożonych środków bezpieczeństwa)"
+                    if self.status_pep
+                    else "NIE (Brak statusu osoby eksponowanej politycznie)",
+                    cell_norm,
+                ),
+            ],
+            [Paragraph("Konkluzja compliance:", cell_bold), Paragraph(f"{self.uzasadnienie_decyzji}", cell_norm)],
         ]
         t3 = Table(dec_data, colWidths=[170, 355])
-        t3.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        t3.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(t3)
         elements.append(Spacer(1, 8))
 
@@ -730,24 +822,28 @@ class KartaWeryfikacjiKontrahenta:
             [
                 [
                     Paragraph(
-                        f'<b>KRYPTOGRAFICZNA PIECZĘĆ AUDYTOWA (SHA-256):</b><br/>'
+                        f"<b>KRYPTOGRAFICZNA PIECZĘĆ AUDYTOWA (SHA-256):</b><br/>"
                         f'<font color="#0F172A"><code>{self.sha256_hash}</code></font><br/>'
-                        f'<b>Wymóg retencji dowodów:</b> Minimum 5 lat od końca roku obrotowego (art. 34 ustawy AML / art. 86 Ordynacji podatkowej).<br/>'
-                        f'Dokument wygenerowany deterministycznie przez silnik TaxPilot AI Compliance Engine.',
-                        footer_style
+                        f"<b>Wymóg retencji dowodów:</b> Minimum 5 lat od końca roku obrotowego (art. 34 ustawy AML / art. 86 Ordynacji podatkowej).<br/>"
+                        f"Dokument wygenerowany deterministycznie przez silnik TaxPilot AI Compliance Engine.",
+                        footer_style,
                     )
                 ]
             ],
-            colWidths=[525]
+            colWidths=[525],
         )
-        audit_seal.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#94A3B8')),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ]))
+        audit_seal.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#94A3B8")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
         elements.append(audit_seal)
 
         doc.build(elements)
@@ -778,7 +874,27 @@ class AMLVerificationEngine:
             return clean[2:]
         if clean.isdigit() and len(clean) == 10:
             return clean
-        foreign_prefixes = ("IE", "LU", "DE", "FR", "NL", "SE", "IT", "ES", "AT", "BE", "DK", "FI", "CZ", "SK", "EE", "LV", "LT", "GB", "US")
+        foreign_prefixes = (
+            "IE",
+            "LU",
+            "DE",
+            "FR",
+            "NL",
+            "SE",
+            "IT",
+            "ES",
+            "AT",
+            "BE",
+            "DK",
+            "FI",
+            "CZ",
+            "SK",
+            "EE",
+            "LV",
+            "LT",
+            "GB",
+            "US",
+        )
         if any(clean.startswith(p) for p in foreign_prefixes):
             return clean
         digits = re.sub(r"[^0-9]", "", clean)
@@ -809,7 +925,12 @@ class AMLVerificationEngine:
         if clean_nip in cls._session_cache:
             cached = cls._session_cache[clean_nip]
             # Nie zwracaj z cache niekompletnych wpisów z błędem połączenia / offline
-            if not cached.blad_polaczenia and "błąd" not in cached.status_vat.lower() and "offline" not in cached.status_vat.lower() and cached.status_vat != "Brak danych":
+            if (
+                not cached.blad_polaczenia
+                and "błąd" not in cached.status_vat.lower()
+                and "offline" not in cached.status_vat.lower()
+                and cached.status_vat != "Brak danych"
+            ):
                 return cached
 
         # 2. Dysk (archiwum firmy)
@@ -827,7 +948,12 @@ class AMLVerificationEngine:
                         data = json.load(f)
 
                     # Pomijamy wpisy z błędem połączenia / brakiem danych z offline
-                    if data.get("blad_polaczenia") or "offline" in data.get("status_vat", "").lower() or "błąd" in data.get("status_vat", "").lower() or data.get("status_vat") == "Brak danych":
+                    if (
+                        data.get("blad_polaczenia")
+                        or "offline" in data.get("status_vat", "").lower()
+                        or "błąd" in data.get("status_vat", "").lower()
+                        or data.get("status_vat") == "Brak danych"
+                    ):
                         continue
 
                     karta = KartaWeryfikacjiKontrahenta(
@@ -851,7 +977,9 @@ class AMLVerificationEngine:
                         status_vat=data.get("status_vat", ""),
                         platnik_vat_czynny=data.get("platnik_vat_czynny", True),
                         zweryfikowany_rachunek=data.get("zweryfikowany_rachunek"),
-                        status_rachunku=StatusRachunkuBankowego(data.get("status_rachunku", StatusRachunkuBankowego.NIE_PODANO)),
+                        status_rachunku=StatusRachunkuBankowego(
+                            data.get("status_rachunku", StatusRachunkuBankowego.NIE_PODANO)
+                        ),
                         rachunki_zgloszone_mf=data.get("rachunki_zgloszone_mf", []),
                         status_pep=data.get("status_pep", False),
                         poziom_ryzyka=PoziomRyzykaAML(data.get("poziom_ryzyka", PoziomRyzykaAML.NISKIE)),
@@ -889,14 +1017,68 @@ class AMLVerificationEngine:
         """
         clean_nip = cls.clean_nip(nip)
         raw_upper = (nip or "").strip().upper().replace(" ", "").replace("-", "")
-        foreign_prefixes = ("IE", "LU", "DE", "FR", "NL", "SE", "IT", "ES", "AT", "BE", "DK", "FI", "CZ", "SK", "EE", "LV", "LT", "GB", "US")
+        foreign_prefixes = (
+            "IE",
+            "LU",
+            "DE",
+            "FR",
+            "NL",
+            "SE",
+            "IT",
+            "ES",
+            "AT",
+            "BE",
+            "DK",
+            "FI",
+            "CZ",
+            "SK",
+            "EE",
+            "LV",
+            "LT",
+            "GB",
+            "US",
+        )
         is_foreign_tax_id = any(raw_upper.startswith(p) for p in foreign_prefixes) and len(raw_upper) >= 4
 
         nazwa_lower_check = (nazwa or "").lower()
         adres_lower_check = (adres or "").lower()
-        foreign_corp_keywords_check = ["s.a r.l.", "s.a.r.l.", "sàrl", "gmbh", "ltd", "limited", "inc", "corp", "amazon", "google", "apple", "microsoft", "adobe", "meta platforms", "github", "stripe", "atlassian"]
-        foreign_address_keywords_check = ["luksemburg", "luxembourg", "irlandia", "ireland", "dublin", "niemcy", "germany", "deutschland", "berlin", "usa", "stany zjednoczone"]
-        is_foreign_entity = is_foreign_tax_id or any(k in nazwa_lower_check for k in foreign_corp_keywords_check) or any(k in adres_lower_check for k in foreign_address_keywords_check)
+        foreign_corp_keywords_check = [
+            "s.a r.l.",
+            "s.a.r.l.",
+            "sàrl",
+            "gmbh",
+            "ltd",
+            "limited",
+            "inc",
+            "corp",
+            "amazon",
+            "google",
+            "apple",
+            "microsoft",
+            "adobe",
+            "meta platforms",
+            "github",
+            "stripe",
+            "atlassian",
+        ]
+        foreign_address_keywords_check = [
+            "luksemburg",
+            "luxembourg",
+            "irlandia",
+            "ireland",
+            "dublin",
+            "niemcy",
+            "germany",
+            "deutschland",
+            "berlin",
+            "usa",
+            "stany zjednoczone",
+        ]
+        is_foreign_entity = (
+            is_foreign_tax_id
+            or any(k in nazwa_lower_check for k in foreign_corp_keywords_check)
+            or any(k in adres_lower_check for k in foreign_address_keywords_check)
+        )
 
         if not is_foreign_entity and (not clean_nip or len(clean_nip) != 10 or not clean_nip.isdigit()):
             return KartaWeryfikacjiKontrahenta(
@@ -945,7 +1127,10 @@ class AMLVerificationEngine:
                 # Jeśli podano rachunek, weryfikujemy czy status nie wymaga aktualizacji (np. z BRAK_NA_BIALEJ_LISCIE na ZGODNY_BIALA_LISTA dla kont wirtualnych lub innego rachunku)
                 if rachunek_bankowy:
                     norm_iban = cls.clean_iban(rachunek_bankowy)
-                    if rachunek_bankowy != cached.zweryfikowany_rachunek or cached.status_rachunku != StatusRachunkuBankowego.ZGODNY_BIALA_LISTA:
+                    if (
+                        rachunek_bankowy != cached.zweryfikowany_rachunek
+                        or cached.status_rachunku != StatusRachunkuBankowego.ZGODNY_BIALA_LISTA
+                    ):
                         new_status_rach = StatusRachunkuBankowego.BRAK_NA_BIALEJ_LISCIE
                         if norm_iban in cached.rachunki_zgloszone_mf:
                             new_status_rach = StatusRachunkuBankowego.ZGODNY_BIALA_LISTA
@@ -956,7 +1141,10 @@ class AMLVerificationEngine:
                                 if norm_iban not in cached.rachunki_zgloszone_mf:
                                     cached.rachunki_zgloszone_mf.append(norm_iban)
 
-                        if new_status_rach != cached.status_rachunku or rachunek_bankowy != cached.zweryfikowany_rachunek:
+                        if (
+                            new_status_rach != cached.status_rachunku
+                            or rachunek_bankowy != cached.zweryfikowany_rachunek
+                        ):
                             cached = KartaWeryfikacjiKontrahenta(
                                 nip=cached.nip,
                                 nazwa=cached.nazwa,
@@ -1013,7 +1201,9 @@ class AMLVerificationEngine:
                 "blad_polaczenia": False,
             }
 
-        final_nazwa = (mf_data.get("nazwa") if mf_data and not blad_polaczenia else None) or nazwa or f"Podmiot NIP {clean_nip}"
+        final_nazwa = (
+            (mf_data.get("nazwa") if mf_data and not blad_polaczenia else None) or nazwa or f"Podmiot NIP {clean_nip}"
+        )
         final_adres = (mf_data.get("adres") if mf_data and not blad_polaczenia else None) or adres
         final_regon = (mf_data.get("regon") if mf_data and not blad_polaczenia else None) or regon
         final_krs = (mf_data.get("krs") if mf_data and not blad_polaczenia else None) or krs
@@ -1022,9 +1212,10 @@ class AMLVerificationEngine:
             platnik_vat_czynny = False
             konta_mf = []
         else:
-            status_vat = mf_data.get("status_vat", "Niezarejestrowany w wykazie MF")
-            platnik_vat_czynny = mf_data.get("platnik_vat", False)
-            konta_mf = [cls.clean_iban(acc) for acc in (mf_data.get("rachunki_bankowe") or []) if acc]
+            mf = mf_data or {}
+            status_vat = mf.get("status_vat", "Niezarejestrowany w wykazie MF")
+            platnik_vat_czynny = mf.get("platnik_vat", False)
+            konta_mf = [cls.clean_iban(acc) for acc in (mf.get("rachunki_bankowe") or []) if acc]
 
         # 2. Rozpoznanie formy prawnej i rejestru
         nazwa_lower = final_nazwa.lower()
@@ -1032,29 +1223,129 @@ class AMLVerificationEngine:
 
         # A) Identyfikacja form prawa obcego i cech podmiotów zagranicznych
         foreign_corp_keywords = [
-            "s.a r.l.", "s.a.r.l.", "sàrl", "s.à r.l.", "s.à.r.l.", "sarl",
-            "s.a.s.", "sas", "s.a.s.u.", "sasu",
-            "gmbh", "g.m.b.h.", "gesellschaft mit beschränkter haftung",
-            "ltd", "ltd.", "limited", "llc", "l.l.c.", "inc.", "inc", "incorporated",
-            "corp.", "corp", "corporation", "plc", "p.l.c.",
-            "b.v.", "bv", "n.v.", "nv",
-            "s.l.", "s.l.u.", "s.r.l.", "srl", "s.p.a.", "spa",
-            "oddział w polsce", "branch",
-            "amazon", "google", "apple", "microsoft", "adobe", "meta platforms",
-            "github", "stripe", "atlassian", "ovh", "hetzner",
+            "s.a r.l.",
+            "s.a.r.l.",
+            "sàrl",
+            "s.à r.l.",
+            "s.à.r.l.",
+            "sarl",
+            "s.a.s.",
+            "sas",
+            "s.a.s.u.",
+            "sasu",
+            "gmbh",
+            "g.m.b.h.",
+            "gesellschaft mit beschränkter haftung",
+            "ltd",
+            "ltd.",
+            "limited",
+            "llc",
+            "l.l.c.",
+            "inc.",
+            "inc",
+            "incorporated",
+            "corp.",
+            "corp",
+            "corporation",
+            "plc",
+            "p.l.c.",
+            "b.v.",
+            "bv",
+            "n.v.",
+            "nv",
+            "s.l.",
+            "s.l.u.",
+            "s.r.l.",
+            "srl",
+            "s.p.a.",
+            "spa",
+            "oddział w polsce",
+            "branch",
+            "amazon",
+            "google",
+            "apple",
+            "microsoft",
+            "adobe",
+            "meta platforms",
+            "github",
+            "stripe",
+            "atlassian",
+            "ovh",
+            "hetzner",
         ]
         foreign_address_keywords = [
-            "luksemburg", "luxembourg", "irlandia", "ireland", "dublin",
-            "niemcy", "germany", "deutschland", "berlin", "frankfurt", "münchen", "munich",
-            "francja", "france", "paris", "wielka brytania", "united kingdom", "great britain", "london",
-            "stany zjednoczone", "usa", "united states", "holandia", "netherlands", "amsterdam",
-            "austria", "wiedeń", "vienna", "szwajcaria", "switzerland", "zürich",
-            "czechy", "czech republic", "praga", "prague", "słowacja", "slovakia", "bratysława",
-            "cypr", "cyprus", "hiszpania", "spain", "madrid", "włochy", "italy", "roma",
-            "szwecja", "sweden", "stockholm", "norwegia", "norway", "oslo",
-            "dania", "denmark", "copenhagen", "finlandia", "finland", "helsinki",
-            "belgia", "belgium", "bruxelles", "brussels", "litwa", "lithuania", "wilno", "vilnius",
-            "estonia", "tallinn", "łotwa", "latvia", "ryga", "riga"
+            "luksemburg",
+            "luxembourg",
+            "irlandia",
+            "ireland",
+            "dublin",
+            "niemcy",
+            "germany",
+            "deutschland",
+            "berlin",
+            "frankfurt",
+            "münchen",
+            "munich",
+            "francja",
+            "france",
+            "paris",
+            "wielka brytania",
+            "united kingdom",
+            "great britain",
+            "london",
+            "stany zjednoczone",
+            "usa",
+            "united states",
+            "holandia",
+            "netherlands",
+            "amsterdam",
+            "austria",
+            "wiedeń",
+            "vienna",
+            "szwajcaria",
+            "switzerland",
+            "zürich",
+            "czechy",
+            "czech republic",
+            "praga",
+            "prague",
+            "słowacja",
+            "slovakia",
+            "bratysława",
+            "cypr",
+            "cyprus",
+            "hiszpania",
+            "spain",
+            "madrid",
+            "włochy",
+            "italy",
+            "roma",
+            "szwecja",
+            "sweden",
+            "stockholm",
+            "norwegia",
+            "norway",
+            "oslo",
+            "dania",
+            "denmark",
+            "copenhagen",
+            "finlandia",
+            "finland",
+            "helsinki",
+            "belgia",
+            "belgium",
+            "bruxelles",
+            "brussels",
+            "litwa",
+            "lithuania",
+            "wilno",
+            "vilnius",
+            "estonia",
+            "tallinn",
+            "łotwa",
+            "latvia",
+            "ryga",
+            "riga",
         ]
 
         is_foreign_legal_form = any(k in nazwa_lower for k in foreign_corp_keywords)
@@ -1064,10 +1355,21 @@ class AMLVerificationEngine:
         is_zagraniczna = is_foreign or is_foreign_legal_form or is_foreign_address or is_foreign_nip
 
         # B) Identyfikacja polskich spółek prawa handlowego
-        is_polska_spolka = any(w in nazwa_lower for w in [
-            "sp. z o.o.", "spółka z o", "s.a.", "spółka akcyjna", "sp. k.",
-            "spółka komandytowa", "spółka jawna", "sp.j.", "sp. p.", "spółka partnerska"
-        ])
+        is_polska_spolka = any(
+            w in nazwa_lower
+            for w in [
+                "sp. z o.o.",
+                "spółka z o",
+                "s.a.",
+                "spółka akcyjna",
+                "sp. k.",
+                "spółka komandytowa",
+                "spółka jawna",
+                "sp.j.",
+                "sp. p.",
+                "spółka partnerska",
+            ]
+        )
 
         reprezentacja: List[str] = []
         beneficjenci: List[str] = []
@@ -1086,14 +1388,22 @@ class AMLVerificationEngine:
                 zrodlo_rejestru = "Właściwy rejestr handlowy państwa siedziby (np. RCS Luksemburg / CRO Irlandia)"
 
             final_krs = final_krs or "Nie dotyczy (podmiot zagraniczny bez oddziału w polskim KRS)"
-            reprezentacja = ["Zarząd / Dyrektorzy zgodnie z właściwym rejestrem handlowym państwa siedziby (np. RCS Luksemburg / CRO)"]
+            reprezentacja = [
+                "Zarząd / Dyrektorzy zgodnie z właściwym rejestrem handlowym państwa siedziby (np. RCS Luksemburg / CRO)"
+            ]
             crbr_status = "NIE_DOTYCZY_ZAGRANICZNA"
-            beneficjenci = ["Beneficjenci rzeczywiści (UBO) zarejestrowani we właściwym rejestrze państwa siedziby (dyrektywa AML UE)"]
+            beneficjenci = [
+                "Beneficjenci rzeczywiści (UBO) zarejestrowani we właściwym rejestrze państwa siedziby (dyrektywa AML UE)"
+            ]
 
         elif is_polska_spolka:
             forma_prawna = "SPÓŁKA HANDLOWA"
             status_rejestru = "BŁĄD POŁĄCZENIA" if blad_polaczenia else "AKTYWNY"
-            zrodlo_rejestru = "Krajowy Rejestr Sądowy (KRS) / MF (błąd połączenia)" if blad_polaczenia else "Krajowy Rejestr Sądowy (KRS) / MF"
+            zrodlo_rejestru = (
+                "Krajowy Rejestr Sądowy (KRS) / MF (błąd połączenia)"
+                if blad_polaczenia
+                else "Krajowy Rejestr Sądowy (KRS) / MF"
+            )
             crbr_status = "ZGODNY"
             reprezentacja = ["Zarząd zgodnie z odpisem KRS"]
             beneficjenci = ["Beneficjenci rzeczywiści zgłoszeni w CRBR"]
@@ -1173,7 +1483,9 @@ class AMLVerificationEngine:
             poziom_ryzyka = PoziomRyzykaAML.WYSOKIE
             decyzja = DecyzjaWspolpracy.WYMAGA_WYJASNIENIA
             uzasadnienie = f"Kontrahent posiada niepokojący status w rejestrze ({status_rejestru}). Wymagana weryfikacja statusu prawnego."
-        elif status_rachunku == StatusRachunkuBankowego.BRAK_NA_BIALEJ_LISCIE and (kwota_transakcji is None or kwota_transakcji >= Decimal("15000")):
+        elif status_rachunku == StatusRachunkuBankowego.BRAK_NA_BIALEJ_LISCIE and (
+            kwota_transakcji is None or kwota_transakcji >= Decimal("15000")
+        ):
             poziom_ryzyka = PoziomRyzykaAML.SREDNIE
             decyzja = DecyzjaWspolpracy.WYMAGA_WYJASNIENIA
             uzasadnienie = (
@@ -1230,6 +1542,7 @@ class AMLVerificationEngine:
 @dataclass
 class MiesiecznyRaportWeryfikacji:
     """Zbiorczy raport z procedury weryfikacji kontrahentów za dany miesiąc."""
+
     profil: CompanyProfile
     rok: str
     miesiac: str
@@ -1296,52 +1609,58 @@ class MiesiecznyRaportWeryfikacji:
     def generate_markdown_report(self) -> str:
         """Generuje zbiorczy miesięczny raport z weryfikacji kontrahentów."""
         linie = [
-            f"# Zbiorczy Raport Weryfikacji Kontrahentów (AML / Sankcje / Biała Lista)",
+            "# Zbiorczy Raport Weryfikacji Kontrahentów (AML / Sankcje / Biała Lista)",
             f"**Okres rozliczeniowy:** {self.rok}-{self.miesiac.zfill(2)}",
             f"**Firma audytująca:** {self.profil.nazwa} (NIP: `{self.profil.nip}`)",
             f"**Data audytu:** {datetime.now().strftime('%d.%m.%Y, %H:%M')} (UTC: `{self.data_generowania}`)",
         ]
 
         if self.liczba_bledow_sieci > 0:
-            linie.extend([
-                "",
-                "> [!WARNING]",
-                f"> ### ⚠️ UWAGA: RAPORT ZAWIERA POZYCJE NIEZWERYFIKOWANE Z POWODU BRAKU SIECI ({self.liczba_bledow_sieci} podmiotów)",
-                "> Dla części kontrahentów nie udało się pobrać danych z API Białej Listy Ministerstwa Finansów z powodu braku połączenia internetowego lub niedostępności usługi MF.",
-                "> **Raport jest NIEKOMPLETNY i nie może stanowić ostatecznego potwierdzenia procedury należytej staranności (AML / Biała Lista).**",
-                "> ",
-                "> 👉 **Wymagane działanie:** Upewnij się, że masz połączenie z Internetem i wykonaj ponowną weryfikację poleceniem:",
-                f"> `python -m src.cli weryfikuj-miesiac --nip {self.profil.nip} --rok {self.rok} --miesiac {self.miesiac} --force`",
-            ])
+            linie.extend(
+                [
+                    "",
+                    "> [!WARNING]",
+                    f"> ### ⚠️ UWAGA: RAPORT ZAWIERA POZYCJE NIEZWERYFIKOWANE Z POWODU BRAKU SIECI ({self.liczba_bledow_sieci} podmiotów)",
+                    "> Dla części kontrahentów nie udało się pobrać danych z API Białej Listy Ministerstwa Finansów z powodu braku połączenia internetowego lub niedostępności usługi MF.",
+                    "> **Raport jest NIEKOMPLETNY i nie może stanowić ostatecznego potwierdzenia procedury należytej staranności (AML / Biała Lista).**",
+                    "> ",
+                    "> 👉 **Wymagane działanie:** Upewnij się, że masz połączenie z Internetem i wykonaj ponowną weryfikację poleceniem:",
+                    f"> `python -m src.cli weryfikuj-miesiac --nip {self.profil.nip} --rok {self.rok} --miesiac {self.miesiac} --force`",
+                ]
+            )
 
-        linie.extend([
-            "",
-            "---",
-            "## 1. Podsumowanie Procedury Należytej Staranności",
-            "",
-            f"W okresie **{self.rok}-{self.miesiac.zfill(2)}** zweryfikowano łącznie **{self.liczba_kontrahentow}** unikalnych kontrahentów występujących na fakturach sprzedaży oraz kosztów.",
-            "",
-            "| Kategoria ryzyka | Liczba podmiotów | Status i zalecenia operacyjne |",
-            "| :--- | :---: | :--- |",
-            f"| 🟢 **Niskie (Czysty)** | **{self.liczba_niska}** | Brak zagrożeń – pełna akceptacja do księgowania i płatności |",
-            f"| 🟡 **Średnie (Uwaga)** | **{self.liczba_srednia}** | Wymaga weryfikacji konta bankowego (Biała Lista) lub statusu PEP |",
-            f"| 🟠 **Wysokie (Wyjaśnij)** | **{self.liczba_wysoka}** | Podmiot nieaktywny w KRS/CEIDG lub brak rejestracji VAT |",
-            f"| 🔴 **KRYTYCZNE (STOP)** | **{self.liczba_krytyczna_stop}** | **BEZWZGLĘDNY ZAKAZ WSPÓŁPRACY I PŁATNOŚCI (Wpis na liście sankcyjnej)** |",
-        ])
+        linie.extend(
+            [
+                "",
+                "---",
+                "## 1. Podsumowanie Procedury Należytej Staranności",
+                "",
+                f"W okresie **{self.rok}-{self.miesiac.zfill(2)}** zweryfikowano łącznie **{self.liczba_kontrahentow}** unikalnych kontrahentów występujących na fakturach sprzedaży oraz kosztów.",
+                "",
+                "| Kategoria ryzyka | Liczba podmiotów | Status i zalecenia operacyjne |",
+                "| :--- | :---: | :--- |",
+                f"| 🟢 **Niskie (Czysty)** | **{self.liczba_niska}** | Brak zagrożeń – pełna akceptacja do księgowania i płatności |",
+                f"| 🟡 **Średnie (Uwaga)** | **{self.liczba_srednia}** | Wymaga weryfikacji konta bankowego (Biała Lista) lub statusu PEP |",
+                f"| 🟠 **Wysokie (Wyjaśnij)** | **{self.liczba_wysoka}** | Podmiot nieaktywny w KRS/CEIDG lub brak rejestracji VAT |",
+                f"| 🔴 **KRYTYCZNE (STOP)** | **{self.liczba_krytyczna_stop}** | **BEZWZGLĘDNY ZAKAZ WSPÓŁPRACY I PŁATNOŚCI (Wpis na liście sankcyjnej)** |",
+            ]
+        )
 
         if self.liczba_bledow_sieci > 0:
             linie.append(
                 f"| ⚠️ **Błędy połączenia (Offline)** | **{self.liczba_bledow_sieci}** | **Weryfikacja niekompletna – wymagane ponowne sprawdzenie online (`--force`)** |"
             )
 
-        linie.extend([
-            "",
-            "---",
-            "## 2. Rejestr Zweryfikowanych Kontrahentów w Miesiącu",
-            "",
-            "| Lp. | Kontrahent | NIP | Rejestr | Status VAT | Rachunek bankowy | Sankcje MSWiA/UE | Ryzyko | Decyzja |",
-            "| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
-        ])
+        linie.extend(
+            [
+                "",
+                "---",
+                "## 2. Rejestr Zweryfikowanych Kontrahentów w Miesiącu",
+                "",
+                "| Lp. | Kontrahent | NIP | Rejestr | Status VAT | Rachunek bankowy | Sankcje MSWiA/UE | Ryzyko | Decyzja |",
+                "| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+            ]
+        )
 
         for idx, k in enumerate(self.karty, start=1):
             if k.blad_polaczenia:
@@ -1373,16 +1692,18 @@ class MiesiecznyRaportWeryfikacji:
                 f"| {idx} | **{k.nazwa}** | `{k.nip}` | {k.status_rejestru} | {vat_txt} | {rachunek_txt} | {sankcje_txt} | {ryzyko_txt} | **{decyzja_txt}** |"
             )
 
-        linie.extend([
-            "",
-            "---",
-            "## 3. Instrukcja dla Kontroli Skarbowej i GIIF",
-            "Wszystkie powyższe weryfikacje zostały wygenerowane deterministycznie na podstawie publicznych rejestrów państwowych (Biała Lista MF, CEIDG, KRS, CRBR) oraz oficjalnych list sankcyjnych RP i UE.",
-            "Indywidualne karty każdego kontrahenta wraz ze śladem audytowym i sumami kontrolnymi SHA-256 znajdują się w podfolderze `karty/`.",
-            "",
-            f"**Ścieżka do archiwum:** `firmy/{self.profil.katalog_nazwa}/weryfikacje/{self.rok}/{self.miesiac.zfill(2)}/`",
-            "",
-        ])
+        linie.extend(
+            [
+                "",
+                "---",
+                "## 3. Instrukcja dla Kontroli Skarbowej i GIIF",
+                "Wszystkie powyższe weryfikacje zostały wygenerowane deterministycznie na podstawie publicznych rejestrów państwowych (Biała Lista MF, CEIDG, KRS, CRBR) oraz oficjalnych list sankcyjnych RP i UE.",
+                "Indywidualne karty każdego kontrahenta wraz ze śladem audytowym i sumami kontrolnymi SHA-256 znajdują się w podfolderze `karty/`.",
+                "",
+                f"**Ścieżka do archiwum:** `firmy/{self.profil.katalog_nazwa}/weryfikacje/{self.rok}/{self.miesiac.zfill(2)}/`",
+                "",
+            ]
+        )
 
         return "\n".join(linie)
 
@@ -1391,11 +1712,12 @@ class MiesiecznyRaportWeryfikacji:
         Generuje oficjalny zbiorczy raport z weryfikacji kontrahentów w formacie PDF (A4 pejzaż).
         Nowoczesny standard corporate banking / executive compliance.
         """
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib import colors
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
         import hashlib
+
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1412,46 +1734,69 @@ class MiesiecznyRaportWeryfikacji:
         )
 
         # Style typograficzne
-        hdr_brand = ParagraphStyle('RptBrand', fontName=font_bold, fontSize=7.5, leading=9.5, textColor=colors.HexColor('#38BDF8'))
-        hdr_title = ParagraphStyle('RptTitle', fontName=font_bold, fontSize=12, leading=15, textColor=colors.white)
-        hdr_sub = ParagraphStyle('RptSub', fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor('#CBD5E1'))
-        hdr_right = ParagraphStyle('RptRight', fontName=font_bold, fontSize=8, leading=10, textColor=colors.HexColor('#F8FAFC'), alignment=2)
-        hdr_right_sub = ParagraphStyle('RptRightSub', fontName=font_regular, fontSize=6.5, leading=8.5, textColor=colors.HexColor('#94A3B8'), alignment=2)
+        ParagraphStyle("RptBrand", fontName=font_bold, fontSize=7.5, leading=9.5, textColor=colors.HexColor("#38BDF8"))
+        hdr_title = ParagraphStyle("RptTitle", fontName=font_bold, fontSize=12, leading=15, textColor=colors.white)
+        ParagraphStyle("RptSub", fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor("#CBD5E1"))
+        hdr_right = ParagraphStyle(
+            "RptRight", fontName=font_bold, fontSize=8, leading=10, textColor=colors.HexColor("#F8FAFC"), alignment=2
+        )
+        ParagraphStyle(
+            "RptRightSub",
+            fontName=font_regular,
+            fontSize=6.5,
+            leading=8.5,
+            textColor=colors.HexColor("#94A3B8"),
+            alignment=2,
+        )
 
-        sec_hdr = ParagraphStyle('RptSecHdr', fontName=font_bold, fontSize=9, leading=11, textColor=colors.HexColor('#0F172A'))
-        tbl_hdr = ParagraphStyle('RptTblHdr', fontName=font_bold, fontSize=7, leading=9, textColor=colors.white, alignment=0)
-        tbl_hdr_c = ParagraphStyle('RptTblHdrC', fontName=font_bold, fontSize=7, leading=9, textColor=colors.white, alignment=1)
+        ParagraphStyle("RptSecHdr", fontName=font_bold, fontSize=9, leading=11, textColor=colors.HexColor("#0F172A"))
+        tbl_hdr = ParagraphStyle(
+            "RptTblHdr", fontName=font_bold, fontSize=7, leading=9, textColor=colors.white, alignment=0
+        )
+        tbl_hdr_c = ParagraphStyle(
+            "RptTblHdrC", fontName=font_bold, fontSize=7, leading=9, textColor=colors.white, alignment=1
+        )
 
-        cell_b = ParagraphStyle('RptCB', fontName=font_bold, fontSize=7, leading=9, textColor=colors.HexColor('#0F172A'))
-        cell_n = ParagraphStyle('RptCN', fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor('#334155'))
-        cell_c = ParagraphStyle('RptCC', fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor('#334155'), alignment=1)
-        footer_s = ParagraphStyle('RptFS', fontName=font_regular, fontSize=6.5, leading=8.5, textColor=colors.HexColor('#64748B'))
+        ParagraphStyle("RptCB", fontName=font_bold, fontSize=7, leading=9, textColor=colors.HexColor("#0F172A"))
+        cell_n = ParagraphStyle(
+            "RptCN", fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor("#334155")
+        )
+        cell_c = ParagraphStyle(
+            "RptCC", fontName=font_regular, fontSize=7, leading=9, textColor=colors.HexColor("#334155"), alignment=1
+        )
+        footer_s = ParagraphStyle(
+            "RptFS", fontName=font_regular, fontSize=6.5, leading=8.5, textColor=colors.HexColor("#64748B")
+        )
 
         # 1. Pasek Nagłówka Corporate Navy
         hdr_left_p = Paragraph(
-            f'<b>TAXPILOT AI • DUE DILIGENCE & COMPLIANCE SYSTEM</b><br/>'
+            f"<b>TAXPILOT AI • DUE DILIGENCE & COMPLIANCE SYSTEM</b><br/>"
             f'<font size="12"><b>ZBIORCZY RAPORT NALEŻYTEJ STARANNOŚCI (AML / BIAŁA LISTA / SANKCJE)</b></font><br/>'
-            f'Okres rozliczeniowy: <b>{self.rok}-{str(self.miesiac).zfill(2)}</b> &nbsp;|&nbsp; '
-            f'Podmiot: <b>{self.profil.nazwa}</b> (NIP: {self.profil.nip}) &nbsp;|&nbsp; '
-            f'Data badania: {datetime.now().strftime("%d.%m.%Y %H:%M")}',
-            hdr_title
+            f"Okres rozliczeniowy: <b>{self.rok}-{str(self.miesiac).zfill(2)}</b> &nbsp;|&nbsp; "
+            f"Podmiot: <b>{self.profil.nazwa}</b> (NIP: {self.profil.nip}) &nbsp;|&nbsp; "
+            f"Data badania: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+            hdr_title,
         )
         hdr_right_p = Paragraph(
-            f'<b>DOKUMENTACJA AUDYTOWA KAS / MF</b><br/>'
-            f'Weryfikacja: <b>{len(self.karty)} KONTRAHENTÓW</b><br/>'
-            f'Procedura: art. 86 ust. 1 VAT / AML<br/>'
-            f'Obowiązkowa retencja: <b>5 LAT</b>',
-            hdr_right
+            f"<b>DOKUMENTACJA AUDYTOWA KAS / MF</b><br/>"
+            f"Weryfikacja: <b>{len(self.karty)} KONTRAHENTÓW</b><br/>"
+            f"Procedura: art. 86 ust. 1 VAT / AML<br/>"
+            f"Obowiązkowa retencja: <b>5 LAT</b>",
+            hdr_right,
         )
         t_header = Table([[hdr_left_p, hdr_right_p]], colWidths=[550, 236])
-        t_header.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('LEFTPADDING', (0,0), (-1,-1), 12),
-            ('RIGHTPADDING', (0,0), (-1,-1), 12),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
+        t_header.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0F172A")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ]
+            )
+        )
 
         elements = [t_header, Spacer(1, 6)]
 
@@ -1460,71 +1805,102 @@ class MiesiecznyRaportWeryfikacji:
             warn_p = Paragraph(
                 f'<font color="#DC2626"><b>[!] OSTRZEŻENIE: WYKRYTO {self.liczba_bledow_sieci} POZYCJI Z BŁĘDEM POŁĄCZENIA SIECIOWEGO (TRYB OFFLINE)</b></font><br/>'
                 f'<font color="#7F1D1D" size="7">Dla części kontrahentów nie udało się pobrać danych z live API Białej Listy MF. '
-                f'Rozliczenie nie powinno być zamykane na podstawie danych cząstkowych. Ponów weryfikację z parametrem <code>--force</code> po przywróceniu sieci.</font>',
-                cell_n
+                f"Rozliczenie nie powinno być zamykane na podstawie danych cząstkowych. Ponów weryfikację z parametrem <code>--force</code> po przywróceniu sieci.</font>",
+                cell_n,
             )
             t_warn = Table([[warn_p]], colWidths=[786])
-            t_warn.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEF2F2')),
-                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#DC2626')),
-                ('TOPPADDING', (0,0), (-1,-1), 4),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-                ('LEFTPADDING', (0,0), (-1,-1), 8),
-                ('RIGHTPADDING', (0,0), (-1,-1), 8),
-            ]))
+            t_warn.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF2F2")),
+                        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#DC2626")),
+                        ("TOPPADDING", (0, 0), (-1, -1), 4),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ]
+                )
+            )
             elements.extend([t_warn, Spacer(1, 6)])
 
         # 3. Kafelki Podsumowania Statystyk (KPI)
-        card_total = Paragraph(f'<font size="6.5" color="#64748B">ŁĄCZNIE KONTRAHENTÓW</font><br/><font size="12"><b>{len(self.karty)}</b></font><br/><font size="6" color="#64748B">wystawione i otrzymane faktury</font>', cell_n)
-        card_low = Paragraph(f'<font size="6.5" color="#047857">BEZPIECZNE (NISKIE RYZYKO)</font><br/><font size="12" color="#065F46"><b>{self.liczba_niska}</b></font><br/><font size="6" color="#047857">akceptacja do rozliczenia</font>', cell_n)
-        card_med = Paragraph(f'<font size="6.5" color="#B45309">WYMAGAJĄCE UWAGI</font><br/><font size="12" color="#92400E"><b>{self.liczba_srednia + self.liczba_wysoka}</b></font><br/><font size="6" color="#B45309">poza białą listą / wyjaśnić</font>', cell_n)
-        card_stop = Paragraph(f'<font size="6.5" color="#B91C1C">SANKCJE / BLOKADY (STOP)</font><br/><font size="12" color="#991B1B"><b>{self.liczba_krytyczna_stop}</b></font><br/><font size="6" color="#B91C1C">bezwzględny zakaz płatności</font>', cell_n)
+        card_total = Paragraph(
+            f'<font size="6.5" color="#64748B">ŁĄCZNIE KONTRAHENTÓW</font><br/><font size="12"><b>{len(self.karty)}</b></font><br/><font size="6" color="#64748B">wystawione i otrzymane faktury</font>',
+            cell_n,
+        )
+        card_low = Paragraph(
+            f'<font size="6.5" color="#047857">BEZPIECZNE (NISKIE RYZYKO)</font><br/><font size="12" color="#065F46"><b>{self.liczba_niska}</b></font><br/><font size="6" color="#047857">akceptacja do rozliczenia</font>',
+            cell_n,
+        )
+        card_med = Paragraph(
+            f'<font size="6.5" color="#B45309">WYMAGAJĄCE UWAGI</font><br/><font size="12" color="#92400E"><b>{self.liczba_srednia + self.liczba_wysoka}</b></font><br/><font size="6" color="#B45309">poza białą listą / wyjaśnić</font>',
+            cell_n,
+        )
+        card_stop = Paragraph(
+            f'<font size="6.5" color="#B91C1C">SANKCJE / BLOKADY (STOP)</font><br/><font size="12" color="#991B1B"><b>{self.liczba_krytyczna_stop}</b></font><br/><font size="6" color="#B91C1C">bezwzględny zakaz płatności</font>',
+            cell_n,
+        )
 
         t_cards = Table([[card_total, card_low, card_med, card_stop]], colWidths=[196, 196, 196, 198])
-        t_cards.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (0,0), colors.HexColor('#F8FAFC')),
-            ('BACKGROUND', (1,0), (1,0), colors.HexColor('#ECFDF5')),
-            ('BACKGROUND', (2,0), (2,0), colors.HexColor('#FFFBEB')),
-            ('BACKGROUND', (3,0), (3,0), colors.HexColor('#FEF2F2')),
-            ('BOX', (0,0), (0,0), 0.5, colors.HexColor('#CBD5E1')),
-            ('BOX', (1,0), (1,0), 0.5, colors.HexColor('#A7F3D0')),
-            ('BOX', (2,0), (2,0), 0.5, colors.HexColor('#FDE68A')),
-            ('BOX', (3,0), (3,0), 0.5, colors.HexColor('#FECACA')),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ]))
+        t_cards.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#F8FAFC")),
+                    ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#ECFDF5")),
+                    ("BACKGROUND", (2, 0), (2, 0), colors.HexColor("#FFFBEB")),
+                    ("BACKGROUND", (3, 0), (3, 0), colors.HexColor("#FEF2F2")),
+                    ("BOX", (0, 0), (0, 0), 0.5, colors.HexColor("#CBD5E1")),
+                    ("BOX", (1, 0), (1, 0), 0.5, colors.HexColor("#A7F3D0")),
+                    ("BOX", (2, 0), (2, 0), 0.5, colors.HexColor("#FDE68A")),
+                    ("BOX", (3, 0), (3, 0), 0.5, colors.HexColor("#FECACA")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
         elements.extend([t_cards, Spacer(1, 6)])
 
         # 4. Tabela Kontrahentów
         headers = [
-            Paragraph('LP', tbl_hdr_c),
-            Paragraph('KONTRAHENT (NAZWA)', tbl_hdr),
-            Paragraph('NIP', tbl_hdr),
-            Paragraph('REJESTR', tbl_hdr_c),
-            Paragraph('STATUS VAT', tbl_hdr_c),
-            Paragraph('RACHUNEK BANKOWY', tbl_hdr),
-            Paragraph('SANKCJE', tbl_hdr_c),
-            Paragraph('RYZYKO', tbl_hdr_c),
-            Paragraph('DECYZJA AUDYTU', tbl_hdr_c),
+            Paragraph("LP", tbl_hdr_c),
+            Paragraph("KONTRAHENT (NAZWA)", tbl_hdr),
+            Paragraph("NIP", tbl_hdr),
+            Paragraph("REJESTR", tbl_hdr_c),
+            Paragraph("STATUS VAT", tbl_hdr_c),
+            Paragraph("RACHUNEK BANKOWY", tbl_hdr),
+            Paragraph("SANKCJE", tbl_hdr_c),
+            Paragraph("RYZYKO", tbl_hdr_c),
+            Paragraph("DECYZJA AUDYTU", tbl_hdr_c),
         ]
         rows = [headers]
 
         for idx, k in enumerate(self.karty, start=1):
-            sankcje_txt = '<font color="#DC2626"><b>[✗] WPIS STOP</b></font>' if (k.sankcje_mswia or k.sankcje_ue) else '<font color="#059669">✓ Czysty</font>'
+            sankcje_txt = (
+                '<font color="#DC2626"><b>[✗] WPIS STOP</b></font>'
+                if (k.sankcje_mswia or k.sankcje_ue)
+                else '<font color="#059669">✓ Czysty</font>'
+            )
             rachunek_txt = {
                 StatusRachunkuBankowego.ZGODNY_BIALA_LISTA: '<font color="#059669">✓ Biała Lista MF</font>',
                 StatusRachunkuBankowego.BRAK_NA_BIALEJ_LISCIE: '<font color="#D97706"><b>[!] Poza listą MF</b></font>',
                 StatusRachunkuBankowego.NIE_PODANO: '<font color="#64748B">Nie dotyczy / Brak</font>',
-            }.get(k.status_rachunku, str(k.status_rachunku.value if hasattr(k.status_rachunku, "value") else k.status_rachunku))
+            }.get(
+                k.status_rachunku,
+                str(k.status_rachunku.value if hasattr(k.status_rachunku, "value") else k.status_rachunku),
+            )
 
             if k.blad_polaczenia:
                 vat_txt = '<font color="#DC2626"><b>[!] Błąd sieci</b></font>'
                 ryzyko_txt = '<font color="#D97706">Do ponowienia</font>'
                 decyzja_txt = '<font color="#DC2626"><b>[!] Ponów (Błąd)</b></font>'
             else:
-                vat_txt = '<font color="#059669">✓ Czynny</font>' if k.platnik_vat_czynny else '<font color="#64748B">Zwolniony / Brak</font>'
+                vat_txt = (
+                    '<font color="#059669">✓ Czynny</font>'
+                    if k.platnik_vat_czynny
+                    else '<font color="#64748B">Zwolniony / Brak</font>'
+                )
                 ryzyko_txt = {
                     PoziomRyzykaAML.NISKIE: '<font color="#059669">Niskie</font>',
                     PoziomRyzykaAML.SREDNIE: '<font color="#D97706">Średnie</font>',
@@ -1537,34 +1913,36 @@ class MiesiecznyRaportWeryfikacji:
                     DecyzjaWspolpracy.ODMOWA_WSPOLPRACY_STOP: '<font color="#DC2626"><b>[✗] BLOKADA</b></font>',
                 }.get(k.decyzja, k.decyzja.value)
 
-            rows.append([
-                Paragraph(str(idx), cell_c),
-                Paragraph(f'<b>{k.nazwa}</b>', cell_n),
-                Paragraph(f'<font face="{font_bold}">{k.nip}</font>', cell_n),
-                Paragraph(k.status_rejestru, cell_c),
-                Paragraph(vat_txt, cell_c),
-                Paragraph(rachunek_txt, cell_n),
-                Paragraph(sankcje_txt, cell_c),
-                Paragraph(ryzyko_txt, cell_c),
-                Paragraph(decyzja_txt, cell_c),
-            ])
+            rows.append(
+                [
+                    Paragraph(str(idx), cell_c),
+                    Paragraph(f"<b>{k.nazwa}</b>", cell_n),
+                    Paragraph(f'<font face="{font_bold}">{k.nip}</font>', cell_n),
+                    Paragraph(k.status_rejestru, cell_c),
+                    Paragraph(vat_txt, cell_c),
+                    Paragraph(rachunek_txt, cell_n),
+                    Paragraph(sankcje_txt, cell_c),
+                    Paragraph(ryzyko_txt, cell_c),
+                    Paragraph(decyzja_txt, cell_c),
+                ]
+            )
 
         col_w = [22, 175, 75, 70, 75, 135, 75, 75, 84]
         t_reg = Table(rows, colWidths=col_w, repeatRows=1)
         t_reg_style = [
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#94A3B8')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 4),
-            ('RIGHTPADDING', (0,0), (-1,-1), 4),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#94A3B8")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]
         # Zebra alternating rows
         for i in range(1, len(rows)):
             if i % 2 == 0:
-                t_reg_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor('#F8FAFC')))
+                t_reg_style.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#F8FAFC")))
         t_reg.setStyle(TableStyle(t_reg_style))
         elements.extend([t_reg, Spacer(1, 6)])
 
@@ -1574,20 +1952,24 @@ class MiesiecznyRaportWeryfikacji:
 
         seal_p = Paragraph(
             f'<b>PIECZĘĆ KRYPTOGRAFICZNA RAPORTU (SHA-256):</b> <font face="{font_bold}">{sha_sig}</font><br/>'
-            f'Raport stanowi prawnie wiążący dowód dopełnienia procedury należytej staranności w podatku VAT (art. 86 ust. 1, art. 108a ustawy o VAT) '
-            f'oraz wymogów ustawy AML (art. 34). Dokument podlega obowiązkowej 5-letniej archiwizacji dowodowej. '
-            f'Szczegółowe Karty Kontrahentów z pełnymi zrzutami rejestrów znajdują się w folderze <i>karty/</i>.',
-            footer_s
+            f"Raport stanowi prawnie wiążący dowód dopełnienia procedury należytej staranności w podatku VAT (art. 86 ust. 1, art. 108a ustawy o VAT) "
+            f"oraz wymogów ustawy AML (art. 34). Dokument podlega obowiązkowej 5-letniej archiwizacji dowodowej. "
+            f"Szczegółowe Karty Kontrahentów z pełnymi zrzutami rejestrów znajdują się w folderze <i>karty/</i>.",
+            footer_s,
         )
         t_seal = Table([[seal_p]], colWidths=[786])
-        t_seal.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ]))
+        t_seal.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F1F5F9")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
         elements.append(t_seal)
 
         doc.build(elements)

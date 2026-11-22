@@ -2,23 +2,21 @@
 Testy jednostkowe modułu weryfikacji kontrahentów AML, sankcji i rejestrów (src/skills/aml_tools.py).
 """
 
-from decimal import Decimal
 import unittest
+from decimal import Decimal
 from unittest.mock import patch
 
 from src.skills.aml_tools import (
     AMLVerificationEngine,
-    PoziomRyzykaAML,
     DecyzjaWspolpracy,
+    PoziomRyzykaAML,
     StatusRachunkuBankowego,
-    check_sanctions,
     _normalize_name,
+    check_sanctions,
 )
-from src.core.company import CompanyProfile
 
 
 class TestAMLVerification(unittest.TestCase):
-
     def test_normalize_name(self):
         self.assertEqual(_normalize_name("Novatek Polska Sp. z o.o."), "novatekpolska")
         self.assertEqual(_normalize_name("Gazprom Export LLC"), "gazpromexport")
@@ -123,8 +121,8 @@ class TestAMLVerification(unittest.TestCase):
             self.assertIn("Białej Liście Podatników VAT", karta.uzasadnienie_decyzji)
 
     def test_verification_service_verify_month(self):
-        from tests.fixtures import setup_test_company
         from src.skills.aml_tools import VerificationService
+        from tests.fixtures import setup_test_company
 
         profile = setup_test_company()
         with patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.fetch_from_mf_biala_lista") as mock_mf:
@@ -155,8 +153,9 @@ class TestAMLVerification(unittest.TestCase):
 
     def test_generate_pdf_card_and_report_files(self):
         """Testuje bezpośrednie generowanie plików PDF dla karty i raportu."""
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
         from src.skills.aml_tools import KartaWeryfikacjiKontrahenta, MiesiecznyRaportWeryfikacji
         from tests.fixtures import setup_test_company
 
@@ -270,8 +269,10 @@ class TestAMLVerification(unittest.TestCase):
 
     def test_virtual_bank_account_verification(self):
         """Testuje weryfikację rachunku wirtualnego (subkonta masowych płatności, np. Play) przez endpoint check."""
-        with patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.fetch_from_mf_biala_lista") as mock_mf, \
-             patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.check_bank_account_mf") as mock_check:
+        with (
+            patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.fetch_from_mf_biala_lista") as mock_mf,
+            patch("src.level_1_ingestion.company_fetcher.CompanyFetcher.check_bank_account_mf") as mock_check,
+        ):
             # Lista ogólna nie zawiera konta wirtualnego
             mock_mf.return_value = {
                 "nip": "9512120077",
@@ -335,6 +336,7 @@ class TestAMLVerification(unittest.TestCase):
             # Generowanie PDF
             import tempfile
             from pathlib import Path
+
             with tempfile.TemporaryDirectory() as tmpdir:
                 pdf_path = Path(tmpdir) / "amazon-karta.pdf"
                 karta.generate_pdf_card(pdf_path)
