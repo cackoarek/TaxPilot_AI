@@ -24,30 +24,34 @@ EXAMPLE_COMPANY_DIR = (
 def setup_isolated_test_company() -> CompanyProfile:
     """
     Tworzy w 100% odizolowany profil firmy testowej w unikalnym katalogu tymczasowym (tempfile.mkdtemp).
-    Zapobiega kolizjom między testami i chroni przestrzeń roboczą firmy/ przed zanieczyszczeniem.
+    Ustawia TAXPILOT_DATA_DIR, dzięki czemu wszystkie moduły aplikacji i testów (w tym FastAPI)
+    widzą wyłącznie ten izolowany katalog. Chroni przestrzeń roboczą przed zanieczyszczeniem (QA-3).
     """
+    import os
+
     tmp_base = Path(tempfile.mkdtemp(prefix="taxpilot_iso_test_"))
     target_dir = tmp_base / f"{TEST_NIP}-CloudTech_Solutions_Jan_Kowalski"
     if EXAMPLE_COMPANY_DIR.exists():
         shutil.copytree(EXAMPLE_COMPANY_DIR, target_dir)
         profile = CompanyProfile.load_from_dir(target_dir)
-        setattr(profile, "_tmp_base_dir", tmp_base)
-        return profile
+    else:
+        profile = CompanyProfile(
+            nip=TEST_NIP,
+            nazwa=TEST_NAME,
+            katalog_nazwa=f"{TEST_NIP}-CloudTech_Solutions_Jan_Kowalski",
+            forma_opodatkowania=FormaOpodatkowania.RYCZALT,
+            domyslna_stawka_ryczaltu=0.12,
+            platnik_vat=True,
+            zus=ZUSConfig(typ=TypZUS.PELNY_ZUS, chorobowe_dobrowolne=True),
+            ksef=KSeFConfig(srodowisko="TEST", token="0261108-TEST-TOKEN|nip-7770001122|abcdef1234567890"),
+            _custom_path=target_dir,
+        )
+        profile.save()
+        _populate_sample_invoices_and_rules(profile)
 
-    profile = CompanyProfile(
-        nip=TEST_NIP,
-        nazwa=TEST_NAME,
-        katalog_nazwa=f"{TEST_NIP}-CloudTech_Solutions_Jan_Kowalski",
-        forma_opodatkowania=FormaOpodatkowania.RYCZALT,
-        domyslna_stawka_ryczaltu=0.12,
-        platnik_vat=True,
-        zus=ZUSConfig(typ=TypZUS.PELNY_ZUS, chorobowe_dobrowolne=True),
-        ksef=KSeFConfig(srodowisko="TEST", token="0261108-TEST-TOKEN|nip-7770001122|abcdef1234567890"),
-        _custom_path=target_dir,
-    )
     setattr(profile, "_tmp_base_dir", tmp_base)
-    profile.save()
-    _populate_sample_invoices_and_rules(profile)
+    setattr(profile, "_prev_data_dir", os.environ.get("TAXPILOT_DATA_DIR"))
+    os.environ["TAXPILOT_DATA_DIR"] = str(tmp_base)
     return profile
 
 
@@ -419,8 +423,17 @@ def _populate_sample_invoices_and_rules(profile: CompanyProfile):
 def cleanup_test_company(profile: CompanyProfile):
     """
     Usuwa tymczasowy katalog firmy testowej (jeśli używano izolowanego środowiska),
+    przywraca poprzednią wartość TAXPILOT_DATA_DIR,
     lub czyści wygenerowane rozliczenia bez niszczenia referencyjnej firmy testowej w workspace.
     """
+    import os
+
+    prev_dir = getattr(profile, "_prev_data_dir", None)
+    if prev_dir is not None:
+        os.environ["TAXPILOT_DATA_DIR"] = prev_dir
+    else:
+        os.environ.pop("TAXPILOT_DATA_DIR", None)
+
     tmp_base = getattr(profile, "_tmp_base_dir", None)
     if tmp_base and Path(tmp_base).exists():
         shutil.rmtree(tmp_base, ignore_errors=True)

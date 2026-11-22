@@ -22,12 +22,18 @@ from src.web.config import COOKIE_ACTIVE_NIP
 
 class TestWebCompanies(unittest.TestCase):
     def setUp(self):
+        from tests.fixtures import setup_isolated_test_company
+
+        self.profile = setup_isolated_test_company()
         self.client = TestClient(app)
         self.test_nip = "1234567890"
         self._cleanup_test_company()
 
     def tearDown(self):
         self._cleanup_test_company()
+        from tests.fixtures import cleanup_test_company
+
+        cleanup_test_company(self.profile)
 
     def _cleanup_test_company(self):
         if FIRMY_DIR.exists():

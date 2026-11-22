@@ -12,14 +12,21 @@ from src.web.config import COOKIE_ACTIVE_MONTH, COOKIE_ACTIVE_NIP, COOKIE_ACTIVE
 
 
 class TestWebApp(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from tests.fixtures import setup_isolated_test_company
+
+        cls.profile = setup_isolated_test_company()
+
+    @classmethod
+    def tearDownClass(cls):
+        from tests.fixtures import cleanup_test_company
+
+        cleanup_test_company(cls.profile)
+
     def setUp(self):
         self.client = TestClient(app)
         self.client.cookies[COOKIE_ACTIVE_NIP] = "7770001122"
-        from src.core.company import CompanyProfile
-        from tests.fixtures import setup_test_company
-
-        if not CompanyProfile.load_by_nip("7770001122"):
-            setup_test_company()
 
     def test_health_check(self):
         """Test endpointu /health."""
@@ -99,10 +106,30 @@ class TestWebApp(unittest.TestCase):
             auth_header_resp = self.client.get("/", headers={"Authorization": f"Bearer {token_secret}"})
             self.assertEqual(auth_header_resp.status_code, 200)
 
-            # 4. Autoryzacja przez parametr query ?token=<token>
-            query_resp = self.client.get(f"/?token={token_secret}")
-            self.assertEqual(query_resp.status_code, 200)
+            # 4. Autoryzacja przez parametr query ?token=<token> ze stripowaniem tokena (303 Redirect - SEC-3)
+            query_resp = self.client.get(f"/?token={token_secret}", follow_redirects=False)
+            self.assertEqual(query_resp.status_code, 303)
+            self.assertEqual(query_resp.headers["location"], "http://testserver/")
             self.assertIn(COOKIE_AUTH_TOKEN, query_resp.cookies)
+
+            # Następne żądanie klienta z zapisanym ciasteczkiem przechodzi z kodem 200
+            self.client.cookies[COOKIE_AUTH_TOKEN] = token_secret
+            next_resp = self.client.get("/")
+            self.assertEqual(next_resp.status_code, 200)
+
+            # 4b. Logowanie przez POST /login (SEC-3)
+            login_client = TestClient(app)
+            login_resp = login_client.post("/login", data={"token": token_secret}, follow_redirects=False)
+            self.assertEqual(login_resp.status_code, 303)
+            self.assertIn(COOKIE_AUTH_TOKEN, login_resp.cookies)
+
+            # Błędny token w POST /login -> 401
+            bad_login = login_client.post("/login", data={"token": "zly-token"})
+            self.assertEqual(bad_login.status_code, 401)
+
+            # 4c. Wylogowanie przez GET /logout
+            logout_resp = login_client.get("/logout", follow_redirects=False)
+            self.assertEqual(logout_resp.status_code, 303)
 
             # 5. Autoryzacja przez ciasteczko
             cookie_client = TestClient(app)

@@ -5,7 +5,6 @@ Testy jednostkowe silnika rozliczeń podatkowych (SettlementService, Bookkeeping
 import unittest
 from decimal import Decimal
 
-from src.core.company import CompanyProfile
 from src.level_3_tax_settlement.settlement_service import SettlementService
 from tests.fixtures import cleanup_test_company, setup_isolated_test_company
 
@@ -107,13 +106,9 @@ class TestSettlementService(unittest.TestCase):
 
     def test_settle_october_2026_professional_accountant_mode(self):
         """Test rozliczenia 2026-10 w trybie księgowego profesjonalnego (zasada kasowa + wyłączenie FP)."""
-        import pathlib
-
-        p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
-        if not (p_path / "faktury" / "2026" / "10" / "sprzedaz").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "10" / "sprzedaz").exists():
             self.skipTest("Brak danych testowych za 2026-10 dla firmy testowej")
-        real_profile = CompanyProfile.load_from_dir(p_path)
-        result = SettlementService.settle_month(real_profile, "2026", "10", zapisz_raporty=False)
+        result = SettlementService.settle_month(self.profile, "2026", "10", zapisz_raporty=False)
 
         self.assertEqual(result.pit28.zaliczka_pit28_zaokraglona, 6276)
         self.assertEqual(result.vat.vat_do_zaplaty_zaokraglony, 7327)
@@ -121,13 +116,9 @@ class TestSettlementService(unittest.TestCase):
 
     def test_settle_may_2026_retroactive_correction(self):
         """Test rozliczenia 2026-05: korekta wsteczna 1/KOR/06/2026 (-4000 zł) koryguje przychód maja dla PIT-28."""
-        import pathlib
-
-        p_path = pathlib.Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
-        if not (p_path / "faktury" / "2026" / "05" / "sprzedaz").exists():
+        if not (self.profile.katalog_firmy / "faktury" / "2026" / "05" / "sprzedaz").exists():
             self.skipTest("Brak danych testowych za 2026-05 dla firmy testowej")
-        real_profile = CompanyProfile.load_from_dir(p_path)
-        result = SettlementService.settle_month(real_profile, "2026", "05", zapisz_raporty=False)
+        result = SettlementService.settle_month(self.profile, "2026", "05", zapisz_raporty=False)
 
         # Przychód z maja: 1499 + 42200 - 4000 = 39699 zł
         self.assertEqual(result.pit28.przychod_laczny, Decimal("39699.00"))

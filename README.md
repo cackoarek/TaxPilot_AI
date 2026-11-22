@@ -9,7 +9,7 @@
 [![Zero-Hallucination](https://img.shields.io/badge/Policy-Zero--Hallucination%20(Decimal)-orange.svg?style=flat-square)](#-1-naczelna-zasada-zero-hallucination-policy)
 [![KSeF 2.0 Ready](https://img.shields.io/badge/KSeF-2.0%20(FA%202%20%2F%20FA%203)-red.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![Web UI: FastAPI + HTMX](https://img.shields.io/badge/web%20ui-FastAPI%20%2B%20HTMX%20%2B%20Tailwind-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](#-nowoczesna-nakładka-www-interfejs-użytkownika)
-[![Tests: unittest](https://img.shields.io/badge/tests-unittest%20(180%20passed)-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Tests: unittest](https://img.shields.io/badge/tests-unittest%20(197%20passed)-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![LLM-Agnostic](https://img.shields.io/badge/LLM-Agnostic%20(Claude%20%7C%20GPT%20%7C%20Gemini%20%7C%20AGY)-blueviolet.svg?style=flat-square)](#-elastyczność-llm-oraz-tryb-zero-llm)
 [![Local-First](https://img.shields.io/badge/privacy-Local--First-2e7d32.svg?style=flat-square)](#-bezpieczeństwo-ksef-20-i-ochrona-danych)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
@@ -289,7 +289,7 @@ W repozytorium znajduje się również śledzony katalog [examples/](examples/) 
 
 ## 🧪 Testy Jednostkowe i Jakość Kodu
 
-Repozytorium posiada bogaty zestaw 168 deterministycznych testów jednostkowych i integracyjnych pokrywających wszystkie moduły aplikacji:
+Repozytorium posiada bogaty zestaw ponad 197 deterministycznych testów jednostkowych i integracyjnych pokrywających wszystkie moduły aplikacji:
 
 ```bash
 # Uruchomienie pełnego zestawu testów

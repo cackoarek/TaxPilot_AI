@@ -205,7 +205,8 @@ class CompanyProfile:
         target_dir = self.katalog_firmy
         target_dir.mkdir(parents=True, exist_ok=True)
         profil_path = target_dir / "profil.json"
-        return atomic_write_json(profil_path, self.to_dict(), indent=2, ensure_ascii=False)
+        # Profil zawiera wrażliwe tokeny KSeF i klucze API - wymuszenie uprawnień 0600 (SEC-4)
+        return atomic_write_json(profil_path, self.to_dict(), indent=2, ensure_ascii=False, mode=0o600)
 
     @classmethod
     def load_from_dir(cls, directory_path: Path) -> "CompanyProfile":

@@ -8,11 +8,10 @@ class TestVATAggregator(unittest.TestCase):
     def test_aggregation_cloudtech_2026(self):
         from pathlib import Path
 
-        p_path = Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski")
-        if (p_path / "rozliczenia" / "2026").exists():
-            base_dir = "firmy"
-        elif Path("examples/firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/rozliczenia/2026").exists():
+        if Path("examples/firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/rozliczenia/2026").exists():
             base_dir = "examples/firmy"
+        elif Path("firmy/7770001122-CloudTech_Solutions_Jan_Kowalski/rozliczenia/2026").exists():
+            base_dir = "firmy"
         else:
             self.skipTest("Brak rocznych rozliczeń testowych 2026 dla firmy testowej")
         report = VATAggregator.aggregate(base_dir, "7770001122", "2026")

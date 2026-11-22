@@ -395,6 +395,28 @@ class TestWebInvoices(unittest.TestCase):
         self.assertEqual(sanitize_filename("skan@#$!*()___.png"), "skan.png")
         self.assertEqual(sanitize_filename("..///..///test.json"), "test.json")
 
+    def test_upload_pdf_with_malicious_javascript_blocked(self):
+        """Weryfikuje odrzucenie pliku PDF zawierającego osadzony JavaScript (/JavaScript) ze statusem 400 (SEC-5)."""
+        pdf_with_js = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R /OpenAction << /S /JavaScript /JS (app.alert('PWNED');) >> >>\nendobj"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("zlosliwy.pdf", pdf_with_js, "application/pdf")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("wykryto niebezpieczną zawartość aktywną", response.text)
+
+    def test_upload_text_with_malicious_script_tag_blocked(self):
+        """Weryfikuje odrzucenie pliku .txt ze złośliwym znacznikiem <script> ze statusem 400 (SEC-5)."""
+        malicious_txt = b"To jest faktura <script>alert('xss')</script>"
+        response = self.client.post(
+            "/faktury/upload",
+            files={"file": ("faktura_xss.txt", malicious_txt, "text/plain")},
+            data={"kategoria": "koszt"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("wykryto niedozwolone znaczniki kodu wykonywalnego HTML/JS", response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

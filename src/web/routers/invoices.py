@@ -63,6 +63,14 @@ def validate_file_content(content: bytes, ext: str) -> Tuple[bool, str]:
     if ext_clean == ".pdf":
         if not (content.startswith(b"%PDF-") or b"%PDF-" in content[:1024]):
             return False, "Brak poprawnej sygnatury PDF (%PDF-)"
+        # Głęboka inspekcja PDF: blokowanie złośliwych dyrektyw uruchomieniowych (SEC-5)
+        lower_content = content.lower()
+        for dangerous_tag in (b"/javascript", b"/js", b"/launch", b"/embeddedfiles"):
+            if dangerous_tag in lower_content:
+                return (
+                    False,
+                    f"Odrzucono plik PDF: wykryto niebezpieczną zawartość aktywną ({dangerous_tag.decode('ascii')})",
+                )
         return True, ""
 
     if ext_clean == ".png":
@@ -87,6 +95,11 @@ def validate_file_content(content: bytes, ext: str) -> Tuple[bool, str]:
     if ext_clean in (".txt", ".md"):
         if b"\x00" in content:
             return False, "Wykryto zawartość binarną w pliku tekstowym"
+        # Ochrona przed wstrzykiwaniem niebezpiecznego HTML / skryptów w plikach tekstowych (SEC-5)
+        lower_content = content.lower()
+        for forbidden in (b"<script", b"<iframe", b"<object", b"<embed"):
+            if forbidden in lower_content:
+                return False, "Odrzucono plik tekstowy: wykryto niedozwolone znaczniki kodu wykonywalnego HTML/JS"
         try:
             content.decode("utf-8")
             return True, ""
