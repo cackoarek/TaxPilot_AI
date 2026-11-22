@@ -499,20 +499,21 @@ class AntigravityProvider(BaseLLMProvider):
                 session.current_process = proc
 
                 # Czytanie wiersz po wierszu na żywo z procesu
-                while True:
-                    line = await proc.stdout.readline()
-                    if not line:
-                        break
-                    decoded_line = line.decode("utf-8", errors="replace")
-                    accumulated.append(decoded_line)
-                    session.last_output = "".join(accumulated)
-                    yield decoded_line
+                if proc.stdout:
+                    while True:
+                        line = await proc.stdout.readline()
+                        if not line:
+                            break
+                        decoded_line = line.decode("utf-8", errors="replace")
+                        accumulated.append(decoded_line)
+                        session.last_output = "".join(accumulated)
+                        yield decoded_line
 
                 await proc.wait()
                 session.turn_count += 1
                 session.last_used_at = time.time()
 
-                if proc.returncode != 0:
+                if proc.returncode != 0 and proc.stderr:
                     stderr_bytes = await proc.stderr.read()
                     stderr_text = stderr_bytes.decode("utf-8", errors="replace").strip()
                     logger.warning("Proces agy zakończony kodem %d: %s", proc.returncode, stderr_text)

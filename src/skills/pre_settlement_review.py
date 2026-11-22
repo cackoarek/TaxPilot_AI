@@ -380,7 +380,7 @@ class PreSettlementReview:
             status_aml = get_contractor_aml_status(inv.sprzedawca.nip, inv.sprzedawca.nazwa)
 
             # Pozycje faktury kosztowej
-            pozycje_koszt = []
+            pozycje_koszt: List[Dict[str, Any]] = []
             has_unapproved_ai = False
             has_do_wyjasnienia = False
             inv_ai_sugestia = None
@@ -544,18 +544,22 @@ class PreSettlementReview:
                     inv_odrzucone_netto = Decimal("0.00")
                     inv_odrzucony_vat = Decimal("0.00")
             else:
-                inv_kwalifikowane_netto = sum((p["netto_do_kup"] for p in pozycje_koszt), Decimal("0.00"))
-                inv_kwalifikowany_vat = sum((p["vat_do_odliczenia"] for p in pozycje_koszt), Decimal("0.00"))
+                inv_kwalifikowane_netto = sum((Decimal(str(p["netto_do_kup"])) for p in pozycje_koszt), Decimal("0.00"))
+                inv_kwalifikowany_vat = sum(
+                    (Decimal(str(p["vat_do_odliczenia"])) for p in pozycje_koszt), Decimal("0.00")
+                )
                 inv_odrzucone_netto = sum(
-                    (p["wartosc_netto"] for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"), Decimal("0.00")
+                    (Decimal(str(p["wartosc_netto"])) for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"),
+                    Decimal("0.00"),
                 )
                 inv_odrzucony_vat = sum(
-                    (p["kwota_vat"] for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"), Decimal("0.00")
+                    (Decimal(str(p["kwota_vat"])) for p in pozycje_koszt if p["kwalifikacja"] == "PRYWATNY_0"),
+                    Decimal("0.00"),
                 )
 
             # Dla faktury jednopozycyjnej upewnij się, że kwalifikacja ogólna odpowiada jedynej pozycji
             if len(pozycje_koszt) == 1:
-                kwal_kod = pozycje_koszt[0]["kwalifikacja"]
+                kwal_kod = str(pozycje_koszt[0]["kwalifikacja"])
                 if kwal_kod == "SAMOCHOD_50":
                     kwal_tekst = "🚗 Samochód 50% (art. 86a)"
                     status_tekst = "Zatwierdzona" if pozycje_koszt[0]["zatwierdzony"] else "Do akceptacji"
@@ -630,11 +634,11 @@ class PreSettlementReview:
             suma_koszt_brutto += inv.suma_brutto
 
             # Wykrycie pozycji do wyjaśnienia lub pozycji prywatnych do zatwierdzenia
-            for p in pozycje_koszt:
-                kwal = p.get("kwalifikacja")
-                wymaga_zatw = p.get("wymaga_zatwierdzenia", False)
-                zatwierdzony = p.get("zatwierdzony", False)
-                zrodlo = p.get("zrodlo_decyzji", "")
+            for poz_k in pozycje_koszt:
+                kwal = poz_k.get("kwalifikacja")
+                wymaga_zatw = poz_k.get("wymaga_zatwierdzenia", False)
+                zatwierdzony = poz_k.get("zatwierdzony", False)
+                zrodlo = poz_k.get("zrodlo_decyzji", "")
 
                 # Tylko pozycje niejednoznaczne lub unapproved AI suggestions trafiają do do_wyjasnienia
                 if (
@@ -648,13 +652,13 @@ class PreSettlementReview:
                             numer_faktury=inv.numer,
                             kontrahent_nazwa=inv.sprzedawca.nazwa,
                             kontrahent_nip=inv.sprzedawca.nip,
-                            pozycja_opis=p["opis"],
-                            kwota_netto=p["wartosc_netto"],
-                            kwota_vat=p["kwota_vat"],
+                            pozycja_opis=poz_k["opis"],
+                            kwota_netto=poz_k["wartosc_netto"],
+                            kwota_vat=poz_k["kwota_vat"],
                             status="DO_WYJASNIENIA",
-                            uzasadnienie=p.get("uzasadnienie", "Wymaga decyzji przedsiębiorcy"),
-                            pytanie_do_uzytkownika=f"Pozycja '{p['opis']}' ({p['wartosc_netto']:.2f} zł netto) – zatwierdź lub wybierz kwalifikację.",
-                            sugerowana_odpowiedz=p.get("ai_porada", "Zatwierdź lub wybierz stawkę"),
+                            uzasadnienie=poz_k.get("uzasadnienie", "Wymaga decyzji przedsiębiorcy"),
+                            pytanie_do_uzytkownika=f"Pozycja '{poz_k['opis']}' ({poz_k['wartosc_netto']:.2f} zł netto) – zatwierdź lub wybierz kwalifikację.",
+                            sugerowana_odpowiedz=poz_k.get("ai_porada", "Zatwierdź lub wybierz stawkę"),
                         )
                     )
                     clarification_idx += 1
@@ -662,8 +666,9 @@ class PreSettlementReview:
         # Wykrycie faktur zrelokowanych (Auto-Routing)
         relokacje_list: List[Dict[str, Any]] = []
         for inv in faktury_sprzedaz + faktury_koszt:
-            if getattr(inv, "relokacja", None):
-                relokacje_list.append(inv.relokacja)
+            rel = getattr(inv, "relokacja", None)
+            if rel:
+                relokacje_list.append(dict(rel))
 
         return cls(
             profil=profile,

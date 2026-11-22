@@ -585,28 +585,28 @@ class NonKSeFExtractor:
         if actual_type == InvoiceType.SPRZEDAZ:
             seller = InvoiceParty(nip=profile.nip, nazwa=profile.nazwa, kraj="PL")
             buyer_name = KNOWN_CONTRACTORS.get(other_nip, "Klient Zewnętrzny")
-            ryczalt_rate: Optional[str] = "0.12"
+            ryczalt_rate: Optional[Decimal] = Decimal("0.12")
 
             if "promocja" in filename.lower() or "erste" in clean_text.lower():
                 buyer_nip = "8960005673"
                 buyer_name = "Erste Bank Polska S.A."
                 item_desc = "Premia bankowa - promocja dla firm"
-                ryczalt_rate = "0.12"
+                ryczalt_rate = Decimal("0.12")
             elif other_nip == "1132737407":
                 buyer_nip = "1132737407"
                 buyer_name = "Edukacja sp. z o.o."
                 item_desc = "Usługi szkoleniowo-dydaktyczne"
-                ryczalt_rate = "0.085"
+                ryczalt_rate = Decimal("0.085")
             elif other_nip in ["5252877477", "5252545285"]:
                 buyer_nip = "5252545285"
                 buyer_name = "Kaft Spółka Z Ograniczoną Odpowiedzialnością"
                 item_desc = "Usługi programistyczne i wsparcia"
-                ryczalt_rate = "0.12"
+                ryczalt_rate = Decimal("0.12")
             elif other_nip == "5213242793":
                 buyer_nip = "5213242793"
                 buyer_name = "Piotr Wiśniewski"
                 item_desc = "Usługi programistyczne"
-                ryczalt_rate = "0.12"
+                ryczalt_rate = Decimal("0.12")
             else:
                 buyer_nip = other_nip
                 buyer_m = re.search(r"(?:nabywca|buyer|klient|odbiorca)[\s:]*([^\n\r]+)", clean_text, re.IGNORECASE)

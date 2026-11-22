@@ -23,18 +23,24 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 - **SEC-10**: Automatyczna migracja uprawnień dyskowych (`migrate_data_permissions`) przy starcie aplikacji FastAPI – wymuszenie `chmod 700` dla folderów firmowych oraz `chmod 600` dla plików `profil.json` i reguł.
 - **SEC-11**: Ochrona przed atakami CSRF w architekturze Local-First poprzez weryfikację nagłówków `Origin` i `Referer` dla metod mutujących stan (`POST`, `PUT`, `DELETE`, `PATCH`), odrzucając żądania pochodzące z obcych domen (`403 Forbidden`).
 - **SEC-12**: Sformalizowanie kontraktu bezpieczeństwa renderera Markdown (`src/web/utils/markdown.py`) z testami odpornościowymi na wstrzyknięcia DOM i tabel.
+- **SEC-13**: Wdrożenie symetrycznego szyfrowania at-rest dla wrażliwych danych (`src/core/security.py`) opartego na algorytmie Fernet (`AES-128-CBC` + `HMAC-SHA256`) z derywacją PBKDF2-HMAC-SHA256. Automatyczne szyfrowanie tokenów KSeF oraz kluczy API w `profil.json` przy obecności zmiennej `TAXPILOT_ENCRYPTION_KEY` z zachowaniem pełnej wstecznej kompatybilności.
 
 ### Zmienione
 - **TAX-1**: Wdrożenie zasady ostrożności podatkowej w `settlement_service.py` – pozycje faktur bez audytu otrzymują status `⚠️ DO_WYJASNIENIA` i 0.00 zł VAT do odliczenia (zamiast domyślnego 100% firmowego). Usunięcie kategorycznych obietnic ("100% bezpieczny") i dodanie standardowej klauzuli informacyjnej do raportów.
 - **IO-1**: Wprowadzenie atomowego zapisu plików dyskowych `src/core/io.py` (`atomic_write_json`, `atomic_write_text` z użyciem unikalnych plików tymczasowych, `fsync` i atomowego `os.replace`) dla profili firm, reguł kosztowych, rejestrów i historii czatu.
+- **IO-2**: Wprowadzenie menedżera blokad dyskowych `file_lock` opartego o `fcntl.flock` w `src/core/io.py` oraz helpera `InvoiceStorage.get_invoice_dir(profile, rok, miesiac, typ)` eliminującego ryzyko kolizji współbieżnych operacji I/O.
 - **ARCH-1**: Modularyzacja silnika rozliczeń `SettlementService` – wyodrębnienie generatorów raportów do dedykowanego pakietu `src/level_3_tax_settlement/reports/` (`SettlementMarkdownReporter`, `LedgerMarkdownReporter`, `AuditMarkdownReporter`), redukując `settlement_service.py` o ponad 700 linii.
 
 ### Jakość Kodu i Testy (QA)
+- **DEV-1**: Wprowadzenie deterministycznego pliku blokady zależności `requirements.lock` z zamrożonymi wersjami bibliotek głównych i tranzytywnych.
 - **QA-1**: Wdrożenie lintera i formatera `ruff` w konfiguracji projektu `pyproject.toml` oraz w potoku CI `.github/workflows/ci.yml`.
 - **QA-1**: Pełna hermetyzacja i izolacja testów jednostkowych – testowe profile firm tworzone w izolowanych katalogach tymczasowych (`tempfile.mkdtemp`), eliminując współdzielony stan i kolizje danych testowych.
 - **QA-2**: Rozszerzenie triggerów potoku CI `.github/workflows/ci.yml` o budowanie wszystkich gałęzi (`branches: ['**']`), dodanie concurrency `cancel-in-progress` oraz pełnego raportowania wyników testów do GitHub Step Summary.
 - **QA-3**: 100% hermetyzacji testów integracyjnych i webowych dzięki dynamicznemu proxy `TAXPILOT_DATA_DIR` w `src/config.py` – żaden test nie modyfikuje ani nie wymaga obecności danych w produkcyjnym folderze `firmy/`.
 - **QA-4**: Dodanie dedykowanego pakietu testów `tests/test_web_security_hardening.py` weryfikującego zabezpieczenia przed atakami Open Redirect, brute-force, CSRF oraz uprawnienia systemu plików (wzrost zestawu do 205 testów).
+- **QA-5**: Wdrożenie rygorystycznej statycznej analizy typów `mypy` w potoku CI oraz konfiguracji `[tool.mypy]` w `pyproject.toml` (0 błędów w 67 plikach źródłowych `src/`).
+- **QA-6**: Konfiguracja narzędzia pomiaru pokrycia kodu `coverage.py` w `pyproject.toml` oraz weryfikacji raportu pokrycia w workflow GitHub Actions.
+- **QA-7**: Eliminacja ostrzeżeń `StarletteDeprecationWarning` w testach integracyjnych oraz dodanie testów szyfrowania sekretów i współbieżności I/O (wzrost zestawu do 216 testów, 100% passed).
 
 ---
 

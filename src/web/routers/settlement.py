@@ -324,7 +324,7 @@ async def approve_single_item(
         reguly_firmy = RegulyKosztoweFirmy.load(profile)
         res_audit = CostClassifier.classify_item(
             inv.pozycje[item_idx],
-            inv.sprzedawca.nip if inv.sprzedawca else None,
+            inv.sprzedawca.nip if (inv.sprzedawca and inv.sprzedawca.nip) else "",
             reguly_firmy,
             kody_pkd=profile.kody_pkd,
         )

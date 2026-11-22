@@ -197,7 +197,8 @@ async def lookup_company_nip_endpoint(request: Request):
     if request.method == "POST":
         try:
             body = await request.form()
-            raw_nip = body.get("nip", "")
+            nip_val = body.get("nip", "")
+            raw_nip = str(nip_val) if nip_val is not None else ""
         except Exception:
             pass
     if not raw_nip:

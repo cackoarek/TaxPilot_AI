@@ -64,7 +64,7 @@ class ClaudeProvider(BaseLLMProvider):
             raise ValueError("ANTHROPIC_API_KEY nie został skonfigurowany.")
 
         headers = {
-            "x-api-key": self._api_key,
+            "x-api-key": self._api_key or "",
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }
@@ -89,7 +89,7 @@ class ClaudeProvider(BaseLLMProvider):
             raise ValueError("ANTHROPIC_API_KEY nie został skonfigurowany.")
 
         headers = {
-            "x-api-key": self._api_key,
+            "x-api-key": self._api_key or "",
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }

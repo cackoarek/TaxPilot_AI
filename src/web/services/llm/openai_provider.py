@@ -24,7 +24,8 @@ class OpenAIProvider(BaseLLMProvider):
     ):
         self._api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         self._model = model
-        self._base_url = (base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
+        raw_base = base_url or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        self._base_url = raw_base.rstrip("/")
 
     @property
     def provider_name(self) -> str:

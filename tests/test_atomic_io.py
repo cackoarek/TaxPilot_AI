@@ -5,7 +5,7 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 
-from src.core.io import atomic_write_json, atomic_write_text
+from src.core.io import atomic_write_json, atomic_write_text, file_lock
 
 
 class TestAtomicIO(unittest.TestCase):
@@ -92,6 +92,32 @@ class TestAtomicIO(unittest.TestCase):
         # Temp files are removed
         temp_files = list(self.test_dir.glob("*.tmp.*"))
         self.assertEqual(temp_files, [])
+
+    def test_file_lock_mutual_exclusion(self):
+        target_file = self.test_dir / "concurrent.json"
+        with file_lock(target_file, timeout=1.0):
+            # Attempting to acquire another exclusive lock with zero timeout should raise TimeoutError
+            with self.assertRaises(TimeoutError):
+                with file_lock(target_file, timeout=0.05):
+                    pass
+
+        # After releasing, lock can be acquired again
+        acquired = False
+        with file_lock(target_file, timeout=1.0):
+            acquired = True
+        self.assertTrue(acquired)
+
+    def test_atomic_write_with_lock_flag(self):
+        target_file = self.test_dir / "locked_output.json"
+        data = {"concurrent": True, "value": 42}
+        atomic_write_json(target_file, data, lock=True)
+        self.assertTrue(target_file.exists())
+        with open(target_file, "r", encoding="utf-8") as f:
+            self.assertEqual(json.load(f), data)
+
+        txt_file = self.test_dir / "locked_output.txt"
+        atomic_write_text(txt_file, "locked text content", lock=True)
+        self.assertEqual(txt_file.read_text(encoding="utf-8"), "locked text content")
 
 
 if __name__ == "__main__":

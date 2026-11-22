@@ -313,7 +313,7 @@ STRUKTURA JSON:
                     }
                 )
 
-            payload = {
+            openai_payload = {
                 "model": model,
                 "messages": [{"role": "user", "content": content_list}],
                 "temperature": 0.1,
@@ -321,7 +321,7 @@ STRUKTURA JSON:
             headers = {"Authorization": f"Bearer {api_key}"}
             try:
                 async with httpx.AsyncClient(timeout=45.0) as client:
-                    resp = await client.post(f"{base_url}/chat/completions", json=payload, headers=headers)
+                    resp = await client.post(f"{base_url}/chat/completions", json=openai_payload, headers=headers)
                     if resp.status_code == 200:
                         data = resp.json()
                         choices = data.get("choices", [])
@@ -355,7 +355,7 @@ STRUKTURA JSON:
                     }
                 )
 
-            payload = {
+            claude_payload = {
                 "model": model,
                 "max_tokens": 4096,
                 "messages": [{"role": "user", "content": content_list}],
@@ -368,7 +368,7 @@ STRUKTURA JSON:
             }
             try:
                 async with httpx.AsyncClient(timeout=45.0) as client:
-                    resp = await client.post(url, json=payload, headers=headers)
+                    resp = await client.post(url, json=claude_payload, headers=headers)
                     if resp.status_code == 200:
                         data = resp.json()
                         res_content = data.get("content", [])

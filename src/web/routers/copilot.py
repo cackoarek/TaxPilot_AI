@@ -799,6 +799,8 @@ async def copilot_chat(
 
     # Trwała sesja na dysku
     chat_session = ChatSessionManager.get_active_session(profile, rok=rok, miesiac=miesiac)
+    if not chat_session:
+        raise HTTPException(status_code=400, detail="Brak aktywnej sesji czatu dla wybranego okresu.")
     record = chat_session.add_user_message(user_msg_clean)
     ChatSessionManager.save_session(profile, chat_session)
 

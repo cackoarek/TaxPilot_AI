@@ -21,7 +21,7 @@ from src.web.config import (
 
 def get_all_companies() -> List[CompanyProfile]:
     """Zwraca listę wszystkich zarejestrowanych firm w katalogu firmy/."""
-    companies = []
+    companies: List[CompanyProfile] = []
     if not FIRMY_DIR.exists():
         return companies
     for path in sorted(FIRMY_DIR.iterdir()):

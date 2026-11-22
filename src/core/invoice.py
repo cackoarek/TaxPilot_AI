@@ -124,7 +124,7 @@ class Invoice:
             if self.data_sprzedazy and self.data_wystawienia:
                 dt = max(self.data_sprzedazy, self.data_wystawienia)
             else:
-                dt = self.data_wystawienia or self.data_sprzedazy
+                dt = self.data_wystawienia or (self.data_sprzedazy or "")
         parts = dt.split("-")
         return parts[0], parts[1].zfill(2)
 

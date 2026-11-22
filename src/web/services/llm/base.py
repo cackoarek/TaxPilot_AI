@@ -53,7 +53,7 @@ class BaseLLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: List[ChatMessage],
         system_prompt: Optional[str] = None,

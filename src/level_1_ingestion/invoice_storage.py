@@ -13,7 +13,7 @@ firmy/{NIP-Nazwa}/faktury/{rok}/{miesiac}/
 """
 
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from src.core.company import CompanyProfile
 from src.core.invoice import Invoice, InvoiceType
@@ -36,14 +36,26 @@ class InvoiceStorage:
         return profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2) / "sprzedaz"
 
     @classmethod
+    def get_koszty_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
+        return profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2) / "koszty"
+
+    @classmethod
+    def get_invoice_dir(
+        cls,
+        profile: CompanyProfile,
+        rok: str,
+        miesiac: str,
+        typ: Union[InvoiceType, str] = InvoiceType.KOSZT,
+    ) -> Path:
+        """Zwraca katalog faktur dla wskazanego typu (sprzedaz lub koszty)."""
+        is_sales = typ == InvoiceType.SPRZEDAZ or str(typ).lower() in ("sprzedaz", "sales")
+        return cls.get_sprzedaz_dir(profile, rok, miesiac) if is_sales else cls.get_koszty_dir(profile, rok, miesiac)
+
+    @classmethod
     def get_ksef_sprzedaz_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
         d = cls.get_sprzedaz_dir(profile, rok, miesiac) / "ksef"
         d.mkdir(parents=True, exist_ok=True)
         return d
-
-    @classmethod
-    def get_koszty_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:
-        return profile.katalog_firmy / "faktury" / str(rok) / str(miesiac).zfill(2) / "koszty"
 
     @classmethod
     def get_ksef_koszty_dir(cls, profile: CompanyProfile, rok: str, miesiac: str) -> Path:

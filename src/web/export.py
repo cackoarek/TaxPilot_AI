@@ -10,7 +10,7 @@ import re
 import shutil
 import urllib.parse
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from starlette.testclient import TestClient
 
@@ -145,7 +145,7 @@ def prepare_demo_data(client: TestClient, output_dir: Path, profile: CompanyProf
     js_dir = output_dir / "static" / "js"
     js_dir.mkdir(parents=True, exist_ok=True)
 
-    demo_data = {
+    demo_data: Dict[str, Any] = {
         "qrModals": {},
         "invoiceModals": {},
         "rulesList": "",

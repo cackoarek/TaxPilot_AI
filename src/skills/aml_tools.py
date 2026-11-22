@@ -1212,9 +1212,10 @@ class AMLVerificationEngine:
             platnik_vat_czynny = False
             konta_mf = []
         else:
-            status_vat = mf_data.get("status_vat", "Niezarejestrowany w wykazie MF")
-            platnik_vat_czynny = mf_data.get("platnik_vat", False)
-            konta_mf = [cls.clean_iban(acc) for acc in (mf_data.get("rachunki_bankowe") or []) if acc]
+            mf = mf_data or {}
+            status_vat = mf.get("status_vat", "Niezarejestrowany w wykazie MF")
+            platnik_vat_czynny = mf.get("platnik_vat", False)
+            konta_mf = [cls.clean_iban(acc) for acc in (mf.get("rachunki_bankowe") or []) if acc]
 
         # 2. Rozpoznanie formy prawnej i rejestru
         nazwa_lower = final_nazwa.lower()

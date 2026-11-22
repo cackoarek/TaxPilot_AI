@@ -169,10 +169,8 @@ class TestWebCompanies(unittest.TestCase):
         self.assertTrue((created_profile.katalog_firmy / "faktury" / "2026" / "01" / "sprzedaz" / "ksef").exists())
 
         # 4. Sprawdzenie czy wejście na pulpit renderuje nowo dodaną firmę i komunikat sukcesu
-        resp_dashboard = self.client.get(
-            "/?nowa_firma=1",
-            cookies={COOKIE_ACTIVE_NIP: self.test_nip},
-        )
+        self.client.cookies[COOKIE_ACTIVE_NIP] = self.test_nip
+        resp_dashboard = self.client.get("/?nowa_firma=1")
         self.assertEqual(resp_dashboard.status_code, 200)
         self.assertIn("Nowoczesne IT Jan Testowy", resp_dashboard.text)
         self.assertIn("Nowa firma została pomyślnie dodana i aktywowana", resp_dashboard.text)

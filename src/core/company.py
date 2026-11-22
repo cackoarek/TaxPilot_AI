@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from src.config import FIRMY_DIR
+from src.core.security import decrypt_secret, encrypt_secret
 
 from .io import atomic_write_json
 
@@ -89,18 +90,20 @@ class KSeFConfig:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "KSeFConfig":
+        raw_token = data.get("token")
+        decrypted_token = decrypt_secret(raw_token) if raw_token else None
         return cls(
             srodowisko=data.get("srodowisko", "PROD"),
-            token=data.get("token"),
+            token=decrypted_token,
             token_env_var=data.get("token_env_var"),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, encrypt_secrets: bool = False) -> Dict[str, Any]:
         res: Dict[str, Any] = {
             "srodowisko": self.srodowisko,
         }
         if self.token is not None:
-            res["token"] = self.token
+            res["token"] = encrypt_secret(self.token) if encrypt_secrets else self.token
         if self.token_env_var is not None:
             res["token_env_var"] = self.token_env_var
         return res
@@ -139,6 +142,12 @@ class CompanyProfile:
     def from_dict(cls, data: Dict[str, Any]) -> "CompanyProfile":
         zus_data = data.get("zus", {})
         ksef_data = data.get("ksef", {})
+        llm_data = dict(data.get("llm", {}))
+        if "api_key" in llm_data and llm_data["api_key"]:
+            try:
+                llm_data["api_key"] = decrypt_secret(llm_data["api_key"])
+            except Exception:
+                pass
         return cls(
             nip=str(data["nip"]),
             nazwa=data["nazwa"],
@@ -151,16 +160,19 @@ class CompanyProfile:
             kody_pkd=list(data.get("kody_pkd", [])),
             regon=data.get("regon"),
             adres=data.get("adres"),
-            llm=dict(data.get("llm", {})),
+            llm=llm_data,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, encrypt_secrets: bool = False) -> Dict[str, Any]:
         res = asdict(self)
         res.pop("_custom_path", None)
         res["forma_opodatkowania"] = self.forma_opodatkowania.value
         res["zus"]["typ"] = self.zus.typ.value
-        res["ksef"] = self.ksef.to_dict()
-        res["llm"] = self.llm
+        res["ksef"] = self.ksef.to_dict(encrypt_secrets=encrypt_secrets)
+        llm_copy = dict(self.llm)
+        if encrypt_secrets and "api_key" in llm_copy and llm_copy["api_key"]:
+            llm_copy["api_key"] = encrypt_secret(llm_copy["api_key"])
+        res["llm"] = llm_copy
         return res
 
     def set_ksef_token(self, token: str, srodowisko: Optional[str] = None) -> Path:
@@ -209,8 +221,9 @@ class CompanyProfile:
         except OSError:
             pass
         profil_path = target_dir / "profil.json"
-        # Profil zawiera wrażliwe tokeny KSeF i klucze API - wymuszenie uprawnień 0600 (SEC-4)
-        return atomic_write_json(profil_path, self.to_dict(), indent=2, ensure_ascii=False, mode=0o600)
+        # Profil zawiera wrażliwe tokeny KSeF i klucze API - wymuszenie uprawnień 0600 (SEC-4) i opcjonalne szyfrowanie (SEC-13)
+        data = self.to_dict(encrypt_secrets=True)
+        return atomic_write_json(profil_path, data, indent=2, ensure_ascii=False, mode=0o600)
 
     @classmethod
     def load_from_dir(cls, directory_path: Path) -> "CompanyProfile":

@@ -17,6 +17,7 @@ import requests
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from src.config import DEFAULT_KSEF_ENV, KSEF_URLS
 from src.core.company import CompanyProfile
@@ -165,6 +166,8 @@ class KSeFClient:
         public_key = cert.public_key()
 
         # 3. Szyfrowanie RSA-OAEP SHA-256
+        if not isinstance(public_key, RSAPublicKey):
+            raise TypeError("Oczekiwano klucza publicznego RSA z certyfikatu MF.")
         payload_to_encrypt = f"{token}|{timestamp_ms}".encode("utf-8")
         encrypted = public_key.encrypt(
             payload_to_encrypt,
@@ -249,11 +252,11 @@ class KSeFClient:
             page_size = 100
 
             while True:
-                query_payload = {
+                query_payload: Dict[str, Any] = {
                     "subjectType": subject_type,
                     "dateRange": {"dateType": "Issue", "from": c_from, "to": c_to},
                 }
-                params = {"pageOffset": page_offset, "pageSize": page_size, "sortOrder": "Asc"}
+                params: Dict[str, Any] = {"pageOffset": page_offset, "pageSize": page_size, "sortOrder": "Asc"}
 
                 # Pętla z ponawianiem na wypadek rate limitu 429
                 max_retries = 6
