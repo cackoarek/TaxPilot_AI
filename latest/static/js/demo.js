@@ -16,7 +16,7 @@
     toast.className = 'fixed bottom-5 right-5 z-[9999] max-w-md p-4 rounded-xl shadow-2xl border transition-all duration-300 transform translate-y-0 opacity-100 flex items-start space-x-3 text-xs bg-slate-900 text-white border-blue-500/50';
 
     var icon = type === 'warning' ? '⚠️' : '✨';
-    toast.innerHTML = 
+    toast.innerHTML =
       '<span class="text-xl shrink-0">' + icon + '</span>' +
       '<div class="flex-1">' +
         '<strong class="block font-bold text-blue-400 text-sm mb-1">Tryb Pokazowy (GitHub Pages)</strong>' +
