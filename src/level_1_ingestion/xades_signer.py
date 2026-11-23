@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 try:
     from lxml import etree
 except ImportError:
-    etree = None  # type: ignore
+    etree = None
 
 
 def parse_certificate_info(cert_bytes: bytes) -> Dict[str, Any]:
@@ -87,12 +87,13 @@ def validate_key_pair(
     # Podpisz i zweryfikuj testową wiadomość
     test_msg = b"TaxPilot-KSeF-Validation"
     try:
-        if isinstance(private_key, rsa.RSAPrivateKey):
+        pub_key = cert.public_key()
+        if isinstance(private_key, rsa.RSAPrivateKey) and isinstance(pub_key, rsa.RSAPublicKey):
             sig = private_key.sign(test_msg, padding.PKCS1v15(), hashes.SHA256())
-            cert.public_key().verify(sig, test_msg, padding.PKCS1v15(), hashes.SHA256())
-        elif isinstance(private_key, ec.EllipticCurvePrivateKey):
+            pub_key.verify(sig, test_msg, padding.PKCS1v15(), hashes.SHA256())
+        elif isinstance(private_key, ec.EllipticCurvePrivateKey) and isinstance(pub_key, ec.EllipticCurvePublicKey):
             sig = private_key.sign(test_msg, ec.ECDSA(hashes.SHA256()))
-            cert.public_key().verify(sig, test_msg, ec.ECDSA(hashes.SHA256()))
+            pub_key.verify(sig, test_msg, ec.ECDSA(hashes.SHA256()))
         else:
             return False, "Nieobsługiwany typ klucza (wymagany RSA lub ECDSA)."
     except Exception as e:
@@ -232,17 +233,19 @@ def sign_ksef_auth_token_request(
     signed_info_c14n = etree.tostring(signed_info_elem, method="c14n", exclusive=True)
 
     # 5. Podpisanie skanonizowanego SignedInfo
-    if is_rsa:
+    if isinstance(private_key, rsa.RSAPrivateKey):
         signature_bytes = private_key.sign(
             signed_info_c14n,
             padding.PKCS1v15(),
             hashes.SHA256(),
         )
-    else:
+    elif isinstance(private_key, ec.EllipticCurvePrivateKey):
         signature_bytes = private_key.sign(
             signed_info_c14n,
             ec.ECDSA(hashes.SHA256()),
         )
+    else:
+        raise ValueError("Obsługiwane są wyłącznie klucze RSA lub ECDSA.")
     signature_b64 = base64.b64encode(signature_bytes).decode("ascii")
 
     # 6. Złożenie kompletnego węzła ds:Signature

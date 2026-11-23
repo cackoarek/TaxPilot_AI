@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any, Optional
 from unittest.mock import MagicMock, patch
 
 from cryptography import x509
@@ -30,8 +31,9 @@ from src.level_1_ingestion.xades_signer import (
 from src.web.app import app
 
 
-def generate_test_cert_and_key(key_type: str = "rsa", password: bytes = None):
+def generate_test_cert_and_key(key_type: str = "rsa", password: Optional[bytes] = None):
     """Generuje parę klucz prywatny + certyfikat X.509 do celów testowych."""
+    key: Any
     if key_type == "rsa":
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     else:
@@ -57,6 +59,7 @@ def generate_test_cert_and_key(key_type: str = "rsa", password: bytes = None):
 
     cert_pem = cert.public_bytes(serialization.Encoding.PEM)
 
+    enc: serialization.KeySerializationEncryption
     if password:
         enc = serialization.BestAvailableEncryption(password)
     else:
@@ -116,7 +119,9 @@ class TestKSeFCertificateAuth(unittest.TestCase):
 
         cert_loaded = x509.load_der_x509_certificate(base64.b64decode(s_cert_b64))
         s_info_c14n = etree.tostring(s_info, method="c14n", exclusive=True)
-        cert_loaded.public_key().verify(
+        pub = cert_loaded.public_key()
+        assert isinstance(pub, rsa.RSAPublicKey)
+        pub.verify(
             base64.b64decode(s_val),
             s_info_c14n,
             padding.PKCS1v15(),
@@ -179,6 +184,7 @@ class TestKSeFCertificateAuth(unittest.TestCase):
         auth_key_p = self.profile.get_auth_key_path()
         self.assertIsNotNone(auth_cert_p)
         self.assertIsNotNone(auth_key_p)
+        assert auth_cert_p is not None and auth_key_p is not None
         self.assertTrue(auth_cert_p.exists())
         self.assertTrue(auth_key_p.exists())
 

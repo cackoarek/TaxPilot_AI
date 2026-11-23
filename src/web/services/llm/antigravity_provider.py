@@ -539,7 +539,7 @@ class AntigravityProvider(BaseLLMProvider):
                     # Dla czatu Copilota model ma nielimitowany czas na generowanie odpowiedzi.
                     # W razie potrzeby użytkownik może zresetować sesję przyciskiem "Nowa sesja".
                     stdout_data, stderr_data = await proc.communicate()
-                returncode = proc.returncode
+                returncode = proc.returncode if proc.returncode is not None else 0
             except NotImplementedError:
                 # Fallback dla SelectorEventLoop na Windows pod uvicorn reload
                 timeout = 75.0 if session.session_id.startswith("extraction_") else None

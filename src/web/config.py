@@ -83,12 +83,17 @@ def find_agy_binary() -> Optional[str]:
         try:
             import winreg
 
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment") as key:
-                reg_path, _ = winreg.QueryValueEx(key, "Path")
-                if reg_path:
-                    resolved = shutil.which("agy", path=reg_path)
-                    if resolved:
-                        return resolved
+            open_key = getattr(winreg, "OpenKey", None)
+            hkey_current_user = getattr(winreg, "HKEY_CURRENT_USER", None)
+            query_value_ex = getattr(winreg, "QueryValueEx", None)
+
+            if open_key and hkey_current_user is not None and query_value_ex:
+                with open_key(hkey_current_user, r"Environment") as key:
+                    reg_path, _ = query_value_ex(key, "Path")
+                    if reg_path:
+                        resolved = shutil.which("agy", path=reg_path)
+                        if resolved:
+                            return resolved
         except Exception:
             pass
 
