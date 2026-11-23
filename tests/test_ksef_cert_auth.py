@@ -20,7 +20,7 @@ from cryptography.x509.oid import NameOID
 from fastapi.testclient import TestClient
 from lxml import etree
 
-from src.core.company import CompanyProfile, FormaOpodatkowania, KSeFConfig
+from src.core.company import CompanyProfile, FormaOpodatkowania
 from src.level_1_ingestion.ksef_client import KSeFClient
 from src.level_1_ingestion.xades_signer import (
     parse_certificate_info,

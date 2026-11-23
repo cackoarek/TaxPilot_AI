@@ -26,7 +26,7 @@ from src.core.invoice import Invoice
 from src.core.io import atomic_write_json
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.ksef_parser import KSeFParser
-from src.level_1_ingestion.xades_signer import parse_certificate_info, sign_ksef_auth_token_request
+from src.level_1_ingestion.xades_signer import sign_ksef_auth_token_request
 
 
 class KSeFClient:
