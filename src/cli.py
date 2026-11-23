@@ -641,9 +641,13 @@ def main():
     p_certs = subparsers.add_parser("set-certs", help="Wgraj certyfikaty i klucze KSeF (.crt + .key) do profilu firmy")
     p_certs.add_argument("--nip", default="7770001122", help="NIP rozliczanej firmy")
     p_certs.add_argument("--auth-cert", default=None, help="Ścieżka do pliku certyfikatu uwierzytelnienia (auth.crt)")
-    p_certs.add_argument("--auth-key", default=None, help="Ścieżka do pliku klucza prywatnego uwierzytelnienia (auth.key)")
+    p_certs.add_argument(
+        "--auth-key", default=None, help="Ścieżka do pliku klucza prywatnego uwierzytelnienia (auth.key)"
+    )
     p_certs.add_argument("--auth-password", default=None, help="Opcjonalne hasło do klucza uwierzytelnienia")
-    p_certs.add_argument("--offline-cert", default=None, help="Ścieżka do pliku certyfikatu trybu offline (offline.crt)")
+    p_certs.add_argument(
+        "--offline-cert", default=None, help="Ścieżka do pliku certyfikatu trybu offline (offline.crt)"
+    )
     p_certs.add_argument("--offline-key", default=None, help="Ścieżka do pliku klucza trybu offline (offline.key)")
     p_certs.add_argument("--offline-password", default=None, help="Opcjonalne hasło do klucza trybu offline")
     p_certs.add_argument("--srodowisko", choices=["TEST", "PROD"], default=None, help="Środowisko KSeF (TEST / PROD)")

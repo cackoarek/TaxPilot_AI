@@ -427,8 +427,7 @@ class AntigravityProvider(BaseLLMProvider):
                 logger.warning("Proces agy (thread) zakończony kodem %d: %s", proc.returncode, err_text)
                 if not accumulated and err_text:
                     yield (
-                        f"\n\n⚠️ **Antigravity CLI zwrócił błąd (kod {proc.returncode}):**\n"
-                        f"```\n{err_text[:500]}\n```"
+                        f"\n\n⚠️ **Antigravity CLI zwrócił błąd (kod {proc.returncode}):**\n```\n{err_text[:500]}\n```"
                     )
         except asyncio.CancelledError:
             session.abort()

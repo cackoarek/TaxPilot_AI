@@ -37,11 +37,13 @@ def generate_test_cert_and_key(key_type: str = "rsa", password: bytes = None):
     else:
         key = ec.generate_private_key(ec.SECP256R1())
 
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, "PL"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Firma Testowa Sp. z o.o."),
-        x509.NameAttribute(NameOID.COMMON_NAME, "Jan Kowalski (NIP 7770001122)"),
-    ])
+    subject = issuer = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "PL"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Firma Testowa Sp. z o.o."),
+            x509.NameAttribute(NameOID.COMMON_NAME, "Jan Kowalski (NIP 7770001122)"),
+        ]
+    )
     cert = (
         x509.CertificateBuilder()
         .subject_name(subject)

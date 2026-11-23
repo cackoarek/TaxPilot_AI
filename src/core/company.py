@@ -139,7 +139,9 @@ class KSeFConfig:
         if self.offline_key_path is not None:
             res["offline_key_path"] = self.offline_key_path
         if self.offline_key_password is not None:
-            res["offline_key_password"] = encrypt_secret(self.offline_key_password) if encrypt_secrets else self.offline_key_password
+            res["offline_key_password"] = (
+                encrypt_secret(self.offline_key_password) if encrypt_secrets else self.offline_key_password
+            )
         return res
 
 

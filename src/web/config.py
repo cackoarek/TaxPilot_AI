@@ -49,26 +49,34 @@ def find_agy_binary() -> Optional[str]:
         candidates = []
         local_appdata = os.environ.get("LOCALAPPDATA")
         if local_appdata:
-            candidates.extend([
-                Path(local_appdata) / "agy" / "bin" / "agy.exe",
-                Path(local_appdata) / "agy" / "bin" / "agy.cmd",
-            ])
-        candidates.extend([
-            Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.exe",
-            Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.cmd",
-        ])
+            candidates.extend(
+                [
+                    Path(local_appdata) / "agy" / "bin" / "agy.exe",
+                    Path(local_appdata) / "agy" / "bin" / "agy.cmd",
+                ]
+            )
+        candidates.extend(
+            [
+                Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.exe",
+                Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.cmd",
+            ]
+        )
         appdata = os.environ.get("APPDATA")
         if appdata:
-            candidates.extend([
-                Path(appdata) / "Antigravity" / "bin" / "agy.cmd",
-                Path(appdata) / "Antigravity" / "bin" / "agy.exe",
-                Path(appdata) / "Antigravity" / "bin" / "agy-node.cmd",
-            ])
-        candidates.extend([
-            Path.home() / ".gemini" / "antigravity" / "bin" / "agy.exe",
-            Path.home() / ".gemini" / "antigravity" / "bin" / "agy.cmd",
-            Path.home() / ".gemini" / "antigravity-cli" / "bin" / "agy.exe",
-        ])
+            candidates.extend(
+                [
+                    Path(appdata) / "Antigravity" / "bin" / "agy.cmd",
+                    Path(appdata) / "Antigravity" / "bin" / "agy.exe",
+                    Path(appdata) / "Antigravity" / "bin" / "agy-node.cmd",
+                ]
+            )
+        candidates.extend(
+            [
+                Path.home() / ".gemini" / "antigravity" / "bin" / "agy.exe",
+                Path.home() / ".gemini" / "antigravity" / "bin" / "agy.cmd",
+                Path.home() / ".gemini" / "antigravity-cli" / "bin" / "agy.exe",
+            ]
+        )
 
         # Sprawdź też PATH zapisany w rejestrze użytkownika Windows (jeśli instalator dodał go
         # w trakcie działania serwera i proces nadrzędny jeszcze nie przeładował środowiska)

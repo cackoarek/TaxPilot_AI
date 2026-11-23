@@ -148,9 +148,7 @@ async def update_ksef_settings(
     )
 
     mode_label = (
-        "Certyfikat KSeF (.crt + .key / XAdES-BES)"
-        if auth_type_clean == "certyfikat"
-        else "Token autoryzacyjny KSeF"
+        "Certyfikat KSeF (.crt + .key / XAdES-BES)" if auth_type_clean == "certyfikat" else "Token autoryzacyjny KSeF"
     )
 
     return HTMLResponse(
@@ -256,11 +254,7 @@ async def upload_ksef_certificates(
         off_pwd_bytes = (
             offline_password.strip().encode("utf-8")
             if offline_password and offline_password.strip()
-            else (
-                profile.ksef.offline_key_password.encode("utf-8")
-                if profile.ksef.offline_key_password
-                else None
-            )
+            else (profile.ksef.offline_key_password.encode("utf-8") if profile.ksef.offline_key_password else None)
         )
         valid_off, msg_off = validate_key_pair(off_cert_to_check, off_key_to_check, off_pwd_bytes)
         if not valid_off:
@@ -347,11 +341,7 @@ async def test_ksef_connection(request: Request):
 
     try:
         res = client.test_connection()
-        auth_name = (
-            "Certyfikat (XAdES-BES)"
-            if res.get("auth_type") == "certyfikat"
-            else "Token autoryzacyjny"
-        )
+        auth_name = "Certyfikat (XAdES-BES)" if res.get("auth_type") == "certyfikat" else "Token autoryzacyjny"
         valid_until = res.get("valid_until", "Sesja aktywna")
         return HTMLResponse(
             content=f"""
@@ -360,7 +350,7 @@ async def test_ksef_connection(request: Request):
                     <span>🏛️</span>
                     <span>Połączenie z KSeF 2.0 nawiązane pomyślnie!</span>
                 </div>
-                <p>Metoda: <strong>{auth_name}</strong> • Środowisko: <strong>{res.get('srodowisko')}</strong></p>
+                <p>Metoda: <strong>{auth_name}</strong> • Środowisko: <strong>{res.get("srodowisko")}</strong></p>
                 <p class="text-[11px] text-emerald-700 font-mono">JWT access_token odebrany. Ważny do: {valid_until}</p>
             </div>
             """
