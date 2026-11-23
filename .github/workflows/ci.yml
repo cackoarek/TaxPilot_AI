@@ -3,7 +3,7 @@ name: CI - Code Quality & Tests
 on:
   push:
     branches:
-      - '**'
+      - main
     paths:
       - 'src/**'
       - 'tests/**'
@@ -12,7 +12,8 @@ on:
       - '.github/workflows/ci.yml'
   pull_request:
     branches:
-      - '**'
+      - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
