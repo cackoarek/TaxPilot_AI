@@ -34,13 +34,71 @@ DEFAULT_MONTH = "01"
 
 
 def find_agy_binary() -> Optional[str]:
-    """Wyszukuje ścieżkę do binarza agy (Antigravity CLI)."""
+    """
+    Wyszukuje ścieżkę do binarza agy (Antigravity CLI) na systemach Windows, Linux i macOS.
+    Obsługuje standardowe lokalizacje instalatora Windows (%LOCALAPPDATA%\\agy\\bin\\agy.exe)
+    oraz Unix (~/.local/bin/agy).
+    """
+    # 1. Sprawdź bieżący PATH procesu
     bin_path = shutil.which("agy")
     if bin_path:
         return bin_path
-    local_path = Path.home() / ".local" / "bin" / "agy"
-    if local_path.exists() and os.access(local_path, os.X_OK):
-        return str(local_path)
+
+    # 2. Dedykowane lokalizacje na Windows
+    if os.name == "nt":
+        candidates = []
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        if local_appdata:
+            candidates.extend([
+                Path(local_appdata) / "agy" / "bin" / "agy.exe",
+                Path(local_appdata) / "agy" / "bin" / "agy.cmd",
+            ])
+        candidates.extend([
+            Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.exe",
+            Path.home() / "AppData" / "Local" / "agy" / "bin" / "agy.cmd",
+        ])
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            candidates.extend([
+                Path(appdata) / "Antigravity" / "bin" / "agy.cmd",
+                Path(appdata) / "Antigravity" / "bin" / "agy.exe",
+                Path(appdata) / "Antigravity" / "bin" / "agy-node.cmd",
+            ])
+        candidates.extend([
+            Path.home() / ".gemini" / "antigravity" / "bin" / "agy.exe",
+            Path.home() / ".gemini" / "antigravity" / "bin" / "agy.cmd",
+            Path.home() / ".gemini" / "antigravity-cli" / "bin" / "agy.exe",
+        ])
+
+        # Sprawdź też PATH zapisany w rejestrze użytkownika Windows (jeśli instalator dodał go
+        # w trakcie działania serwera i proces nadrzędny jeszcze nie przeładował środowiska)
+        try:
+            import winreg
+
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment") as key:
+                reg_path, _ = winreg.QueryValueEx(key, "Path")
+                if reg_path:
+                    resolved = shutil.which("agy", path=reg_path)
+                    if resolved:
+                        return resolved
+        except Exception:
+            pass
+
+        for cand in candidates:
+            if cand.is_file() and (os.access(cand, os.X_OK) or cand.suffix.lower() in (".exe", ".cmd", ".bat")):
+                return str(cand)
+
+    # 3. Dedykowane lokalizacje na Linux / macOS
+    unix_candidates = [
+        Path.home() / ".local" / "bin" / "agy",
+        Path.home() / ".gemini" / "antigravity" / "bin" / "agy",
+        Path("/usr/local/bin/agy"),
+        Path("/opt/homebrew/bin/agy"),
+    ]
+    for cand in unix_candidates:
+        if cand.is_file() and os.access(cand, os.X_OK):
+            return str(cand)
+
     return None
 
 

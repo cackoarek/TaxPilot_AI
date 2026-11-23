@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 from src.config import FIRMY_DIR
 from src.core.security import decrypt_secret, encrypt_secret
 
-from .io import atomic_write_json
+from .io import atomic_write_bytes, atomic_write_json
 
 
 class FormaOpodatkowania(str, Enum):
@@ -85,27 +85,61 @@ class ZUSConfig:
 @dataclass
 class KSeFConfig:
     srodowisko: str = "PROD"  # TEST | PROD
+    auth_type: str = "token"  # "token" | "certyfikat"
     token: Optional[str] = None
     token_env_var: Optional[str] = None
+    cert_path: Optional[str] = None  # Względna ścieżka np. "certyfikaty/auth.crt"
+    key_path: Optional[str] = None  # Względna ścieżka np. "certyfikaty/auth.key"
+    key_password: Optional[str] = None  # Opcjonalne hasło klucza prywatnego
+    offline_cert_path: Optional[str] = None  # Względna ścieżka np. "certyfikaty/offline.crt"
+    offline_key_path: Optional[str] = None  # Względna ścieżka np. "certyfikaty/offline.key"
+    offline_key_password: Optional[str] = None  # Opcjonalne hasło klucza offline
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "KSeFConfig":
         raw_token = data.get("token")
         decrypted_token = decrypt_secret(raw_token) if raw_token else None
+
+        raw_pwd = data.get("key_password")
+        decrypted_pwd = decrypt_secret(raw_pwd) if raw_pwd else None
+
+        raw_off_pwd = data.get("offline_key_password")
+        decrypted_off_pwd = decrypt_secret(raw_off_pwd) if raw_off_pwd else None
+
         return cls(
             srodowisko=data.get("srodowisko", "PROD"),
+            auth_type=data.get("auth_type", "token"),
             token=decrypted_token,
             token_env_var=data.get("token_env_var"),
+            cert_path=data.get("cert_path"),
+            key_path=data.get("key_path"),
+            key_password=decrypted_pwd,
+            offline_cert_path=data.get("offline_cert_path"),
+            offline_key_path=data.get("offline_key_path"),
+            offline_key_password=decrypted_off_pwd,
         )
 
     def to_dict(self, encrypt_secrets: bool = False) -> Dict[str, Any]:
         res: Dict[str, Any] = {
             "srodowisko": self.srodowisko,
+            "auth_type": self.auth_type,
         }
         if self.token is not None:
             res["token"] = encrypt_secret(self.token) if encrypt_secrets else self.token
         if self.token_env_var is not None:
             res["token_env_var"] = self.token_env_var
+        if self.cert_path is not None:
+            res["cert_path"] = self.cert_path
+        if self.key_path is not None:
+            res["key_path"] = self.key_path
+        if self.key_password is not None:
+            res["key_password"] = encrypt_secret(self.key_password) if encrypt_secrets else self.key_password
+        if self.offline_cert_path is not None:
+            res["offline_cert_path"] = self.offline_cert_path
+        if self.offline_key_path is not None:
+            res["offline_key_path"] = self.offline_key_path
+        if self.offline_key_password is not None:
+            res["offline_key_password"] = encrypt_secret(self.offline_key_password) if encrypt_secrets else self.offline_key_password
         return res
 
 
@@ -175,11 +209,107 @@ class CompanyProfile:
         res["llm"] = llm_copy
         return res
 
-    def set_ksef_token(self, token: str, srodowisko: Optional[str] = None) -> Path:
+    def set_ksef_token(self, token: str, srodowisko: Optional[str] = None, auth_type: Optional[str] = None) -> Path:
         """Zapisuje token KSeF w konfiguracji firmy i utrwala w profil.json."""
         self.ksef.token = token.strip()
         if srodowisko:
             self.ksef.srodowisko = srodowisko.upper()
+        if auth_type:
+            self.ksef.auth_type = auth_type.lower()
+        return self.save()
+
+    @property
+    def certyfikaty_dir(self) -> Path:
+        """Ścieżka do dedykowanego podkatalogu na certyfikaty KSeF danej firmy (firmy/{nazwa}/certyfikaty/)."""
+        d = self.katalog_firmy / "certyfikaty"
+        d.mkdir(parents=True, exist_ok=True)
+        try:
+            d.chmod(0o700)
+        except OSError:
+            pass
+        return d
+
+    def get_auth_cert_path(self) -> Optional[Path]:
+        if not self.ksef.cert_path:
+            return None
+        p = self.katalog_firmy / self.ksef.cert_path
+        return p if p.exists() else None
+
+    def get_auth_key_path(self) -> Optional[Path]:
+        if not self.ksef.key_path:
+            return None
+        p = self.katalog_firmy / self.ksef.key_path
+        return p if p.exists() else None
+
+    def get_offline_cert_path(self) -> Optional[Path]:
+        if not self.ksef.offline_cert_path:
+            return None
+        p = self.katalog_firmy / self.ksef.offline_cert_path
+        return p if p.exists() else None
+
+    def get_offline_key_path(self) -> Optional[Path]:
+        if not self.ksef.offline_key_path:
+            return None
+        p = self.katalog_firmy / self.ksef.offline_key_path
+        return p if p.exists() else None
+
+    def has_ksef_certificate(self) -> bool:
+        """Czy firma posiada skonfigurowany certyfikat i klucz dla uwierzytelnienia w KSeF."""
+        return bool(self.get_auth_cert_path() and self.get_auth_key_path())
+
+    def has_ksef_offline_certificate(self) -> bool:
+        """Czy firma posiada skonfigurowany certyfikat i klucz dla trybu offline KSeF."""
+        return bool(self.get_offline_cert_path() and self.get_offline_key_path())
+
+    def set_ksef_certificates(
+        self,
+        auth_cert_bytes: Optional[bytes] = None,
+        auth_key_bytes: Optional[bytes] = None,
+        auth_password: Optional[str] = None,
+        offline_cert_bytes: Optional[bytes] = None,
+        offline_key_bytes: Optional[bytes] = None,
+        offline_password: Optional[str] = None,
+        auth_type: Optional[str] = None,
+        srodowisko: Optional[str] = None,
+    ) -> Path:
+        """
+        Zapisuje pliki certyfikatów i kluczy prywatnych w bezpiecznym podkatalogu firmy:
+        firmy/{nazwa}/certyfikaty/ (uprawnienia 0600) i aktualizuje profil.json.
+        """
+        cert_dir = self.certyfikaty_dir
+
+        if auth_cert_bytes:
+            cert_file = cert_dir / "auth.crt"
+            atomic_write_bytes(cert_file, auth_cert_bytes, mode=0o600)
+            self.ksef.cert_path = "certyfikaty/auth.crt"
+
+        if auth_key_bytes:
+            key_file = cert_dir / "auth.key"
+            atomic_write_bytes(key_file, auth_key_bytes, mode=0o600)
+            self.ksef.key_path = "certyfikaty/auth.key"
+
+        if auth_password is not None:
+            self.ksef.key_password = auth_password if auth_password.strip() else None
+
+        if offline_cert_bytes:
+            off_cert_file = cert_dir / "offline.crt"
+            atomic_write_bytes(off_cert_file, offline_cert_bytes, mode=0o600)
+            self.ksef.offline_cert_path = "certyfikaty/offline.crt"
+
+        if offline_key_bytes:
+            off_key_file = cert_dir / "offline.key"
+            atomic_write_bytes(off_key_file, offline_key_bytes, mode=0o600)
+            self.ksef.offline_key_path = "certyfikaty/offline.key"
+
+        if offline_password is not None:
+            self.ksef.offline_key_password = offline_password if offline_password.strip() else None
+
+        if auth_type:
+            self.ksef.auth_type = auth_type.strip().lower()
+
+        if srodowisko:
+            self.ksef.srodowisko = srodowisko.strip().upper()
+
         return self.save()
 
     def update_tax_and_zus_settings(

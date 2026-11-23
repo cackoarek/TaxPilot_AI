@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import tempfile
 import unittest
@@ -93,6 +94,7 @@ class TestAtomicIO(unittest.TestCase):
         temp_files = list(self.test_dir.glob("*.tmp.*"))
         self.assertEqual(temp_files, [])
 
+    @unittest.skipIf(os.name == "nt", "fcntl file locking is only available on POSIX systems")
     def test_file_lock_mutual_exclusion(self):
         target_file = self.test_dir / "concurrent.json"
         with file_lock(target_file, timeout=1.0):
