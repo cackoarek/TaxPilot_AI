@@ -1,3 +1,4 @@
+from .backup import create_company_backup, restore_company_backup, verify_backup_integrity
 from .company import CompanyProfile, FormaOpodatkowania, KSeFConfig, TypZUS, ZUSConfig
 from .invoice import Invoice, InvoiceItem, InvoiceParty, InvoiceType
 from .io import atomic_write_bytes, atomic_write_json, atomic_write_text
@@ -26,6 +27,9 @@ __all__ = [
     "atomic_write_bytes",
     "atomic_write_json",
     "atomic_write_text",
+    "create_company_backup",
+    "restore_company_backup",
+    "verify_backup_integrity",
     "clean_nip",
     "clean_nrb",
     "clean_regon",

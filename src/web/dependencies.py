@@ -97,4 +97,5 @@ def get_global_context(request: Request) -> dict:
         "unprocessed_invoices": unprocessed_invoices,
         "unprocessed_count": len(unprocessed_invoices),
         "extraction_status": extraction_status,
+        "csrf_token": getattr(request.state, "csrf_token", "") or request.cookies.get("taxpilot_csrf_token", ""),
     }

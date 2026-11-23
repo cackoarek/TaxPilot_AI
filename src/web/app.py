@@ -36,6 +36,7 @@ from src.core.company import migrate_data_permissions
 from src.logging_config import get_logger, setup_logging
 from src.web.config import (
     COOKIE_AUTH_TOKEN,
+    COOKIE_CSRF_TOKEN,
     DEBUG,
     DEFAULT_HOST,
     DEFAULT_PORT,
@@ -44,9 +45,11 @@ from src.web.config import (
 )
 from src.web.routers import advisor, aml, bookkeeping, companies, copilot, dashboard, invoices, settings, settlement
 from src.web.utils.security import (
+    generate_csrf_token,
     is_safe_redirect_url,
     is_secure_request,
     is_trusted_origin,
+    validate_csrf_token,
 )
 
 # Inicjalizacja centralnego logowania (konsola + taxpilot.log)
@@ -154,8 +157,11 @@ async def log_requests_and_exceptions(request: Request, call_next):
 @app.middleware("http")
 async def csrf_origin_protection_middleware(request: Request, call_next):
     """
-    Ochrona przed atakami CSRF w architekturze Local-First (SEC-11).
-    Dla metod mutujących stan (POST, PUT, DELETE, PATCH) weryfikuje nagłówki Origin i Referer.
+    Ochrona przed atakami CSRF w architekturze Local-First (SEC-11, SEC-20).
+    Dla metod mutujących stan (POST, PUT, DELETE, PATCH):
+    1. Weryfikuje nagłówki Origin i Referer (w tym X-Forwarded-Host dla reverse proxy).
+    2. Jeśli przesłano token CSRF (nagłówek X-CSRF-Token lub X-CSRFToken), weryfikuje zgodność z ciasteczkiem.
+    3. Zarządza ciasteczkiem taxpilot_csrf_token dla formularzy i zapytań AJAX.
     """
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         if not is_trusted_origin(request):
@@ -170,7 +176,33 @@ async def csrf_origin_protection_middleware(request: Request, call_next):
                 status_code=403,
                 content={"detail": "CSRF: Odrzucono żądanie z niezaufanego źródła (Origin/Referer)"},
             )
-    return await call_next(request)
+
+        submitted_csrf = request.headers.get("x-csrf-token") or request.headers.get("x-csrftoken")
+        if submitted_csrf and not validate_csrf_token(request, submitted_csrf):
+            logger.warning("CSRF: Odrzucono żądanie z nieprawidłowym tokenem X-CSRF-Token dla %s", request.url.path)
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF: Nieprawidłowy token CSRF"},
+            )
+
+    csrf_token = request.cookies.get(COOKIE_CSRF_TOKEN)
+    must_set_cookie = False
+    if not csrf_token:
+        csrf_token = generate_csrf_token()
+        must_set_cookie = True
+    request.state.csrf_token = csrf_token
+
+    response = await call_next(request)
+
+    if must_set_cookie:
+        response.set_cookie(
+            key=COOKIE_CSRF_TOKEN,
+            value=csrf_token,
+            httponly=False,
+            secure=is_secure_request(request),
+            samesite="lax",
+        )
+    return response
 
 
 @app.middleware("http")

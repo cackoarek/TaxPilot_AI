@@ -499,6 +499,47 @@ def cmd_agregat_vat(args):
         print(f" * {json_path}")
 
 
+def cmd_backup(args):
+    """Tworzy bezpieczną kopię zapasową danych firmy (OPS-1)."""
+    from src.core.backup import create_company_backup
+
+    profile = CompanyProfile.load_by_nip(args.nip)
+    if not profile:
+        print(f"Błąd: Nie znaleziono profilu firmy dla NIP: {args.nip}")
+        sys.exit(1)
+
+    print(f"Tworzę kopię zapasową danych firmy {profile.nazwa} (NIP: {profile.nip})...")
+    output_dir = Path(args.output) if args.output else None
+    archive_path, sha256_path = create_company_backup(profile, output_dir=output_dir)
+    print("\n✅ Kopia zapasowa utworzona pomyślnie!")
+    print(f" * Archiwum:     {archive_path}")
+    print(f" * Rozmiar:      {archive_path.stat().st_size:,} bajtów")
+    print(f" * Suma SHA-256: {sha256_path}")
+
+
+def cmd_restore(args):
+    """Przywraca dane firmy z archiwum kopii zapasowej (OPS-1)."""
+    from src.core.backup import restore_company_backup
+
+    archive_path = Path(args.archive)
+    if not archive_path.exists():
+        print(f"Błąd: Plik archiwum nie istnieje: {archive_path}")
+        sys.exit(1)
+
+    print(f"Weryfikacja i przywracanie kopii zapasowej z {archive_path}...")
+    try:
+        target_dir = Path(args.target_dir) if args.target_dir else None
+        no_verify = getattr(args, "no_verify_sha", False)
+        profile = restore_company_backup(archive_path, target_base_dir=target_dir, verify_sha=not no_verify)
+        print("\n✅ Kopia zapasowa przywrócona pomyślnie!")
+        print(f" * Firma:   {profile.nazwa}")
+        print(f" * NIP:     {profile.nip}")
+        print(f" * Katalog: {profile.katalog_firmy}")
+    except Exception as e:
+        print(f"\n❌ Błąd podczas przywracania kopii zapasowej: {e}")
+        sys.exit(1)
+
+
 def main():
     from src.version import get_display_version
 
@@ -722,6 +763,27 @@ def main():
         "--zapisz", action="store_true", help="Zapisz raport agregacji do rozliczenia/{rok}/agregat-vat.md i .json"
     )
     p_vat_agg.set_defaults(func=cmd_agregat_vat)
+
+    # Polecenie backup (tworzenie kopii zapasowej firmy)
+    p_backup = subparsers.add_parser(
+        "backup", help="Utwórz bezpieczną kopię zapasową danych firmy (archiwum .tar.gz z SHA-256)"
+    )
+    p_backup.add_argument("--nip", default="7770001122", help="NIP firmy do wykonania kopii zapasowej")
+    p_backup.add_argument("--output", "-o", default=None, help="Katalog docelowy dla kopii zapasowej")
+    p_backup.set_defaults(func=cmd_backup)
+
+    # Polecenie restore (przywracanie danych firmy z kopii zapasowej)
+    p_restore = subparsers.add_parser(
+        "restore", help="Przywróć dane firmy z archiwalnej kopii zapasowej (.tar.gz)"
+    )
+    p_restore.add_argument("archive", help="Ścieżka do pliku archiwum .tar.gz")
+    p_restore.add_argument(
+        "--target-dir", default=None, help="Katalog bazowy dla przywracanej firmy (domyślnie katalog firmy/)"
+    )
+    p_restore.add_argument(
+        "--no-verify-sha", action="store_true", help="Pomiń weryfikację sumy kontrolnej SHA-256"
+    )
+    p_restore.set_defaults(func=cmd_restore)
 
     args = parser.parse_args()
     args.func(args)

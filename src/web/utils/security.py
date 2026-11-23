@@ -9,6 +9,7 @@ Zawiera:
 
 import os
 import urllib.parse
+from typing import Optional
 
 from fastapi import Request
 
@@ -48,21 +49,33 @@ def is_safe_redirect_url(url: str) -> bool:
         return False
 
 
+def generate_csrf_token() -> str:
+    """Generuje kryptograficznie bezpieczny token CSRF (SEC-20)."""
+    import secrets
+
+    return secrets.token_urlsafe(32)
+
+
 def is_trusted_origin(request: Request) -> bool:
     """
     Weryfikuje nagłówek Origin / Referer dla żądań mutujących stan (POST, PUT, DELETE, PATCH).
-    W architekturze Local-First blokuje ataki CSRF ze złośliwych stron otwartych w innych kartach (SEC-11).
+    W architekturze Local-First blokuje ataki CSRF ze złośliwych stron (SEC-11, SEC-20).
+    Obsługuje nagłówki X-Forwarded-Host i X-Forwarded-Proto dla środowisk reverse proxy.
     """
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
     host = request.headers.get("host")
+    fwd_host = request.headers.get("x-forwarded-host")
 
-    # Dozwolone zaufane hosty lokalne
+    # Dozwolone zaufane hosty lokalne oraz hosty proxy
     trusted_hosts = {"127.0.0.1", "localhost", "testserver"}
-    if host:
-        host_clean = host.split(":")[0].lower()
-        if host_clean:
-            trusted_hosts.add(host_clean)
+    for candidate in (host, fwd_host):
+        if candidate:
+            host_clean = candidate.split(",")[0].strip().split(":")[0].lower()
+            if host_clean:
+                trusted_hosts.add(host_clean)
+
+    is_secure = is_secure_request(request)
 
     for header_val in (origin, referer):
         if not header_val:
@@ -75,7 +88,26 @@ def is_trusted_origin(request: Request) -> bool:
             header_host = (parsed.hostname or "").lower()
             if header_host and header_host not in trusted_hosts:
                 return False
+            # Ochrona przed protocol downgrade: żądanie HTTPS nie może pochodzić z HTTP na zewnątrz
+            if is_secure and parsed.scheme == "http" and header_host not in ("127.0.0.1", "localhost", "testserver"):
+                return False
         except Exception:
             return False
 
     return True
+
+
+def validate_csrf_token(request: Request, submitted_token: Optional[str]) -> bool:
+    """
+    Weryfikuje poprawność tokena CSRF w schemacie Double-Submit Cookie (SEC-20).
+    Porównuje przesłany token (z nagłówka X-CSRF-Token lub pola formularza csrf_token)
+    z tokenem zapisanym w ciasteczku sesyjnym taxpilot_csrf_token za pomocą secrets.compare_digest.
+    """
+    import secrets
+
+    from src.web.config import COOKIE_CSRF_TOKEN
+
+    cookie_token = request.cookies.get(COOKIE_CSRF_TOKEN)
+    if not cookie_token or not submitted_token:
+        return False
+    return secrets.compare_digest(submitted_token.strip(), cookie_token.strip())

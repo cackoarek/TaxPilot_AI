@@ -303,7 +303,7 @@ class ReczneKwalifikacjeService:
             "data_zapisu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        return atomic_write_json(path, overrides, indent=2, ensure_ascii=False)
+        return atomic_write_json(path, overrides, indent=2, ensure_ascii=False, lock=True)
 
     @classmethod
     def save_bulk_overrides(
@@ -344,7 +344,7 @@ class ReczneKwalifikacjeService:
                     "data_zapisu": now_str,
                 }
 
-        return atomic_write_json(path, overrides, indent=2, ensure_ascii=False)
+        return atomic_write_json(path, overrides, indent=2, ensure_ascii=False, lock=True)
 
     @classmethod
     def clear_override(

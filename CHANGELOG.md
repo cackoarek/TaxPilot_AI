@@ -9,13 +9,32 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Dodane
+- **SEC-20**: Twardnienie ochrony CSRF (Double-Submit Cookie) w architekturze Local-First i środowiskach kontenerowych:
+  - Generowanie kryptograficznie bezpiecznych tokenów CSRF (`generate_csrf_token`) i weryfikacja `validate_csrf_token` za pomocą `secrets.compare_digest`.
+  - Ciasteczko sesyjne `taxpilot_csrf_token` (atrybuty `SameSite=Lax`, dynamiczny `Secure`).
+  - Rozszerzenie middleware `csrf_origin_protection_middleware` w `src/web/app.py` o weryfikację nagłówka `X-CSRF-Token` oraz uwzględnienie zaufanych nagłówków reverse proxy (`X-Forwarded-Host`, `Forwarded`, `X-Forwarded-Proto`) z blokadą protocol downgrade.
+  - Udostępnienie `csrf_token` w kontekście globalnym szablonów Jinja2 (`src/web/dependencies.py`).
+- **SEC-21**: Maskowanie danych poufnych w strumieniach logowania (`src/logging_config.py`):
+  - Wdrożenie `SecretMaskingFilter` podpiętego pod root logger oraz wszystkie handlery konsolowe i plikowe (`taxpilot.log`).
+  - Deterministyczne maskowanie kluczy Google AI Studio (`AIza...`), OpenAI (`sk-...`), Anthropic Claude (`sk-ant-...`), nagłówków `Authorization: Bearer`, tokenów sesyjnych KSeF (`SessionToken`) oraz pól haseł w komunikatach i argumentach logowania.
+- **CONCUR-3**: Ochrona współbieżności przy zapisie ręcznych decyzji kwalifikacji kosztów (`src/skills/cost_classifier.py`):
+  - Wymuszenie flagi `lock=True` w `atomic_write_json` przy wywołaniach `ReczneKwalifikacjeService.save_override` oraz `save_bulk_overrides`.
+  - Wyeliminowanie ryzyka uszkodzenia pliku `reczne_kwalifikacje.json` przy jednoczesnych zapytaniach HTTP.
+- **OPS-1**: Autonomiczny silnik kopii zapasowych i bezpiecznego przywracania danych firmowych (`src/core/backup.py`):
+  - `create_company_backup`: pakowanie katalogu firmy do archiwum `.tar.gz` z uprawnieniami `0600`, pomijaniem plików tymczasowych (`.tmp`, `.lock`, `__pycache__`) i generowaniem pliku sumy kontrolnej `.sha256`.
+  - `verify_backup_integrity`: stałoczasowa weryfikacja sumy SHA-256 oraz inspekcja nagłówków archiwum pod kątem podatności TarSlip / Path Traversal (CWE-22).
+  - `restore_company_backup`: bezpieczne odzyskiwanie struktury firmy z blokadą ścieżek uciekających (`..` / bezwzględnych) i automatycznym egzekwowaniem uprawnień `0700`/`0600` (`migrate_data_permissions`).
+  - Integracja CLI: dodanie poleceń `python -m src.cli backup --nip {NIP}` oraz `python -m src.cli restore {ARCHIWUM}` w `src/cli.py`.
+- **QA-10**: Rozbudowany zestaw testów jednostkowych i integracyjnych `tests/test_audit04_hardening.py` weryfikujący twardnienia CSRF, maskowanie sekretów, blokady współbieżności, silnik backupu i zabezpieczenie przed TarSlip (255 testów przechodzących ze 100% sukcesem).
+
 ### Naprawione
 - **NRB-1**: Poprawa formatowania i prezentacji numerów kont bankowych na pulpicie (`src/web/templates/pages/dashboard.html`): eliminacja nieprawidłowych spacji, zbitego 10-cyfrowego bloku NIP i nadmiarowej długości 27 cyfr w kafelkach PIT-28 i VAT-7, a także usunięcie zahardkodowanego sztucznego rachunku ZUS NRS.
 - **NRB-2**: Wdrożenie w `src/core/validators.py` standardowego formatowania polskiego Numeru Rachunku Bankowego (NRB) `format_nrb` zgodnie z normą PN-ISO 13616 w układzie 7 grup (`2 + 4 + 4 + 4 + 4 + 4 + 4` cyfry: `[PL ]XX XXXX XXXX XXXX XXXX XXXX XXXX`), a także deterministycznych generatorów `generate_us_microaccount` i `generate_zus_nrs_account` z algorytmiczną sumą kontrolną ISO 7064 Modulo 97-10.
 - **NRB-3**: Rozszerzenie modelu `CompanyProfile` w `src/core/company.py` o dynamiczne właściwości `@property mikrorachunek_us` oraz `@property rachunek_zus`, powiązane z NIP aktywnej firmy.
 - **NRB-4**: Rejestracja filtra Jinja2 `format_nrb` w `src/web/routers/dashboard.py` oraz aktualizacja formatowania w pakietach kodów QR przelewów bankowych ZBP / Elixir (`src/web/services/qr_generator.py`) i promptach Copilota (`src/web/services/copilot_service.py`).
 - **NRB-5**: Aktualizacja przycisków kopiowania do schowka na pulpicie do czystego 26-cyfrowego formatu numerycznego akceptowanego przez systemy bankowości elektronicznej.
-- **NRB-6**: Rozszerzenie testów jednostkowych i integracyjnych o weryfikację formatowania i sum kontrolnych rachunków (`tests/test_validators.py`, `tests/test_web_qr.py`, `tests/test_web_app.py`, łącznie 247 testów passing, 100% pass).
+- **NRB-6**: Rozszerzenie testów jednostkowych i integracyjnych o weryfikację formatowania i sum kontrolnych rachunków (`tests/test_validators.py`, `tests/test_web_qr.py`, `tests/test_web_app.py`).
 
 ---
 
