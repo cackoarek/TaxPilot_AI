@@ -13,6 +13,8 @@ from typing import Any, Dict, Union
 import qrcode
 from qrcode.constants import ERROR_CORRECT_M
 
+from src.core.validators import format_nrb
+
 
 def clean_account_number(account: str) -> str:
     """Usuwa spacje i myślniki z numeru rachunku bankowego."""
@@ -115,7 +117,7 @@ def get_transfer_qr_package(
         "typ": typ,
         "odbiorca": odbiorca,
         "rachunek": clean_acc,
-        "rachunek_sformatowany": " ".join([clean_acc[i : i + 4] for i in range(0, len(clean_acc), 4)]),
+        "rachunek_sformatowany": format_nrb(clean_acc, include_prefix=True),
         "kwota": kwota,
         "tytul": tytul,
         "payload": payload,

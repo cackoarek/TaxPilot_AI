@@ -145,3 +145,82 @@ def validate_nrb(raw_account: Optional[str]) -> Tuple[bool, str]:
         return False, "Numer konta zawiera nieprawidłowe znaki"
 
     return True, ""
+
+
+def format_nrb(raw_account: Optional[str], include_prefix: bool = True) -> str:
+    """
+    Formatuje 26-cyfrowy polski numer konta bankowego (NRB) do oficjalnego formatu:
+    [PL ]XX XXXX XXXX XXXX XXXX XXXX XXXX (2 cyfry kontrolne + 6 grup po 4 cyfry).
+    Jeśli include_prefix=True, dodaje 'PL '.
+    Jeśli numer jest pusty lub nie ma dokładnie 26 cyfr, zwraca oczyszczony/oryginalny ciąg.
+    """
+    if not raw_account:
+        return ""
+    clean = clean_nrb(raw_account)
+    if len(clean) == 26:
+        parts = [
+            clean[:2],
+            clean[2:6],
+            clean[6:10],
+            clean[10:14],
+            clean[14:18],
+            clean[18:22],
+            clean[22:26],
+        ]
+        formatted = " ".join(parts)
+        return f"PL {formatted}" if include_prefix else formatted
+    return raw_account.strip()
+
+
+def calculate_nrb_checksum(bban_24: str) -> str:
+    """
+    Oblicza 2 cyfry kontrolne dla 24-cyfrowego polskiego numeru BBAN (ISO 7064 Modulo 97-10 dla PL).
+    Zwraca 2-cyfrowy ciąg znaków, np. '80'.
+    """
+    clean_bban = re.sub(r"[^0-9]", "", bban_24)
+    if len(clean_bban) != 24:
+        raise ValueError(f"BBAN musi składać się z dokładnie 24 cyfr (podano: {len(clean_bban)})")
+    # Kod kraju PL to 2521
+    val = int(clean_bban + "252100")
+    check_digits = 98 - (val % 97)
+    return f"{check_digits:02d}"
+
+
+def generate_us_microaccount(raw_nip: Optional[str]) -> str:
+    """
+    Generuje 26-cyfrowy Indywidualny Mikrorachunek Podatkowy US zgodny ze standardem Ministerstwa Finansów:
+    - BBAN: 101000712222 + NIP (10 cyfr) + 00
+    - 2 cyfry kontrolne liczone algorytmem ISO 7064 Modulo 97-10 (IBAN dla PL).
+    Zwraca 26 cyfr bez spacji (np. '80101000712222777000112200').
+    """
+    nip = clean_nip(raw_nip)
+    if not nip:
+        nip = "0000000000"
+    elif len(nip) < 10:
+        nip = nip.zfill(10)
+    elif len(nip) > 10:
+        nip = nip[:10]
+
+    bban = f"101000712222{nip}00"
+    check = calculate_nrb_checksum(bban)
+    return f"{check}{bban}"
+
+
+def generate_zus_nrs_account(raw_nip: Optional[str]) -> str:
+    """
+    Generuje 26-cyfrowy Indywidualny Rachunek Składkowy ZUS (NRS w NBP) zgodny ze standardem ZUS:
+    - BBAN: 10101023000026 + NIP (10 cyfr)
+    - 2 cyfry kontrolne liczone algorytmem ISO 7064 Modulo 97-10 (IBAN dla PL).
+    Zwraca 26 cyfr bez spacji (np. '50101010230000267770001122').
+    """
+    nip = clean_nip(raw_nip)
+    if not nip:
+        nip = "0000000000"
+    elif len(nip) < 10:
+        nip = nip.zfill(10)
+    elif len(nip) > 10:
+        nip = nip[:10]
+
+    bban = f"10101023000026{nip}"
+    check = calculate_nrb_checksum(bban)
+    return f"{check}{bban}"

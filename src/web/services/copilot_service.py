@@ -8,6 +8,7 @@ lecz prezentuje deterministyczne wyliczenia silnika Python.
 from typing import AsyncGenerator, List, Optional
 
 from src.core.company import CompanyProfile
+from src.core.validators import format_nrb
 from src.web.routers.dashboard import load_aml_stats, load_settlement_data
 from src.web.services.llm.base import ChatMessage
 from src.web.services.llm.factory import LLMProviderFactory
@@ -67,8 +68,8 @@ class CopilotService:
                     f"- Zaliczka PIT-28: {pit} zł (termin: 20. następnego miesiąca)",
                     f"- VAT-7 do zapłaty: {vat} zł (termin: 25. następnego miesiąca)",
                     f"- ZUS łącznie: {zus} zł (termin: 20. następnego miesiąca)",
-                    f"- Mikrorachunek podatkowy US: 10 1010 0055 0225 {profile.nip} 000",
-                    f"- Rachunek NRS ZUS: 83 1010 1023 0000 26{profile.nip}",
+                    f"- Mikrorachunek podatkowy US: {format_nrb(profile.mikrorachunek_us)}",
+                    f"- Rachunek NRS ZUS: {format_nrb(profile.rachunek_zus)}",
                 ]
             )
         else:

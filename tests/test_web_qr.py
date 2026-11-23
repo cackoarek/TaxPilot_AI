@@ -65,6 +65,7 @@ class TestWebQR(unittest.TestCase):
         self.assertEqual(pkg["typ"], "PIT-28")
         self.assertIn("Mikrorachunek", pkg["odbiorca"])
         self.assertEqual(pkg["kwota"], "450.00")
+        self.assertEqual(pkg["rachunek_sformatowany"], "PL 10 1010 0055 0225 7770 0011 2200")
         self.assertTrue(pkg["qr_data_uri"].startswith("data:image/png;base64,"))
         self.assertIn("PIT-28 za 2026-01 NIP 7770001122", pkg["tytul"])
 
@@ -78,6 +79,7 @@ class TestWebQR(unittest.TestCase):
         self.assertIn("data:image/png;base64,", html)
         self.assertIn("Numer Rachunku (IBAN):", html)
         self.assertIn("Kwota do zapłaty:", html)
+        self.assertIn("PL 80 1010 0071 2222 7770 0011 2200", html)
 
     def test_qr_modal_endpoints_vat7(self):
         """Test endpointu GET /api/settlement/qr/vat7."""
@@ -86,6 +88,7 @@ class TestWebQR(unittest.TestCase):
         html = response.text
         self.assertIn("Przelew VAT-7", html)
         self.assertIn("data:image/png;base64,", html)
+        self.assertIn("PL 80 1010 0071 2222 7770 0011 2200", html)
 
     def test_qr_modal_endpoints_zus(self):
         """Test endpointu GET /api/settlement/qr/zus."""
@@ -95,6 +98,7 @@ class TestWebQR(unittest.TestCase):
         self.assertIn("Przelew ZUS", html)
         self.assertIn("Indywidualny Rachunek Składkowy NRS", html)
         self.assertIn("data:image/png;base64,", html)
+        self.assertIn("PL 50 1010 1023 0000 2677 7000 1122", html)
 
     def test_qr_modal_invalid_type_returns_400(self):
         """Test niepoprawnego typu przelewu."""

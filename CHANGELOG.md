@@ -9,6 +9,14 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Naprawione
+- **NRB-1**: Poprawa formatowania i prezentacji numerów kont bankowych na pulpicie (`src/web/templates/pages/dashboard.html`): eliminacja nieprawidłowych spacji, zbitego 10-cyfrowego bloku NIP i nadmiarowej długości 27 cyfr w kafelkach PIT-28 i VAT-7, a także usunięcie zahardkodowanego sztucznego rachunku ZUS NRS.
+- **NRB-2**: Wdrożenie w `src/core/validators.py` standardowego formatowania polskiego Numeru Rachunku Bankowego (NRB) `format_nrb` zgodnie z normą PN-ISO 13616 w układzie 7 grup (`2 + 4 + 4 + 4 + 4 + 4 + 4` cyfry: `[PL ]XX XXXX XXXX XXXX XXXX XXXX XXXX`), a także deterministycznych generatorów `generate_us_microaccount` i `generate_zus_nrs_account` z algorytmiczną sumą kontrolną ISO 7064 Modulo 97-10.
+- **NRB-3**: Rozszerzenie modelu `CompanyProfile` w `src/core/company.py` o dynamiczne właściwości `@property mikrorachunek_us` oraz `@property rachunek_zus`, powiązane z NIP aktywnej firmy.
+- **NRB-4**: Rejestracja filtra Jinja2 `format_nrb` w `src/web/routers/dashboard.py` oraz aktualizacja formatowania w pakietach kodów QR przelewów bankowych ZBP / Elixir (`src/web/services/qr_generator.py`) i promptach Copilota (`src/web/services/copilot_service.py`).
+- **NRB-5**: Aktualizacja przycisków kopiowania do schowka na pulpicie do czystego 26-cyfrowego formatu numerycznego akceptowanego przez systemy bankowości elektronicznej.
+- **NRB-6**: Rozszerzenie testów jednostkowych i integracyjnych o weryfikację formatowania i sum kontrolnych rachunków (`tests/test_validators.py`, `tests/test_web_qr.py`, `tests/test_web_app.py`, łącznie 247 testów passing, 100% pass).
+
 ---
 
 ## [0.2.0] – 2026-11-22

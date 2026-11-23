@@ -6,9 +6,13 @@ Testy algorytmicznej walidacji polskich identyfikatorów fiskalnych i bankowych 
 import unittest
 
 from src.core.validators import (
+    calculate_nrb_checksum,
     clean_nip,
     clean_nrb,
     clean_regon,
+    format_nrb,
+    generate_us_microaccount,
+    generate_zus_nrs_account,
     validate_nip,
     validate_nrb,
     validate_regon,
@@ -102,6 +106,63 @@ class TestValidators(unittest.TestCase):
 
         # Zła długość
         self.assertFalse(validate_nrb("12345")[0])
+
+    def test_format_nrb(self):
+        # 26 cyfr z prefiksem PL
+        raw = "80101000712222777000112200"
+        formatted = format_nrb(raw, include_prefix=True)
+        self.assertEqual(formatted, "PL 80 1010 0071 2222 7770 0011 2200")
+
+        # Bez prefiksu PL
+        formatted_no_prefix = format_nrb(raw, include_prefix=False)
+        self.assertEqual(formatted_no_prefix, "80 1010 0071 2222 7770 0011 2200")
+
+        # Z istniejącym PL i myślnikami/spacjami
+        messy = "PL 80-1010 0071-2222 7770 0011 2200"
+        self.assertEqual(format_nrb(messy), "PL 80 1010 0071 2222 7770 0011 2200")
+
+        # Krótki/błędny ciąg zwraca oryginał
+        self.assertEqual(format_nrb("12345"), "12345")
+        self.assertEqual(format_nrb(""), "")
+        self.assertEqual(format_nrb(None), "")
+
+    def test_calculate_nrb_checksum(self):
+        # BBAN 24 cyfry dla NBP Bydgoszcz i NIP 7770001122
+        bban = "101000712222777000112200"
+        checksum = calculate_nrb_checksum(bban)
+        self.assertEqual(checksum, "80")
+
+        # Błędna długość BBAN
+        with self.assertRaises(ValueError):
+            calculate_nrb_checksum("123")
+
+    def test_generate_us_microaccount(self):
+        # Dla NIP 7770001122
+        account = generate_us_microaccount("7770001122")
+        self.assertEqual(len(account), 26)
+        self.assertEqual(account, "80101000712222777000112200")
+        is_valid, err = validate_nrb(account)
+        self.assertTrue(is_valid, f"Wygenerowany mikrorachunek US jest niepoprawny: {err}")
+
+        # Z myślnikami i PL
+        self.assertEqual(generate_us_microaccount("PL 777-000-11-22"), "80101000712222777000112200")
+
+    def test_generate_zus_nrs_account(self):
+        # Dla NIP 7770001122
+        account = generate_zus_nrs_account("7770001122")
+        self.assertEqual(len(account), 26)
+        self.assertEqual(account, "50101010230000267770001122")
+        is_valid, err = validate_nrb(account)
+        self.assertTrue(is_valid, f"Wygenerowany rachunek ZUS NRS jest niepoprawny: {err}")
+
+    def test_company_profile_accounts(self):
+        from src.core.company import CompanyProfile
+
+        profile = CompanyProfile(nip="7770001122", nazwa="Test Firma")
+        self.assertEqual(profile.mikrorachunek_us, "80101000712222777000112200")
+        self.assertEqual(profile.rachunek_zus, "50101010230000267770001122")
+        self.assertEqual(format_nrb(profile.mikrorachunek_us), "PL 80 1010 0071 2222 7770 0011 2200")
+        self.assertEqual(format_nrb(profile.rachunek_zus), "PL 50 1010 1023 0000 2677 7000 1122")
 
 
 if __name__ == "__main__":

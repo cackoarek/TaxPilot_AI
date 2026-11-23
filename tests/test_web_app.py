@@ -50,6 +50,12 @@ class TestWebApp(unittest.TestCase):
         self.assertIn("Paczka Przelewów", html)
         self.assertIn("Urząd Skarbowy", html)
         self.assertIn("ZUS", html)
+        # Weryfikacja poprawnego formatowania rachunków (NRB 2+4*6)
+        self.assertIn("PL 80 1010 0071 2222 7770 0011 2200", html)
+        self.assertIn("PL 50 1010 1023 0000 2677 7000 1122", html)
+        # Zabezpieczenie przed starym, wadliwym formatem
+        self.assertNotIn("7770001122 000", html)
+        self.assertNotIn("2613 9510 0000", html)
 
     def test_switch_company(self):
         """Test przełączania firmy przez POST /firmy/switch."""

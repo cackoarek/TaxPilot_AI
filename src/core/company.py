@@ -174,6 +174,20 @@ class CompanyProfile:
             return Path(self._custom_path)
         return FIRMY_DIR / (self.katalog_nazwa or self.nip)
 
+    @property
+    def mikrorachunek_us(self) -> str:
+        """Zwraca 26-cyfrowy Indywidualny Mikrorachunek Podatkowy US zgodny ze standardem MF."""
+        from .validators import generate_us_microaccount
+
+        return generate_us_microaccount(self.nip)
+
+    @property
+    def rachunek_zus(self) -> str:
+        """Zwraca 26-cyfrowy Indywidualny Rachunek Składkowy ZUS (NRS w NBP) zgodny ze standardem ZUS."""
+        from .validators import generate_zus_nrs_account
+
+        return generate_zus_nrs_account(self.nip)
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CompanyProfile":
         zus_data = data.get("zus", {})
