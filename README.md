@@ -175,12 +175,17 @@ pip install -r requirements.txt
 ```
 
 ### Krok 2: Uruchomienie nakładki WWW
+Najszybciej uruchomisz aplikację dedykowanym skryptem startowym (automatycznie wykrywa środowisko `.venv` i konfiguruje auto-reload):
+* **Linux / macOS:** `./run_web.sh`
+* **Windows (CMD / Eksplorator):** `run_web.bat` *(można uruchomić dwuklikiem w Eksploratorze Windows)*
+* **Windows (PowerShell):** `.\run_web.ps1`
+
+Alternatywnie z aktywnego środowiska wirtualnego:
 ```bash
 python -m src.web.app
+# lub serwer developerski: uvicorn src.web.app:app --reload
 ```
 Otwórz w przeglądarce adres **`http://localhost:8000`** — uzyskasz dostęp do pełnego pulpitu, kreatora nowej firmy (`/firmy/nowa`), wstępnego przeglądu dokumentów, ewidencji podatkowych oraz Copilota AI.
-
-*(Opcjonalnie możesz uruchomić serwer developerski z auto-reloadem: `uvicorn src.web.app:app --reload`).*
 
 ### Krok 3: Wybór trybu pracy (Agent AI, WWW lub Terminal CLI)
 Wybierz najwygodniejszy dla siebie sposób interakcji:

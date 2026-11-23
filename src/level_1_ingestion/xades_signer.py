@@ -14,7 +14,11 @@ from typing import Any, Dict, Optional, Tuple
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
-from lxml import etree
+
+try:
+    from lxml import etree
+except ImportError:
+    etree = None  # type: ignore
 
 
 def parse_certificate_info(cert_bytes: bytes) -> Dict[str, Any]:
@@ -110,6 +114,12 @@ def sign_ksef_auth_token_request(
 
     Zwraca bajty UTF-8 podpisanego dokumentu XML gotowego do wysyłki pod /auth/xades-signature.
     """
+    if etree is None:
+        raise RuntimeError(
+            "Do podpisu elektronicznego XAdES-BES wymagana jest biblioteka 'lxml'. "
+            "Zainstaluj ją za pomocą: pip install lxml"
+        )
+
     # 1. Wczytanie certyfikatu i klucza prywatnego
     try:
         cert = x509.load_pem_x509_certificate(cert_bytes)
