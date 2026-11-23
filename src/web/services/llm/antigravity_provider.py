@@ -10,7 +10,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from src.logging_config import get_logger
 from src.web.config import BASE_DIR, find_agy_binary
@@ -68,10 +68,13 @@ class AntigravitySession:
 
     def abort(self) -> None:
         """Przerywa aktualnie trwający proces jeśli istnieje."""
-        if self.current_process and self.current_process.returncode is None:
+        proc = self.current_process
+        if proc:
             try:
-                self.current_process.terminate()
-                logger.info("Przerwano aktywny proces agy dla sesji %s", self.session_id)
+                is_running = proc.returncode is None if hasattr(proc, "returncode") else True
+                if is_running and hasattr(proc, "terminate"):
+                    proc.terminate()
+                    logger.info("Przerwano aktywny proces agy dla sesji %s", self.session_id)
             except Exception as e:
                 logger.warning("Błąd przy przerywaniu procesu agy dla sesji %s: %s", self.session_id, e)
         self.current_process = None
@@ -285,17 +288,159 @@ class AntigravityProvider(BaseLLMProvider):
         if resolved:
             return True
         p = Path(self._binary_path)
-        return p.exists() and os.access(p, os.X_OK)
+        if p.exists() and (os.access(p, os.X_OK) or (os.name == "nt" and p.suffix.lower() in (".exe", ".cmd", ".bat"))):
+            return True
+        # Spróbuj dynamicznie odnaleźć binarkę tylko jeśli podano domyślnie 'agy' lub 'agy.exe'
+        if self._binary_path in ("agy", "agy.exe"):
+            dynamic_path = find_agy_binary()
+            if dynamic_path:
+                self._binary_path = dynamic_path
+                return True
+        return False
 
     def _prepare_env(self) -> Dict[str, str]:
-        """Przygotowuje zmienne środowiskowe dla procesu 'agy'."""
+        """Przygotowuje zmienne środowiskowe dla procesu 'agy' w sposób bezpieczny dla Windows i Unix."""
         env = dict(os.environ)
-        # Upewnij się, że standardowe ścieżki CLI są w PATH
-        home_bin = str(Path.home() / ".local" / "bin")
+        paths_to_add: List[str] = []
+        if os.name == "nt":
+            local_appdata = os.environ.get("LOCALAPPDATA")
+            if local_appdata:
+                paths_to_add.append(str(Path(local_appdata) / "agy" / "bin"))
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                paths_to_add.append(str(Path(appdata) / "Antigravity" / "bin"))
+            paths_to_add.append(str(Path.home() / ".gemini" / "antigravity" / "bin"))
+            paths_to_add.append(str(Path.home() / ".gemini" / "antigravity-cli" / "bin"))
+        else:
+            paths_to_add.append(str(Path.home() / ".local" / "bin"))
+            paths_to_add.append(str(Path.home() / ".gemini" / "antigravity" / "bin"))
+            paths_to_add.append("/usr/local/bin")
+            paths_to_add.append("/opt/homebrew/bin")
+
         current_path = env.get("PATH", "")
-        if home_bin not in current_path:
-            env["PATH"] = f"{home_bin}:{current_path}"
+        existing = current_path.split(os.pathsep) if current_path else []
+        valid_new = [p for p in paths_to_add if p not in existing and Path(p).is_dir()]
+        if valid_new:
+            env["PATH"] = os.pathsep.join(valid_new + existing)
         return env
+
+    async def _run_in_thread(
+        self,
+        cmd: List[str],
+        cwd: Path,
+        env: Dict[str, str],
+        session: AntigravitySession,
+        timeout: Optional[float] = None,
+    ) -> Tuple[int, bytes, bytes]:
+        """
+        Synchroniczne uruchomienie agy w wątku roboczym z użyciem subprocess.Popen.
+        Używane jako niezawodny fallback dla pętli zdarzeń bez obsługi asynchronicznych podprocesów
+        (np. SelectorEventLoop na Windowsie podczas działania uvicorn z parametrem reload=True).
+        """
+        import subprocess
+
+        def worker() -> Tuple[int, bytes, bytes]:
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=str(cwd),
+                env=env,
+            )
+            session.current_process = proc  # type: ignore
+            try:
+                out, err = proc.communicate(timeout=timeout)
+                return proc.returncode, out or b"", err or b""
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.communicate()
+                raise
+            finally:
+                session.current_process = None
+
+        return await asyncio.to_thread(worker)
+
+    async def _stream_in_thread(
+        self,
+        cmd: List[str],
+        cwd: Path,
+        env: Dict[str, str],
+        session: AntigravitySession,
+    ) -> AsyncGenerator[str, None]:
+        """
+        Strumieniowanie wyjścia agy wiersz po wierszu z procesu uruchomionego w wątku roboczym.
+        Obsługuje pętle zdarzeń nieobsługujące asyncio.create_subprocess_exec na Windowsie.
+        """
+        import subprocess
+        import threading
+
+        loop = asyncio.get_running_loop()
+        line_queue: asyncio.Queue[Optional[str]] = asyncio.Queue()
+        accumulated: List[str] = []
+
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=str(cwd),
+            env=env,
+        )
+        session.current_process = proc  # type: ignore
+
+        def reader():
+            try:
+                if proc.stdout:
+                    for line in iter(proc.stdout.readline, b""):
+                        decoded = line.decode("utf-8", errors="replace")
+                        loop.call_soon_threadsafe(line_queue.put_nowait, decoded)
+            except Exception as ex:
+                logger.warning("Błąd odczytu strumienia w wątku roboczym agy: %s", ex)
+            finally:
+                if proc.stdout:
+                    try:
+                        proc.stdout.close()
+                    except Exception:
+                        pass
+                loop.call_soon_threadsafe(line_queue.put_nowait, None)
+
+        t = threading.Thread(target=reader, daemon=True)
+        t.start()
+
+        try:
+            while True:
+                chunk = await line_queue.get()
+                if chunk is None:
+                    break
+                accumulated.append(chunk)
+                session.last_output = "".join(accumulated)
+                yield chunk
+
+            await asyncio.to_thread(proc.wait)
+            session.turn_count += 1
+            session.last_used_at = time.time()
+
+            if proc.returncode != 0 and proc.stderr:
+                err_bytes = await asyncio.to_thread(proc.stderr.read)
+                err_text = err_bytes.decode("utf-8", errors="replace").strip()
+                logger.warning("Proces agy (thread) zakończony kodem %d: %s", proc.returncode, err_text)
+                if not accumulated and err_text:
+                    yield (
+                        f"\n\n⚠️ **Antigravity CLI zwrócił błąd (kod {proc.returncode}):**\n```\n{err_text[:500]}\n```"
+                    )
+        except asyncio.CancelledError:
+            session.abort()
+            raise
+        except Exception as e:
+            logger.exception("Błąd w trakcie streamingu agy (thread fallback): %s", e)
+            last_out = session.last_output
+            yield f"\n\n⚠️ **Wystąpił błąd procesu agy:** {e}\n"
+            if last_out:
+                yield f"\n**Ostatnie odebrane wyjście z modelu:**\n\n```\n{last_out}\n```\n"
+            yield "\n*Wskazówka:* Możesz zresetować sesję przyciskiem **🔄 Nowa sesja** w nagłówku czatu."
+        finally:
+            session.current_process = None
 
     async def chat_async(
         self,
@@ -305,9 +450,10 @@ class AntigravityProvider(BaseLLMProvider):
     ) -> str:
         """Wysyła zapytanie do sesji agenta Antigravity i zwraca odpowiedź tekstową."""
         if not self.is_configured():
+            hint = "%LOCALAPPDATA%\\agy\\bin\\agy.exe" if os.name == "nt" else "~/.local/bin/agy"
             return (
                 "⚠️ **Błąd konfiguracji Antigravity CLI:** Nie znaleziono binarza `agy` w systemie. "
-                "Upewnij się, że Antigravity CLI jest zainstalowane w `~/.local/bin/agy` lub dostępne w PATH."
+                f"Upewnij się, że Antigravity CLI jest zainstalowane (np. w `{hint}`) lub dostępne w zmiennej PATH."
             )
 
         session = AntigravitySessionManager.get_or_create_session(
@@ -373,6 +519,10 @@ class AntigravityProvider(BaseLLMProvider):
                 )
             env = self._prepare_env()
 
+            returncode = 0
+            stdout_data = b""
+            stderr_data = b""
+
             try:
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
@@ -389,6 +539,17 @@ class AntigravityProvider(BaseLLMProvider):
                     # Dla czatu Copilota model ma nielimitowany czas na generowanie odpowiedzi.
                     # W razie potrzeby użytkownik może zresetować sesję przyciskiem "Nowa sesja".
                     stdout_data, stderr_data = await proc.communicate()
+                returncode = proc.returncode if proc.returncode is not None else 0
+            except NotImplementedError:
+                # Fallback dla SelectorEventLoop na Windows pod uvicorn reload
+                timeout = 75.0 if session.session_id.startswith("extraction_") else None
+                returncode, stdout_data, stderr_data = await self._run_in_thread(
+                    cmd=cmd,
+                    cwd=self._cwd,
+                    env=env,
+                    session=session,
+                    timeout=timeout,
+                )
             except asyncio.CancelledError:
                 session.abort()
                 raise
@@ -412,12 +573,12 @@ class AntigravityProvider(BaseLLMProvider):
             stderr_text = stderr_data.decode("utf-8", errors="replace").strip()
             session.last_output = stdout_text
 
-            if proc.returncode != 0:
-                logger.warning("Proces agy zakończony kodem %d: %s", proc.returncode, stderr_text)
+            if returncode != 0:
+                logger.warning("Proces agy zakończony kodem %d: %s", returncode, stderr_text)
                 if stdout_text:
-                    return f"{stdout_text}\n\n*(Uwaga: proces agy zakończył się kodem {proc.returncode})*"
+                    return f"{stdout_text}\n\n*(Uwaga: proces agy zakończył się kodem {returncode})*"
                 return (
-                    f"⚠️ **Antigravity CLI zwrócił błąd (kod {proc.returncode}):**\n\n"
+                    f"⚠️ **Antigravity CLI zwrócił błąd (kod {returncode}):**\n\n"
                     f"```\n{stderr_text[:500] if stderr_text else 'Brak szczegółów błędu'}\n```\n\n"
                     f"*Wskazówka:* Uruchom `agy` bezpośrednio w terminalu w katalogu `{self._cwd}`, aby zweryfikować uprawnienia."
                 )
@@ -432,9 +593,10 @@ class AntigravityProvider(BaseLLMProvider):
     ) -> AsyncGenerator[str, None]:
         """Strumieniuje odpowiedź w czasie rzeczywistym z procesu agenta Antigravity bez limitu czasu."""
         if not self.is_configured():
+            hint = "%LOCALAPPDATA%\\agy\\bin\\agy.exe" if os.name == "nt" else "~/.local/bin/agy"
             yield (
                 "⚠️ **Błąd konfiguracji Antigravity CLI:** Nie znaleziono binarza `agy` w systemie. "
-                "Upewnij się, że Antigravity CLI jest zainstalowane w `~/.local/bin/agy` lub dostępne w PATH."
+                f"Upewnij się, że Antigravity CLI jest zainstalowane (np. w `{hint}`) lub dostępne w zmiennej PATH."
             )
             return
 
@@ -472,7 +634,14 @@ class AntigravityProvider(BaseLLMProvider):
                 history=history_str,
             )
 
-            cmd = [self._binary_path, "-p", prompt_payload, "--output-format", "text"]
+            cmd = [
+                self._binary_path,
+                "-p",
+                prompt_payload,
+                "--output-format",
+                "text",
+                "--dangerously-skip-permissions",
+            ]
             if self._model and self._model != "antigravity-cli":
                 cmd.extend(["--model", self._model])
 
@@ -523,6 +692,11 @@ class AntigravityProvider(BaseLLMProvider):
                             f"\n\n⚠️ **Antigravity CLI zwrócił błąd (kod {proc.returncode}):**\n"
                             f"```\n{stderr_text[:500]}\n```"
                         )
+            except NotImplementedError:
+                # Fallback strumieniowania dla SelectorEventLoop na Windows pod uvicorn reload
+                async for chunk in self._stream_in_thread(cmd=cmd, cwd=self._cwd, env=env, session=session):
+                    yield chunk
+                return
             except asyncio.CancelledError:
                 logger.info("Anulowano strumieniowanie agy dla sesji: %s", session.session_id)
                 session.abort()

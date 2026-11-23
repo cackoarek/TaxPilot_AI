@@ -242,61 +242,310 @@
     </div>
   </div>
 
-  <!-- 2. Karta Integracji KSeF 2.0 -->
-  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+  <!-- 2. Karta Integracji KSeF 2.0 (Token + Certyfikaty .crt/.key) -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6" 
+       x-data="{ 
+         authMethod: '{{ profile.ksef.auth_type or 'token' }}',
+         showCertDetails: false 
+       }">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
       <div>
         <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
           <span>🏛️ Bramka Krajowego Systemu e-Faktur (KSeF 2.0)</span>
         </h2>
-        <p class="text-xs text-slate-500">Bezpośrednie połączenie szyfrowane z API Ministerstwa Finansów.</p>
+        <p class="text-xs text-slate-500">Bezpośrednie połączenie szyfrowane z API Ministerstwa Finansów (Certyfikat XAdES lub Token).</p>
       </div>
-      <span class="px-2 py-0.5 rounded text-[10px] font-bold 
-                   {% if profile.ksef.srodowisko == 'PROD' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
-        Aktualnie: {{ profile.ksef.srodowisko }}
-      </span>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                     {% if profile.ksef.auth_type == 'certyfikat' %}bg-purple-100 text-purple-800 border border-purple-200{% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
+          Tryb: {% if profile.ksef.auth_type == 'certyfikat' %}🔐 Certyfikat (.crt+.key){% else %}🔑 Token KSeF{% endif %}
+        </span>
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                     {% if profile.ksef.srodowisko == 'PROD' %}bg-emerald-100 text-emerald-800 border border-emerald-200{% else %}bg-amber-100 text-amber-800 border border-amber-200{% endif %}">
+          Środowisko: {{ profile.ksef.srodowisko }}
+        </span>
+      </div>
     </div>
 
-    <form hx-post="/ustawienia/ksef" 
-          hx-target="#ksef-settings-result" 
-          class="space-y-4 text-xs">
-      
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <!-- Wybór Aktywnej Metody Uwierzytelnienia -->
+    <div>
+      <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
+        Wybierz Metodę Uwierzytelniania w KSeF:
+      </span>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         
-        <div class="sm:col-span-2">
-          <label class="block font-bold text-slate-700 mb-1">
-            Token Autoryzacyjny Podatnika KSeF <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="token" value="{{ profile.ksef.token }}" required
-                 placeholder="Wklej token wygenerowany w Aplikacji Podatnika KSeF"
-                 class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <span class="text-[10px] text-slate-400 mt-1 block">
-            Token generowany w Aplikacji Podatnika KSeF z uprawnieniami do odczytu i zapisu faktur.
+        <!-- Opcja: Certyfikat KSeF -->
+        <label :class="authMethod === 'certyfikat' ? 'border-purple-500 bg-purple-50/50 ring-2 ring-purple-200' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/70'"
+               class="flex items-start p-3.5 rounded-xl border cursor-pointer transition-all">
+          <input type="radio" name="auth_method_selector" value="certyfikat" x-model="authMethod" class="mt-0.5 text-purple-600 focus:ring-purple-500">
+          <div class="ml-3">
+            <span class="font-bold text-slate-900 block flex items-center space-x-1.5">
+              <span>🔐 Certyfikat KSeF (.crt + .key)</span>
+              {% if auth_cert_info and auth_key_exists %}
+                <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-semibold rounded">Aktywny</span>
+              {% endif %}
+            </span>
+            <span class="text-[11px] text-slate-500 block mt-0.5">
+              Podpis kwalifikowany / certyfikat wygenerowany w KSeF (format XAdES-BES Enveloped).
+            </span>
+          </div>
+        </label>
+
+        <!-- Opcja: Token KSeF -->
+        <label :class="authMethod === 'token' ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-200' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/70'"
+               class="flex items-start p-3.5 rounded-xl border cursor-pointer transition-all">
+          <input type="radio" name="auth_method_selector" value="token" x-model="authMethod" class="mt-0.5 text-blue-600 focus:ring-blue-500">
+          <div class="ml-3">
+            <span class="font-bold text-slate-900 block flex items-center space-x-1.5">
+              <span>🔑 Token Autoryzacyjny KSeF</span>
+              {% if profile.ksef.token %}
+                <span class="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[10px] font-semibold rounded">Ustawiony</span>
+              {% endif %}
+            </span>
+            <span class="text-[11px] text-slate-500 block mt-0.5">
+              Ciąg znaków z Aplikacji Podatnika KSeF szyfrowany kluczem MF (RSA-OAEP SHA-256).
+            </span>
+          </div>
+        </label>
+
+      </div>
+    </div>
+
+    <!-- Podsumowanie Statusu Wgranych Certyfikatów -->
+    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3 text-xs">
+      <div class="flex items-center justify-between">
+        <span class="font-bold text-slate-800 flex items-center space-x-2">
+          <span>🛡️ Status Zabezpieczeń i Kluczy Kryptograficznych</span>
+        </span>
+        <button type="button" @click="showCertDetails = !showCertDetails" class="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
+          <span x-text="showCertDetails ? 'Ukryj szczegóły ▲' : 'Pokaż szczegóły ▼'"></span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Status Uwierzytelnienia -->
+        <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-700">Certyfikat Uwierzytelnienia (auth):</span>
+            {% if auth_cert_info and auth_key_exists %}
+              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-full">✅ Gotowy</span>
+            {% elif auth_cert_info %}
+              <span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold text-[10px] rounded-full">⚠️ Brak klucza</span>
+            {% else %}
+              <span class="px-2 py-0.5 bg-slate-100 text-slate-500 font-bold text-[10px] rounded-full">⚪ Brak pliku</span>
+            {% endif %}
+          </div>
+          <div class="text-[11px] text-slate-500">
+            {% if auth_cert_info %}
+              <div><strong>Podmiot:</strong> {{ auth_cert_info.subject_cn or auth_cert_info.subject_o or 'Certyfikat KSeF' }}</div>
+              <div><strong>Ważny do:</strong> {{ auth_cert_info.valid_to }}</div>
+              <div><strong>Klucz prywatny:</strong> {% if auth_key_exists %}Obecny (auth.key) 🔐{% else %}Brak pliku auth.key{% endif %}</div>
+            {% else %}
+              Wymagany plik <code>auth.crt</code> oraz <code>auth.key</code> w katalogu certyfikaty.
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Status Offline -->
+        <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-700">Certyfikat Trybu Offline (offline):</span>
+            {% if offline_cert_info and offline_key_exists %}
+              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-full">✅ Gotowy</span>
+            {% elif offline_cert_info %}
+              <span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold text-[10px] rounded-full">⚠️ Brak klucza</span>
+            {% else %}
+              <span class="px-2 py-0.5 bg-slate-100 text-slate-500 font-bold text-[10px] rounded-full">⚪ Opcjonalny</span>
+            {% endif %}
+          </div>
+          <div class="text-[11px] text-slate-500">
+            {% if offline_cert_info %}
+              <div><strong>Podmiot:</strong> {{ offline_cert_info.subject_cn or offline_cert_info.subject_o or 'Certyfikat Offline' }}</div>
+              <div><strong>Ważny do:</strong> {{ offline_cert_info.valid_to }}</div>
+              <div><strong>Klucz offline:</strong> {% if offline_key_exists %}Obecny (offline.key) 🔐{% else %}Brak pliku offline.key{% endif %}</div>
+            {% else %}
+              Używany do generowania kodów QR II i wystawiania faktur w trybie awaryjnym KSeF.
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Szczegóły techniczne (Rozwijane) -->
+      <div x-show="showCertDetails" x-cloak class="pt-2 border-t border-slate-200 space-y-2 text-[11px] text-slate-600">
+        <div><strong>Katalog certyfikatów firmy:</strong> <code class="font-mono text-slate-800">firmy/{{ profile.katalog_nazwa }}/certyfikaty/</code> (uprawnienia 0600)</div>
+        {% if auth_cert_info and auth_cert_info.sha256_fingerprint %}
+          <div><strong>Odcisk SHA-256 (auth):</strong> <code class="font-mono text-[10px] text-slate-700 break-all">{{ auth_cert_info.sha256_fingerprint }}</code></div>
+        {% endif %}
+        {% if offline_cert_info and offline_cert_info.sha256_fingerprint %}
+          <div><strong>Odcisk SHA-256 (offline):</strong> <code class="font-mono text-[10px] text-slate-700 break-all">{{ offline_cert_info.sha256_fingerprint }}</code></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SEKCJA FORMULARZA: CERTYFIKATY (Gdy wybrany certyfikat) -->
+    <div x-show="authMethod === 'certyfikat'" x-cloak class="space-y-4 pt-2">
+      <div class="bg-purple-50/40 p-4 rounded-xl border border-purple-200 space-y-4">
+        <div>
+          <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center space-x-1.5">
+            <span>📤 Wgraj Certyfikaty KSeF (.crt + .key)</span>
+          </h3>
+          <p class="text-[11px] text-purple-700 mt-0.5">
+            Wgraj certyfikaty pobrane z KSeF. Pliki zostaną bezpiecznie zapisane w katalogu firmy z restrykcyjnymi uprawnieniami systemowymi.
+          </p>
+        </div>
+
+        <form hx-post="/ustawienia/ksef/certyfikaty" 
+              hx-target="#ksef-cert-upload-result" 
+              enctype="multipart/form-data"
+              class="space-y-4 text-xs">
+          
+          <input type="hidden" name="switch_to_cert" value="true">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Blok A: Uwierzytelnienie -->
+            <div class="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
+              <span class="font-bold text-slate-800 block text-xs flex items-center space-x-1">
+                <span>🔑 1. Para Uwierzytelnienia (do logowania i pobierania FV)</span>
+                <span class="text-red-500">*</span>
+              </span>
+              
+              <div>
+                <label class="block font-medium text-slate-700 mb-1 text-[11px]">Plik certyfikatu (.crt / .pem):</label>
+                <input type="file" name="auth_crt" accept=".crt,.pem,.cer"
+                       class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer">
+              </div>
+
+              <div>
+                <label class="block font-medium text-slate-700 mb-1 text-[11px]">Plik klucza prywatnego (.key):</label>
+                <input type="file" name="auth_key" accept=".key,.pem"
+                       class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer">
+              </div>
+
+              <div>
+                <label class="block font-medium text-slate-700 mb-1 text-[11px]">Hasło klucza prywatnego (jeśli nadano):</label>
+                <input type="password" name="auth_password" placeholder="Opcjonalne hasło do klucza auth.key"
+                       class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none">
+              </div>
+            </div>
+
+            <!-- Blok B: Tryb Offline -->
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+              <span class="font-bold text-slate-800 block text-xs flex items-center space-x-1">
+                <span>⚡ 2. Para Trybu Offline (do kodów QR II i awarii KSeF)</span>
+                <span class="text-slate-400 font-normal">(opcjonalna)</span>
+              </span>
+              
+              <div>
+                <label class="block font-medium text-slate-700 mb-1 text-[11px]">Plik certyfikatu offline (.crt / .pem):</label>
+                <input type="file" name="offline_crt" accept=".crt,.pem,.cer"
+                       class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+              </div>
+
+              <div>
+                <label class="block font-medium text-slate-700 mb-1 text-[11px]">Plik klucza offline (.key):</label>
+                <input type="file" name="offline_key" accept=".key,.pem"
+                       class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+              </div>
+
+              <div>
+                <label class="block font-medium text-slate-700 mb-1 text-[11px]">Hasło klucza offline (jeśli nadano):</label>
+                <input type="password" name="offline_password" placeholder="Opcjonalne hasło do klucza offline.key"
+                       class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none">
+              </div>
+            </div>
+
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Docelowe Środowisko KSeF:</label>
+              <select name="srodowisko" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none cursor-pointer">
+                <option value="PROD" {% if profile.ksef.srodowisko == 'PROD' %}selected{% endif %}>🟢 Produkcyjne (PROD)</option>
+                <option value="TEST" {% if profile.ksef.srodowisko == 'TEST' %}selected{% endif %}>🟡 Testowe / Przedprodukcyjne (TEST)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <button type="submit" class="px-5 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer flex items-center space-x-1.5">
+              <span>💾 Zapisz & Aktywuj Certyfikaty</span>
+            </button>
+
+            <span class="text-[11px] text-slate-400">
+              Podpis XAdES-BES Enveloped • Exclusive C14N • SHA-256
+            </span>
+          </div>
+
+          <div id="ksef-cert-upload-result"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- SEKCJA FORMULARZA: TOKEN (Gdy wybrany token) -->
+    <div x-show="authMethod === 'token'" x-cloak class="space-y-4 pt-2">
+      <form hx-post="/ustawienia/ksef" 
+            hx-target="#ksef-settings-result" 
+            class="space-y-4 text-xs">
+        
+        <input type="hidden" name="auth_type" value="token">
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          
+          <div class="sm:col-span-2">
+            <label class="block font-bold text-slate-700 mb-1">
+              Token Autoryzacyjny Podatnika KSeF <span class="text-red-500">*</span>
+            </label>
+            <input type="text" name="token" value="{{ profile.ksef.token or '' }}" required
+                   placeholder="Wklej token wygenerowany w Aplikacji Podatnika KSeF"
+                   class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <span class="text-[10px] text-slate-400 mt-1 block">
+              Token generowany w Aplikacji Podatnika KSeF z uprawnieniami do odczytu i zapisu faktur.
+            </span>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Środowisko KSeF:</label>
+            <select name="srodowisko" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+              <option value="PROD" {% if profile.ksef.srodowisko == 'PROD' %}selected{% endif %}>🟢 Produkcyjne (PROD)</option>
+              <option value="TEST" {% if profile.ksef.srodowisko == 'TEST' %}selected{% endif %}>🟡 Testowe / Przedprodukcyjne (TEST)</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
+            💾 Zapisz & Aktywuj Token KSeF
+          </button>
+
+          <span class="text-[11px] text-slate-400">
+            Szyfrowanie certyfikatem MF RSA-OAEP SHA-256
           </span>
         </div>
 
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Środowisko KSeF:</label>
-          <select name="srodowisko" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
-            <option value="PROD" {% if profile.ksef.srodowisko == 'PROD' %}selected{% endif %}>🟢 Produkcyjne (PROD)</option>
-            <option value="TEST" {% if profile.ksef.srodowisko == 'TEST' %}selected{% endif %}>🟡 Testowe / Przedprodukcyjne (TEST)</option>
-          </select>
-        </div>
+        <div id="ksef-settings-result"></div>
+      </form>
+    </div>
 
-      </div>
-
-      <div class="flex items-center justify-between pt-2">
-        <button type="submit" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs shadow-xs transition-colors cursor-pointer">
-          💾 Zapisz Konfigurację KSeF
-        </button>
-
-        <span class="text-[11px] text-slate-400">
-          Szyfrowanie certyfikatem MF RSA-OAEP SHA-256
+    <!-- Przycisk Testu Połączenia (Dla aktywnej metody) -->
+    <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <span class="font-bold text-slate-800 block text-xs">🧪 Test Nawiązania Sesji KSeF 2.0</span>
+        <span class="text-[11px] text-slate-500 block">
+          Sprawdza dostępność bramki MF, poprawność podpisu/szyfrowania oraz odbiera testowy JWT access token.
         </span>
       </div>
+      <button type="button" 
+              hx-post="/ustawienia/ksef/test" 
+              hx-target="#ksef-test-result"
+              class="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold rounded-lg text-xs border border-slate-300 shadow-xs transition-colors cursor-pointer flex items-center space-x-1.5 self-start sm:self-auto">
+        <span>🔌 Przetestuj Połączenie z KSeF</span>
+      </button>
+    </div>
 
-      <div id="ksef-settings-result"></div>
-    </form>
+    <div id="ksef-test-result"></div>
+
   </div>
 
   <!-- 3. Karta Silnika AI (Multi-Provider: Antigravity, Gemini, OpenAI, Claude, Zero-LLM) -->

@@ -206,6 +206,7 @@ class TestWebSecurityHardening(unittest.TestCase):
             del os.environ["TAXPILOT_ACCESS_TOKEN"]
             os.environ.pop("TAXPILOT_COOKIE_SECURE", None)
 
+    @unittest.skipIf(os.name == "nt", "POSIX file permissions (chmod 0700/0600) are not supported on Windows NTFS")
     def test_migrate_data_permissions(self):
         """Weryfikuje funkcję migrate_data_permissions (chmod 700 / 600 - SEC-10)."""
         with tempfile.TemporaryDirectory() as tmp_dir:

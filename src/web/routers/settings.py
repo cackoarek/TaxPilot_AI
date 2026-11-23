@@ -10,12 +10,14 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from src.core.company import TypZUS
 from src.core.io import atomic_write_text
+from src.level_1_ingestion.ksef_client import KSeFClient
+from src.level_1_ingestion.xades_signer import parse_certificate_info, validate_key_pair
 from src.logging_config import get_logger
 from src.web.config import TEMPLATES_DIR, get_llm_status
 from src.web.dependencies import get_global_context
@@ -60,6 +62,33 @@ async def settings_view(request: Request):
     if not llm_saved_config.get("model"):
         llm_saved_config["model"] = llm_status.get("model", "")
 
+    # Informacje o certyfikatach KSeF firmy
+    auth_cert_info = None
+    auth_key_exists = False
+    offline_cert_info = None
+    offline_key_exists = False
+
+    if profile:
+        auth_cert_p = profile.get_auth_cert_path()
+        if auth_cert_p:
+            try:
+                auth_cert_info = parse_certificate_info(auth_cert_p.read_bytes())
+            except Exception as e:
+                auth_cert_info = {"error": str(e), "is_valid": False}
+        auth_key_exists = bool(profile.get_auth_key_path())
+
+        offline_cert_p = profile.get_offline_cert_path()
+        if offline_cert_p:
+            try:
+                offline_cert_info = parse_certificate_info(offline_cert_p.read_bytes())
+            except Exception as e:
+                offline_cert_info = {"error": str(e), "is_valid": False}
+        offline_key_exists = bool(profile.get_offline_key_path())
+
+    ctx["auth_cert_info"] = auth_cert_info
+    ctx["auth_key_exists"] = auth_key_exists
+    ctx["offline_cert_info"] = offline_cert_info
+    ctx["offline_key_exists"] = offline_key_exists
     ctx["llm"] = llm_status
     ctx["llm_status"] = llm_status
     ctx["llm_saved"] = llm_saved_config
@@ -71,32 +100,275 @@ async def settings_view(request: Request):
 @router.post("/ksef", response_class=HTMLResponse)
 async def update_ksef_settings(
     request: Request,
-    token: str = Form(...),
+    token: Optional[str] = Form(None),
     srodowisko: str = Form("PROD"),
+    auth_type: str = Form("token"),
 ):
-    """Zapisuje token i środowisko KSeF w profil.json firmy."""
+    """Zapisuje metodę uwierzytelniania, token i środowisko KSeF w profil.json firmy."""
     ctx = get_global_context(request)
     profile = ctx["profile"]
 
     if not profile:
         raise HTTPException(status_code=400, detail="Brak profilu firmy")
 
-    token_clean = token.strip()
+    token_clean = (token or "").strip()
     env_clean = srodowisko.strip().upper()
+    auth_type_clean = auth_type.strip().lower()
 
-    profile.set_ksef_token(token=token_clean, srodowisko=env_clean)
+    if auth_type_clean == "token" and not token_clean and not profile.ksef.token:
+        return HTMLResponse(
+            content="""
+            <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                <div class="flex items-center space-x-2 font-bold">
+                    <span>⚠️</span>
+                    <span>Wprowadź token autoryzacyjny KSeF</span>
+                </div>
+                <p>Wybrano uwierzytelnianie tokenem, ale pole tokena pozostało puste.</p>
+            </div>
+            """
+        )
+
+    if auth_type_clean == "certyfikat" and not profile.has_ksef_certificate():
+        return HTMLResponse(
+            content="""
+            <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                <div class="flex items-center space-x-2 font-bold">
+                    <span>⚠️</span>
+                    <span>Brak wgranego certyfikatu uwierzytelnienia</span>
+                </div>
+                <p>Aby przełączyć tryb na certyfikat, najpierw wgraj pliki <code>auth.crt</code> oraz <code>auth.key</code> w sekcji poniżej.</p>
+            </div>
+            """
+        )
+
+    profile.set_ksef_token(
+        token=token_clean if token_clean else (profile.ksef.token or ""),
+        srodowisko=env_clean,
+        auth_type=auth_type_clean,
+    )
+
+    mode_label = (
+        "Certyfikat KSeF (.crt + .key / XAdES-BES)" if auth_type_clean == "certyfikat" else "Token autoryzacyjny KSeF"
+    )
 
     return HTMLResponse(
-        content="""
+        content=f"""
         <div class="p-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
             <div class="flex items-center space-x-2 font-bold">
                 <span>✅</span>
                 <span>Konfiguracja KSeF została pomyślnie zaktualizowana</span>
             </div>
-            <p>Zapisano token i środowisko w <code>profil.json</code>. Możesz teraz synchronizować faktury z bramki Ministerstwa Finansów.</p>
+            <p>Zapisano w <code>profil.json</code>: Aktywna metoda: <strong>{mode_label}</strong> • Środowisko: <strong>{env_clean}</strong>.</p>
         </div>
         """
     )
+
+
+@router.post("/ksef/certyfikaty", response_class=HTMLResponse)
+async def upload_ksef_certificates(
+    request: Request,
+    auth_crt: Optional[UploadFile] = File(None),
+    auth_key: Optional[UploadFile] = File(None),
+    auth_password: Optional[str] = Form(None),
+    offline_crt: Optional[UploadFile] = File(None),
+    offline_key: Optional[UploadFile] = File(None),
+    offline_password: Optional[str] = Form(None),
+    switch_to_cert: Optional[str] = Form("true"),
+    srodowisko: Optional[str] = Form(None),
+):
+    """
+    Wgrywa i waliduje certyfikaty oraz klucze prywatne dla uwierzytelnienia oraz trybu offline.
+    Zapisuje je bezpiecznie w katalogu firmy: firmy/{NIP}/certyfikaty/ (uprawnienia 0600).
+    """
+    ctx = get_global_context(request)
+    profile = ctx["profile"]
+
+    if not profile:
+        raise HTTPException(status_code=400, detail="Brak profilu firmy")
+
+    auth_cert_bytes = await auth_crt.read() if auth_crt and auth_crt.filename else None
+    auth_key_bytes = await auth_key.read() if auth_key and auth_key.filename else None
+    offline_cert_bytes = await offline_crt.read() if offline_crt and offline_crt.filename else None
+    offline_key_bytes = await offline_key.read() if offline_key and offline_key.filename else None
+
+    if not (
+        auth_cert_bytes
+        or auth_key_bytes
+        or offline_cert_bytes
+        or offline_key_bytes
+        or auth_password
+        or offline_password
+    ):
+        return HTMLResponse(
+            content="""
+            <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                <div class="flex items-center space-x-2 font-bold">
+                    <span>⚠️</span>
+                    <span>Wybierz pliki certyfikatów lub kluczy do wgrania</span>
+                </div>
+                <p>Nie wybrano żadnego pliku (.crt lub .key).</p>
+            </div>
+            """
+        )
+
+    # Walidacja pary Uwierzytelnienia
+    cert_to_check = auth_cert_bytes
+    if not cert_to_check and profile.get_auth_cert_path():
+        cert_to_check = profile.get_auth_cert_path().read_bytes()
+
+    key_to_check = auth_key_bytes
+    if not key_to_check and profile.get_auth_key_path():
+        key_to_check = profile.get_auth_key_path().read_bytes()
+
+    if cert_to_check and key_to_check:
+        pwd_bytes = (
+            auth_password.strip().encode("utf-8")
+            if auth_password and auth_password.strip()
+            else (profile.ksef.key_password.encode("utf-8") if profile.ksef.key_password else None)
+        )
+        valid, msg = validate_key_pair(cert_to_check, key_to_check, pwd_bytes)
+        if not valid:
+            return HTMLResponse(
+                content=f"""
+                <div class="p-4 bg-rose-50 text-rose-900 border border-rose-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                    <div class="flex items-center space-x-2 font-bold">
+                        <span>❌</span>
+                        <span>Błąd weryfikacji certyfikatu uwierzytelnienia</span>
+                    </div>
+                    <p class="font-mono text-[11px]">{msg}</p>
+                    <p class="text-[11px] text-rose-700">Upewnij się, że plik .key odpowiada certyfikatowi .crt oraz że podano poprawne hasło (jeśli klucz jest chroniony hasłem).</p>
+                </div>
+                """
+            )
+
+    # Walidacja pary Offline
+    off_cert_to_check = offline_cert_bytes
+    if not off_cert_to_check and profile.get_offline_cert_path():
+        off_cert_to_check = profile.get_offline_cert_path().read_bytes()
+
+    off_key_to_check = offline_key_bytes
+    if not off_key_to_check and profile.get_offline_key_path():
+        off_key_to_check = profile.get_offline_key_path().read_bytes()
+
+    if off_cert_to_check and off_key_to_check:
+        off_pwd_bytes = (
+            offline_password.strip().encode("utf-8")
+            if offline_password and offline_password.strip()
+            else (profile.ksef.offline_key_password.encode("utf-8") if profile.ksef.offline_key_password else None)
+        )
+        valid_off, msg_off = validate_key_pair(off_cert_to_check, off_key_to_check, off_pwd_bytes)
+        if not valid_off:
+            return HTMLResponse(
+                content=f"""
+                <div class="p-4 bg-rose-50 text-rose-900 border border-rose-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                    <div class="flex items-center space-x-2 font-bold">
+                        <span>❌</span>
+                        <span>Błąd weryfikacji certyfikatu trybu offline</span>
+                    </div>
+                    <p class="font-mono text-[11px]">{msg_off}</p>
+                    <p class="text-[11px] text-rose-700">Upewnij się, że plik offline .key odpowiada certyfikatowi offline .crt.</p>
+                </div>
+                """
+            )
+
+    auth_type = "certyfikat" if (switch_to_cert and switch_to_cert.lower() in ("true", "1", "yes", "on")) else None
+
+    profile.set_ksef_certificates(
+        auth_cert_bytes=auth_cert_bytes,
+        auth_key_bytes=auth_key_bytes,
+        auth_password=auth_password,
+        offline_cert_bytes=offline_cert_bytes,
+        offline_key_bytes=offline_key_bytes,
+        offline_password=offline_password,
+        auth_type=auth_type,
+        srodowisko=srodowisko,
+    )
+
+    uploaded_items = []
+    if auth_cert_bytes:
+        uploaded_items.append("Certyfikat uwierzytelnienia (auth.crt)")
+    if auth_key_bytes:
+        uploaded_items.append("Klucz prywatny uwierzytelnienia (auth.key)")
+    if offline_cert_bytes:
+        uploaded_items.append("Certyfikat trybu offline (offline.crt)")
+    if offline_key_bytes:
+        uploaded_items.append("Klucz trybu offline (offline.key)")
+
+    summary_items = ", ".join(uploaded_items) if uploaded_items else "Zaktualizowano konfigurację haseł"
+
+    return HTMLResponse(
+        content=f"""
+        <div class="p-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+            <div class="flex items-center space-x-2 font-bold">
+                <span>✅</span>
+                <span>Certyfikaty KSeF zostały pomyślnie wgrane i zweryfikowane</span>
+            </div>
+            <p>Zapisano: <strong>{summary_items}</strong> w <code>firmy/{profile.katalog_nazwa}/certyfikaty/</code> (uprawnienia 0600).</p>
+            <p class="text-[11px] text-emerald-700 font-medium mt-1">Ustawiono metodę autoryzacji na <strong>Certyfikat KSeF (XAdES-BES)</strong>. Odśwież stronę lub przetestuj połączenie przyciskiem poniżej.</p>
+        </div>
+        """
+    )
+
+
+@router.post("/ksef/test", response_class=HTMLResponse)
+async def test_ksef_connection(request: Request):
+    """Testuje połączenie i sesję z KSeF 2.0 (tokenem lub certyfikatem)."""
+    ctx = get_global_context(request)
+    profile = ctx["profile"]
+
+    if not profile:
+        raise HTTPException(status_code=400, detail="Brak profilu firmy")
+
+    client = KSeFClient(profile)
+
+    if not client.is_auth_configured():
+        auth_type = (profile.ksef.auth_type or "token").lower()
+        if auth_type == "certyfikat":
+            detail = "Brak wgranego kompletu certyfikat + klucz (auth.crt i auth.key)."
+        else:
+            detail = "Brak skonfigurowanego tokenu KSeF."
+        return HTMLResponse(
+            content=f"""
+            <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                <div class="flex items-center space-x-2 font-bold">
+                    <span>⚠️</span>
+                    <span>Brak konfiguracji uwierzytelnienia</span>
+                </div>
+                <p>{detail}</p>
+            </div>
+            """
+        )
+
+    try:
+        res = client.test_connection()
+        auth_name = "Certyfikat (XAdES-BES)" if res.get("auth_type") == "certyfikat" else "Token autoryzacyjny"
+        valid_until = res.get("valid_until", "Sesja aktywna")
+        return HTMLResponse(
+            content=f"""
+            <div class="p-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                <div class="flex items-center space-x-2 font-bold">
+                    <span>🏛️</span>
+                    <span>Połączenie z KSeF 2.0 nawiązane pomyślnie!</span>
+                </div>
+                <p>Metoda: <strong>{auth_name}</strong> • Środowisko: <strong>{res.get("srodowisko")}</strong></p>
+                <p class="text-[11px] text-emerald-700 font-mono">JWT access_token odebrany. Ważny do: {valid_until}</p>
+            </div>
+            """
+        )
+    except Exception as e:
+        logger.error("Błąd testu połączenia z KSeF dla %s: %s", profile.nip, e)
+        return HTMLResponse(
+            content=f"""
+            <div class="p-4 bg-rose-50 text-rose-900 border border-rose-300 rounded-xl text-xs space-y-1 shadow-xs fade-in">
+                <div class="flex items-center space-x-2 font-bold">
+                    <span>❌</span>
+                    <span>Błąd testu połączenia z KSeF</span>
+                </div>
+                <p class="font-mono text-[11px]">{str(e)}</p>
+                <p class="text-[11px] text-rose-700">Sprawdź, czy środowisko KSeF ({profile.ksef.srodowisko}) jest dostępne i dane autoryzacyjne są poprawne.</p>
+            </div>
+            """
+        )
 
 
 @router.post("/podatki", response_class=HTMLResponse)

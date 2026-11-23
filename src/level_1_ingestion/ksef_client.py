@@ -26,6 +26,7 @@ from src.core.invoice import Invoice
 from src.core.io import atomic_write_json
 from src.level_1_ingestion.invoice_storage import InvoiceStorage
 from src.level_1_ingestion.ksef_parser import KSeFParser
+from src.level_1_ingestion.xades_signer import sign_ksef_auth_token_request
 
 
 class KSeFClient:
@@ -57,13 +58,30 @@ class KSeFClient:
         """Metoda pomocnicza dla wstecznej kompatybilności."""
         return self.get_auth_token()
 
+    def is_certificate_configured(self) -> bool:
+        """Sprawdza, czy skonfigurowany jest certyfikat i klucz uwierzytelniający KSeF."""
+        return self.profile.has_ksef_certificate()
+
+    def is_auth_configured(self) -> bool:
+        """Sprawdza czy skonfigurowana jest wybrana lub jakakolwiek metoda uwierzytelnienia (certyfikat / token)."""
+        auth_type = (self.profile.ksef.auth_type or "token").lower()
+        if auth_type == "certyfikat":
+            return self.is_certificate_configured()
+        elif auth_type == "token":
+            return self.is_token_configured()
+        return self.is_certificate_configured() or self.is_token_configured()
+
     def is_token_configured(self) -> bool:
+        """Sprawdza poprawność konfiguracji uwierzytelnienia (obsługuje certyfikat oraz token)."""
+        auth_type = (self.profile.ksef.auth_type or "token").lower()
+        if auth_type == "certyfikat":
+            return self.is_certificate_configured()
         token = self.get_auth_token()
         return bool(token and token != "twoj_tajny_token_ksef_tutaj")
 
     def set_auth_token(self, token: str, srodowisko: Optional[str] = None) -> None:
         """Zapisuje token KSeF bezpośrednio w pliku profil.json firmy."""
-        self.profile.set_ksef_token(token, srodowisko)
+        self.profile.set_ksef_token(token, srodowisko, auth_type="token")
 
     @classmethod
     def get_sync_history_file(cls, profile: CompanyProfile) -> Path:
@@ -139,6 +157,102 @@ class KSeFClient:
         return history[0] if history else None
 
     def authenticate(self) -> str:
+        """
+        Realizuje uwierzytelnienie w KSeF 2.0:
+        - Za pomocą certyfikatu KSeF (.crt + .key, XAdES-BES), jeśli auth_type == 'certyfikat'
+          lub jeśli certyfikat jest skonfigurowany a token nie.
+        - Za pomocą tokenu KSeF (RSA-OAEP SHA-256) w pozostałych przypadkach.
+        """
+        auth_type = (self.profile.ksef.auth_type or "token").lower()
+        if auth_type == "certyfikat" or (not self.get_auth_token() and self.is_certificate_configured()):
+            return self.authenticate_with_certificate()
+        return self.authenticate_with_token()
+
+    def authenticate_with_certificate(self) -> str:
+        """
+        Realizuje uwierzytelnienie w KSeF 2.0 za pomocą podpisu elektronicznego XAdES-BES (certyfikat + klucz):
+        1. Wczytanie certyfikatu (auth.crt) i klucza prywatnego (auth.key) firmy
+        2. Pobranie AuthorisationChallenge (POST /auth/challenge)
+        3. Wygenerowanie i podpisanie XML AuthTokenRequest (XAdES-BES Enveloped)
+        4. Rozpoczęcie sesji (POST /auth/xades-signature)
+        5. Oczekiwanie na zatwierdzenie (GET /auth/{referenceNumber})
+        6. Odebranie docelowego JWT access_token (POST /auth/token/redeem)
+        """
+        cert_path = self.profile.get_auth_cert_path()
+        key_path = self.profile.get_auth_key_path()
+
+        if not cert_path or not key_path:
+            raise ValueError(
+                f"Brak plików certyfikatu lub klucza dla firmy {self.profile.nazwa} (NIP: {self.profile.nip}). "
+                f"Wgraj certyfikat (auth.crt) oraz klucz prywatny (auth.key) w Ustawieniach Firmy."
+            )
+
+        with open(cert_path, "rb") as f:
+            cert_bytes = f.read()
+        with open(key_path, "rb") as f:
+            key_bytes = f.read()
+
+        key_password = self.profile.ksef.key_password.encode("utf-8") if self.profile.ksef.key_password else None
+
+        # 1. Challenge
+        r_chal = self.session.post(f"{self.base_url}/auth/challenge", json={}, timeout=10)
+        r_chal.raise_for_status()
+        chal_data = r_chal.json()
+        challenge = chal_data["challenge"]
+
+        # 2. Podpisanie XML AuthTokenRequest w formacie XAdES-BES
+        signed_xml = sign_ksef_auth_token_request(
+            challenge=challenge,
+            nip=self.profile.nip,
+            cert_bytes=cert_bytes,
+            key_bytes=key_bytes,
+            key_password=key_password,
+        )
+
+        # 3. Wysłanie podpisanego XML do /auth/xades-signature
+        headers = {
+            "Content-Type": "application/xml",
+            "Accept": "application/json",
+        }
+        r_auth = self.session.post(
+            f"{self.base_url}/auth/xades-signature",
+            data=signed_xml,
+            headers=headers,
+            timeout=15,
+        )
+        r_auth.raise_for_status()
+        auth_resp = r_auth.json()
+        ref_num = auth_resp["referenceNumber"]
+        temp_auth_token = auth_resp["authenticationToken"]["token"]
+
+        # 4. Polling statusu
+        auth_headers = {"Authorization": f"Bearer {temp_auth_token}"}
+        success = False
+        for _ in range(15):
+            r_stat = self.session.get(f"{self.base_url}/auth/{ref_num}", headers=auth_headers, timeout=10)
+            if r_stat.status_code == 200:
+                stat_data = r_stat.json().get("status", {})
+                code = stat_data.get("code")
+                if code == 200:
+                    success = True
+                    break
+                elif code and code >= 400:
+                    raise PermissionError(f"Błąd uwierzytelnienia certyfikatem w KSeF: {stat_data.get('description')}")
+            time.sleep(1)
+
+        if not success:
+            raise TimeoutError("Przekroczono czas oczekiwania na potwierdzenie uwierzytelnienia certyfikatem w KSeF.")
+
+        # 5. Odebranie Access Tokena
+        r_redeem = self.session.post(f"{self.base_url}/auth/token/redeem", headers=auth_headers, timeout=10)
+        r_redeem.raise_for_status()
+        redeem_data = r_redeem.json()
+        self.access_token = redeem_data["accessToken"]["token"]
+        self.access_token_valid_until = redeem_data["accessToken"]["validUntil"]
+
+        return self.access_token
+
+    def authenticate_with_token(self) -> str:
         """
         Realizuje pełny proces uwierzytelnienia w KSeF 2.0 za pomocą tokenu podatnika:
         1. Pobranie AuthorisationChallenge (POST /auth/challenge)
@@ -220,6 +334,19 @@ class KSeFClient:
         self.access_token_valid_until = redeem_data["accessToken"]["validUntil"]
 
         return self.access_token
+
+    def test_connection(self) -> Dict[str, Any]:
+        """
+        Nawiązuje testową sesję z KSeF (poprzez certyfikat lub token) i zwraca status.
+        """
+        token = self.authenticate()
+        return {
+            "success": True,
+            "auth_type": self.profile.ksef.auth_type,
+            "srodowisko": self.env,
+            "valid_until": self.access_token_valid_until,
+            "token_prefix": token[:15] + "..." if token else "",
+        }
 
     def _ensure_authenticated(self):
         """Upewnia się, że posiadamy aktywny token dostępowy."""

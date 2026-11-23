@@ -181,6 +181,42 @@ class TestAntigravityProvider(unittest.IsolatedAsyncioTestCase):
         mock_proc.terminate.assert_called_once()
         self.assertNotIn("proc_test_session", AntigravitySessionManager._instances)
 
+    @patch("shutil.which")
+    @patch("asyncio.create_subprocess_exec")
+    async def test_chat_async_fallback_on_not_implemented_error(self, mock_exec, mock_which):
+        """Weryfikuje, że chat_async używa fallbacku w wątku przy NotImplementedError (np. SelectorEventLoop na Windows)."""
+        mock_which.return_value = "C:\\Users\\Test\\AppData\\Local\\agy\\bin\\agy.exe"
+        mock_exec.side_effect = NotImplementedError("create_subprocess_exec is not implemented")
+
+        provider = AntigravityProvider(session_id="fallback_test_session")
+        with patch.object(
+            provider,
+            "_run_in_thread",
+            new=AsyncMock(return_value=(0, b"Odpowiedz z fallbacku", b"")),
+        ) as mock_thread_runner:
+            res = await provider.chat_async([ChatMessage(role="user", content="Test")])
+            mock_thread_runner.assert_called_once()
+            self.assertEqual(res, "Odpowiedz z fallbacku")
+
+    @patch("shutil.which")
+    @patch("asyncio.create_subprocess_exec")
+    async def test_stream_chat_fallback_on_not_implemented_error(self, mock_exec, mock_which):
+        """Weryfikuje, że stream_chat używa fallbacku strumieniowania przy NotImplementedError."""
+        mock_which.return_value = "C:\\Users\\Test\\AppData\\Local\\agy\\bin\\agy.exe"
+        mock_exec.side_effect = NotImplementedError("create_subprocess_exec is not implemented")
+
+        provider = AntigravityProvider(session_id="fallback_stream_session")
+
+        async def fake_stream(*args, **kwargs):
+            yield "Chunk 1\n"
+            yield "Chunk 2\n"
+
+        with patch.object(provider, "_stream_in_thread", side_effect=fake_stream):
+            chunks = []
+            async for chunk in provider.stream_chat([ChatMessage(role="user", content="Test")]):
+                chunks.append(chunk)
+            self.assertEqual(chunks, ["Chunk 1\n", "Chunk 2\n"])
+
 
 if __name__ == "__main__":
     unittest.main()

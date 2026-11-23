@@ -462,15 +462,23 @@ async def sync_ksef_invoices(request: Request):
 
     client = KSeFClient(profile)
 
-    if not client.is_token_configured():
+    if not client.is_auth_configured():
+        auth_type = (profile.ksef.auth_type or "token").lower()
+        if auth_type == "certyfikat":
+            tytul = "Brak skonfigurowanych certyfikatów KSeF"
+            msg = "Aby pobierać faktury za pomocą certyfikatu KSeF, wgraj pliki <code>auth.crt</code> i <code>auth.key</code> w module Ustawienia."
+        else:
+            tytul = "Brak skonfigurowanego tokenu lub certyfikatu KSeF"
+            msg = "Aby pobierać faktury bezpośrednio z KSeF, uzupełnij token autoryzacyjny lub wgraj certyfikaty w module Ustawienia."
+
         return HTMLResponse(
-            content="""
+            content=f"""
             <div class="p-4 bg-amber-50 text-amber-900 border border-amber-300 rounded-xl text-xs space-y-2 shadow-xs fade-in mb-4">
                 <div class="flex items-center space-x-2 font-bold">
                     <span>⚠️</span>
-                    <span>Brak skonfigurowanego tokenu KSeF</span>
+                    <span>{tytul}</span>
                 </div>
-                <p>Aby pobierać faktury bezpośrednio z KSeF, uzupełnij token autoryzacyjny w pliku <code>profil.json</code> firmy lub w module Ustawienia.</p>
+                <p>{msg}</p>
             </div>
             """
         )

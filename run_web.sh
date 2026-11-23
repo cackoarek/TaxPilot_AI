@@ -10,6 +10,8 @@ cd "$SCRIPT_DIR"
 
 if [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
     PYTHON_BIN="$SCRIPT_DIR/.venv/bin/python"
+elif [ -f "$SCRIPT_DIR/venv/bin/python" ]; then
+    PYTHON_BIN="$SCRIPT_DIR/venv/bin/python"
 elif [ -n "$VIRTUAL_ENV" ]; then
     PYTHON_BIN="python"
 else

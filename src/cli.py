@@ -205,11 +205,44 @@ def cmd_set_token(args):
         print(f"Błąd: Nie znaleziono profilu firmy dla NIP: {args.nip}")
         sys.exit(1)
 
-    profile.set_ksef_token(token=args.token, srodowisko=args.srodowisko)
+    profile.set_ksef_token(token=args.token, srodowisko=args.srodowisko, auth_type="token")
     print("✅ Pomyślnie zapisano token KSeF w profilu firmy!")
     print(f" * Firma: {profile.nazwa} (NIP: {profile.nip})")
     print(f" * Środowisko KSeF: {profile.ksef.srodowisko}")
     print(f" * Ścieżka pliku: firmy/{profile.katalog_nazwa}/profil.json")
+
+
+def cmd_set_certs(args):
+    profile = CompanyProfile.load_by_nip(args.nip)
+    if not profile:
+        print(f"Błąd: Nie znaleziono profilu firmy dla NIP: {args.nip}")
+        sys.exit(1)
+
+    auth_cert_p = Path(args.auth_cert) if args.auth_cert else None
+    auth_key_p = Path(args.auth_key) if args.auth_key else None
+    off_cert_p = Path(args.offline_cert) if args.offline_cert else None
+    off_key_p = Path(args.offline_key) if args.offline_key else None
+
+    auth_cert_b = auth_cert_p.read_bytes() if auth_cert_p and auth_cert_p.exists() else None
+    auth_key_b = auth_key_p.read_bytes() if auth_key_p and auth_key_p.exists() else None
+    off_cert_b = off_cert_p.read_bytes() if off_cert_p and off_cert_p.exists() else None
+    off_key_b = off_key_p.read_bytes() if off_key_p and off_key_p.exists() else None
+
+    profile.set_ksef_certificates(
+        auth_cert_bytes=auth_cert_b,
+        auth_key_bytes=auth_key_b,
+        auth_password=args.auth_password,
+        offline_cert_bytes=off_cert_b,
+        offline_key_bytes=off_key_b,
+        offline_password=args.offline_password,
+        auth_type="certyfikat",
+        srodowisko=args.srodowisko,
+    )
+    print("✅ Pomyślnie wgrano i skonfigurowano certyfikaty KSeF w profilu firmy!")
+    print(f" * Firma: {profile.nazwa} (NIP: {profile.nip})")
+    print(f" * Katalog certyfikatów: firmy/{profile.katalog_nazwa}/certyfikaty/")
+    print(f" * Aktywna metoda autoryzacji: {profile.ksef.auth_type} (XAdES-BES)")
+    print(f" * Środowisko KSeF: {profile.ksef.srodowisko}")
 
 
 def cmd_extract_non_ksef(args):
@@ -603,6 +636,22 @@ def main():
     p_tok.add_argument("--token", required=True, help="Token autoryzacyjny KSeF")
     p_tok.add_argument("--srodowisko", choices=["TEST", "PROD"], default=None, help="Środowisko KSeF (TEST / PROD)")
     p_tok.set_defaults(func=cmd_set_token)
+
+    # Polecenie set-certs (certyfikaty KSeF .crt + .key)
+    p_certs = subparsers.add_parser("set-certs", help="Wgraj certyfikaty i klucze KSeF (.crt + .key) do profilu firmy")
+    p_certs.add_argument("--nip", default="7770001122", help="NIP rozliczanej firmy")
+    p_certs.add_argument("--auth-cert", default=None, help="Ścieżka do pliku certyfikatu uwierzytelnienia (auth.crt)")
+    p_certs.add_argument(
+        "--auth-key", default=None, help="Ścieżka do pliku klucza prywatnego uwierzytelnienia (auth.key)"
+    )
+    p_certs.add_argument("--auth-password", default=None, help="Opcjonalne hasło do klucza uwierzytelnienia")
+    p_certs.add_argument(
+        "--offline-cert", default=None, help="Ścieżka do pliku certyfikatu trybu offline (offline.crt)"
+    )
+    p_certs.add_argument("--offline-key", default=None, help="Ścieżka do pliku klucza trybu offline (offline.key)")
+    p_certs.add_argument("--offline-password", default=None, help="Opcjonalne hasło do klucza trybu offline")
+    p_certs.add_argument("--srodowisko", choices=["TEST", "PROD"], default=None, help="Środowisko KSeF (TEST / PROD)")
+    p_certs.set_defaults(func=cmd_set_certs)
 
     # Polecenie init-firma (onboarding nowego konta)
     p_init = subparsers.add_parser(

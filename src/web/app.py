@@ -12,13 +12,21 @@ Zawiera zintegrowane mechanizmy bezpieczeństwa:
 - Automatyczną migrację uprawnień chmod 700/600 (SEC-10)
 """
 
+import asyncio
 import html
 import os
 import secrets
+import sys
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Dict, List
+
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except Exception:
+        pass
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
