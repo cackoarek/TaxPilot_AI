@@ -28,6 +28,9 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
   - Integracja CLI: dodanie poleceń `python -m src.cli backup --nip {NIP}` oraz `python -m src.cli restore {ARCHIWUM}` w `src/cli.py`.
 - **QA-10**: Rozbudowany zestaw testów jednostkowych i integracyjnych `tests/test_audit04_hardening.py` weryfikujący twardnienia CSRF, maskowanie sekretów, blokady współbieżności, silnik backupu i zabezpieczenie przed TarSlip (255 testów przechodzących ze 100% sukcesem).
 
+### Zmienione
+- **UI-1**: Zmiana nazwy kolumny tabeli dokumentów w widoku „Faktury & KSeF 2.0” z „Plik” na bardziej intuicyjną nazwę „Podgląd” (`src/web/templates/partials/invoices_table.html`).
+
 ### Naprawione
 - **NRB-1**: Poprawa formatowania i prezentacji numerów kont bankowych na pulpicie (`src/web/templates/pages/dashboard.html`): eliminacja nieprawidłowych spacji, zbitego 10-cyfrowego bloku NIP i nadmiarowej długości 27 cyfr w kafelkach PIT-28 i VAT-7, a także usunięcie zahardkodowanego sztucznego rachunku ZUS NRS.
 - **NRB-2**: Wdrożenie w `src/core/validators.py` standardowego formatowania polskiego Numeru Rachunku Bankowego (NRB) `format_nrb` zgodnie z normą PN-ISO 13616 w układzie 7 grup (`2 + 4 + 4 + 4 + 4 + 4 + 4` cyfry: `[PL ]XX XXXX XXXX XXXX XXXX XXXX XXXX`), a także deterministycznych generatorów `generate_us_microaccount` i `generate_zus_nrs_account` z algorytmiczną sumą kontrolną ISO 7064 Modulo 97-10.

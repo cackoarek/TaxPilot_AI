@@ -124,7 +124,7 @@ class TestWebBookkeeping(unittest.TestCase):
             assert call_kwargs["nadwyzka_vat_poprzedni"] == Decimal("150.00")
 
     def test_invoices_table_file_preview_button(self):
-        """GET /faktury wyświetla przycisk podglądu pliku w kolumnie Plik tabeli dokumentów."""
+        """GET /faktury wyświetla przycisk podglądu pliku w kolumnie Podgląd tabeli dokumentów."""
         inv = Invoice(
             numer="FV/TEST/001",
             data_wystawienia="2026-10-10",
@@ -161,6 +161,7 @@ class TestWebBookkeeping(unittest.TestCase):
             assert 'hx-get="/api/invoices/preview' in response.text
             assert "faktura_123.pdf" in response.text
             assert 'id="invoice-modal-container"' in response.text
+            assert "Podgląd" in response.text
 
     def test_invoice_preview_displays_file_path(self):
         """GET /api/invoices/preview zwraca modal z widoczną ścieżką do pliku."""
