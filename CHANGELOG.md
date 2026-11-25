@@ -9,6 +9,9 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Naprawione
+- **CI-1**: Poprawa konfiguracji Dependabot (`.github/dependabot.yml`) poprzez określenie prawidłowych ekosystemów pakietów: `pip` (zależności Pythona w `requirements.txt` / `pyproject.toml`), `github-actions` (akcje w `.github/workflows/`) oraz `docker` (obraz w `Dockerfile`).
+
 ---
 
 ## [0.2.0] – 2026-11-22
