@@ -9,6 +9,16 @@ Projekt stosuje [Semantic Versioning](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Dodane
+- **DOCS-1**: Utworzenie kompleksowej, modułowej dokumentacji technicznej i użytkownika w katalogu `docs/`:
+  - `docs/README.md`: Centralny hub nawigacyjny i mapa bazy wiedzy,
+  - `docs/01_szybki_start.md`: Przewodnik instalacji, konfiguracji środowiska `.env`, uruchamiania (Web UI, CLI, Docker) oraz onboardingu firmy z CEIDG/MF,
+  - `docs/02_architektura_i_agenci.md`: Filozofia *Zero-Hallucination*, struktura wielonajemna (*Multi-Tenant*) oraz diagramy orkiestracji zespołu 5 agentów AI,
+  - `docs/03_ksef_i_kryptografia.md`: Bezpośrednia integracja KSeF 2.0 (TEST/PROD), szyfrowanie sesji RSA-OAEP SHA-256, podpisy cyfrowe XAdES-BES i deduplikacja *KSeF First*,
+  - `docs/04_przewodnik_uzytkownika.md`: Szczegółowy podręcznik modułów Web UI (Pulpit i Paczka Przelewów z kodami QR ZBP/Elixir, Magazyn Faktur, Wstępny Przegląd, Compliance AML, Księgowanie, Doradca),
+  - `docs/05_bezpieczenstwo_i_ops.md`: Matryca twardnień OWASP/SEC, ochrona CSRF Double-Submit, filtr maskowania sekretów w logach oraz silnik Enterprise Backup & Restore (CWE-22 defense),
+  - `docs/06_komendy_cli.md`: Kompletny podręcznik poleceń interfejsu wiersza poleceń CLI z przykładami użycia.
+
 ### Naprawione
 - **CI-1**: Poprawa konfiguracji Dependabot (`.github/dependabot.yml`) poprzez określenie prawidłowych ekosystemów pakietów: `pip` (zależności Pythona w `requirements.txt` / `pyproject.toml`), `github-actions` (akcje w `.github/workflows/`) oraz `docker` (obraz w `Dockerfile`).
 

@@ -27,9 +27,24 @@
   📱 <b>Gotowa Paczka Przelewów z kodami QR</b> dla aplikacji mObywatel i bankowości mobilnej.
 </p>
 
-[🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Przeglądaj Demo Online](https://cackoarek.github.io/TaxPilot_AI/) • [🎯 Dlaczego AI?](#-co-wyróżnia-taxpilot-ai-ai-jako-twój-inteligentny-księgowy) • [💻 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura](#-architektura-i-4-poziomy-systemu) • [🤖 Scenariusze AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [⌨️ CLI](#-interfejs-cli-wiersz-poleceń)
+[📚 Pełna Dokumentacja](docs/README.md) • [🚀 Szybki start](#-szybki-start-w-3-krokach) • [🌐 Przeglądaj Demo Online](https://cackoarek.github.io/TaxPilot_AI/) • [🎯 Dlaczego AI?](#-co-wyróżnia-taxpilot-ai-ai-jako-twój-inteligentny-księgowy) • [💻 Nakładka WWW](#-nowoczesna-nakładka-www-interfejs-użytkownika) • [🏛️ Architektura](#-architektura-i-4-poziomy-systemu) • [🤖 Scenariusze AI](#-praca-z-agentem-ai-scenariusze-i-komendy) • [⌨️ CLI](#-interfejs-cli-wiersz-poleceń)
 
 </div>
+
+---
+
+## 📚 Baza Wiedzy & Oficjalna Dokumentacja (`docs/`)
+
+Kompleksowy podręcznik użytkownika, architektury oraz procedur bezpieczeństwa jest dostępny w dedykowanym katalogu [`docs/`](docs/README.md):
+
+| Rozdział | Tytuł przewodnika | Kluczowe zagadnienia |
+| :---: | :--- | :--- |
+| 🚀 **01** | [**Szybki Start & Wdrożenie**](docs/01_szybki_start.md) | Instalacja, plik `.env`, uruchomienie Web UI / CLI / Docker, onboarding firmy z CEIDG/MF. |
+| 🏗️ **02** | [**Architektura & Zespół Agentów**](docs/02_architektura_i_agenci.md) | Zasada *Zero-Hallucination*, izolacja Multi-Tenant, diagramy orkiestracji 5 agentów AI. |
+| 🏛️ **03** | [**KSeF 2.0 & Kryptografia**](docs/03_ksef_i_kryptografia.md) | Połączenie z bramką MF (TEST/PROD), szyfrowanie RSA-OAEP SHA-256, podpisy XAdES-BES, deduplikacja *KSeF First*. |
+| 🖥️ **04** | [**Przewodnik po Modułach Web UI**](docs/04_przewodnik_uzytkownika.md) | Pulpit i Paczka Przelewów z kodami QR ZBP/Elixir, Magazyn Faktur, Przegląd, AML/VAT, Księgowanie. |
+| 🛡️ **05** | [**Bezpieczeństwo & Disaster Recovery**](docs/05_bezpieczenstwo_i_ops.md) | Ochrona CSRF Double-Submit, maskowanie logów, symetryczne szyfrowanie, silnik Backup & Restore (CWE-22 defense). |
+| 💻 **06** | [**Podręcznik Poleceń CLI**](docs/06_komendy_cli.md) | Kompletny zestaw komend wiersza poleceń z praktycznymi przykładami użycia. |
 
 ---
 
